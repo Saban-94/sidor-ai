@@ -59,6 +59,7 @@ export const noaSystemInstruction = `
 - כתובת מוצא: התלמיד 6 או החרש 10, הוד השרון.
 - הצג תמיד את מזהה ההזמנה (orderNumber או 4 ספרות אחרונות של ה-ID) ליד שם הלקוח.
 - בחיפוש הזמנות: חפש גם לפי שם לקוח וגם לפי מספר הזמנה/ליד (orderNumber).
+- כאשר משתמש שואל על "צפי הגעה" או "מתי הוא מגיע?", השתמש ב-get_order_eta (חובה לנסות למצוא קודם את ההזמנה).
 
 הנחיות ל-Quick Actions (אתה מציע אותם בטקסט בסוף התשובה בפורמט [ACTION: תיאור]):
 עודד את המשתמש להשתמש בקיצורי דרך למצבים נפוצים: עדכוני סטטוס, סינון נהגים, דוח בוקר וצפי הגעה.
@@ -158,6 +159,18 @@ export const tools = [
           type: Type.OBJECT,
           properties: {
             customerName: { type: Type.STRING, description: "שם הלקוח שאת הזמנתו יש למחוק" }
+          },
+          required: ["customerName"]
+        }
+      },
+      {
+        name: "get_order_eta",
+        description: "קבל צפי הגעה משוער (ETA) עבור הזמנה ספציפית",
+        parameters: {
+          type: Type.OBJECT,
+          properties: {
+            customerName: { type: Type.STRING, description: "שם הלקוח" },
+            orderId: { type: Type.STRING, description: "מזהה ההזמנה (אופציונלי אם יש שם לקוח)" }
           },
           required: ["customerName"]
         }

@@ -152,13 +152,13 @@ export default function MorningReportSystem({ onBack }: { onBack: () => void }) 
           </button>
           <div>
             <h1 className="text-2xl font-black text-gray-900 flex items-center gap-2">
-              <FileText className="text-orange-600" />
+              <FileText className="text-sky-600" />
               ארכיון דוחות בוקר
             </h1>
             <p className="text-sm text-gray-400 font-medium italic">ריכוז סידור עבודה ושיתוף מהיר</p>
           </div>
         </div>
-        <div className="hidden md:flex bg-white p-1 rounded-2xl shadow-sm border border-gray-100">
+        <div className="hidden md:flex bg-white/80 backdrop-blur-md p-1 rounded-2xl shadow-sm border border-sky-100">
            <div className="flex items-center gap-2 px-4 py-2 text-xs font-bold text-gray-500">
              <Layers size={14} />
              {orders.length} הזמנות פעילות
@@ -169,10 +169,10 @@ export default function MorningReportSystem({ onBack }: { onBack: () => void }) 
       <div className="grid md:grid-cols-12 gap-8">
         {/* Creation Section */}
         <div className="md:col-span-12 lg:col-span-7 space-y-6">
-          <div className="bg-white rounded-[32px] shadow-sm border border-gray-100 overflow-hidden">
-            <div className="p-6 border-b border-gray-50 flex items-center justify-between">
+          <div className="bg-white/80 backdrop-blur-md rounded-[32px] shadow-sm border border-sky-100 overflow-hidden">
+            <div className="p-6 border-b border-sky-50 flex items-center justify-between">
               <h2 className="font-bold text-gray-800 flex items-center gap-2 text-lg">
-                <PlusCircle size={20} className="text-orange-600" />
+                <PlusCircle size={20} className="text-sky-600" />
                 יצירת דוח חדש
               </h2>
               <span className="text-xs font-bold text-gray-400">בחר הזמנות לסידור</span>
@@ -181,7 +181,7 @@ export default function MorningReportSystem({ onBack }: { onBack: () => void }) 
             <div className="overflow-x-auto">
               <table className="w-full text-right">
                 <thead>
-                  <tr className="bg-gray-50/50 text-gray-400 text-[10px] uppercase font-bold tracking-widest">
+                  <tr className="bg-gray-50/30 text-gray-400 text-[10px] uppercase font-bold tracking-widest">
                     <th className="px-6 py-4 w-12 text-center text-gray-900 italic">#</th>
                     <th className="px-6 py-4">לקוח</th>
                     <th className="px-6 py-4">נהג</th>
@@ -210,15 +210,15 @@ export default function MorningReportSystem({ onBack }: { onBack: () => void }) 
                               setSelectedOrders([...selectedOrders, order.id!]);
                             }
                           }}
-                          className={`cursor-pointer transition-colors group ${isSelected ? 'bg-orange-50/30' : 'hover:bg-gray-50'}`}
+                          className={`cursor-pointer transition-colors group ${isSelected ? 'bg-sky-50/30' : 'hover:bg-gray-50'}`}
                         >
                           <td className="px-6 py-4 text-center">
                             {isSelected ? (
-                              <div className="w-5 h-5 bg-orange-600 rounded-lg flex items-center justify-center mx-auto text-white">
+                              <div className="w-5 h-5 bg-sky-600 rounded-lg flex items-center justify-center mx-auto text-white">
                                 <CheckSquare size={14} />
                               </div>
                             ) : (
-                              <div className="w-5 h-5 border-2 border-gray-200 rounded-lg mx-auto group-hover:border-orange-200" />
+                              <div className="w-5 h-5 border-2 border-gray-200 rounded-lg mx-auto group-hover:border-sky-200" />
                             )}
                           </td>
                           <td className="px-6 py-4 text-center">
@@ -236,7 +236,7 @@ export default function MorningReportSystem({ onBack }: { onBack: () => void }) 
                             </div>
                           </td>
                           <td className="px-6 py-4">
-                            <span className="text-xs font-black text-orange-600">{order.time}</span>
+                            <span className="text-xs font-black text-sky-600">{order.time}</span>
                           </td>
                           <td className="px-6 py-4">
                             <span className="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-lg font-bold">{order.warehouse}</span>
@@ -253,7 +253,7 @@ export default function MorningReportSystem({ onBack }: { onBack: () => void }) 
               <button
                 disabled={selectedOrders.length === 0 || isGenerating}
                 onClick={handleSaveReport}
-                className="w-full bg-orange-600 text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-orange-700 transition-colors shadow-lg shadow-orange-600/20 disabled:opacity-50 disabled:shadow-none"
+                className="w-full bg-sky-600 text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-sky-700 transition-colors shadow-lg shadow-sky-600/20 disabled:opacity-50 disabled:shadow-none"
               >
                 {isGenerating ? (
                   <div className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full" />
@@ -270,7 +270,7 @@ export default function MorningReportSystem({ onBack }: { onBack: () => void }) 
 
         {/* History Section */}
         <div className="md:col-span-12 lg:col-span-5 space-y-6">
-          <div className="bg-white rounded-[32px] shadow-sm border border-gray-100 p-6">
+          <div className="bg-white/80 backdrop-blur-md rounded-[32px] shadow-sm border border-sky-100 p-6">
             <h2 className="font-bold text-gray-800 flex items-center gap-2 text-lg mb-6">
               <History size={20} className="text-blue-500" />
               היסטוריית דוחות
@@ -285,11 +285,11 @@ export default function MorningReportSystem({ onBack }: { onBack: () => void }) 
                 reports.map((report) => (
                   <div 
                     key={report.id}
-                    className="p-4 rounded-3xl border border-gray-100 hover:border-blue-100 hover:bg-blue-50/10 transition-all group"
+                    className="p-4 rounded-3xl border border-gray-100 hover:border-sky-100 hover:bg-sky-50/10 transition-all group"
                   >
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-3">
-                        <div className="bg-blue-50 text-blue-500 p-2 rounded-xl">
+                        <div className="bg-sky-50 text-sky-500 p-2 rounded-xl">
                           <Calendar size={18} />
                         </div>
                         <div>
@@ -299,18 +299,18 @@ export default function MorningReportSystem({ onBack }: { onBack: () => void }) 
                       </div>
                       <button 
                         onClick={() => copyToClipboard(report.reportText)}
-                        className="p-2 text-blue-500 hover:bg-blue-50 rounded-xl transition-colors opacity-0 group-hover:opacity-100"
+                        className="p-2 text-sky-500 hover:bg-sky-50 rounded-xl transition-colors opacity-0 group-hover:opacity-100"
                         title="העתק לוואטסאפ"
                       >
                         <Share2 size={18} />
                       </button>
                     </div>
-                    <div className="bg-gray-50 p-3 rounded-2xl text-[10px] text-gray-500 font-medium whitespace-pre-wrap line-clamp-3">
+                    <div className="bg-gray-50/50 p-3 rounded-2xl text-[10px] text-gray-500 font-medium whitespace-pre-wrap line-clamp-3 italic">
                       {report.reportText}
                     </div>
                     <button 
                       onClick={() => setActiveReport(report)}
-                      className="mt-3 w-full text-center text-[10px] font-black text-blue-600 hover:underline uppercase tracking-tight"
+                      className="mt-3 w-full text-center text-[10px] font-black text-sky-600 hover:underline uppercase tracking-tight"
                     >
                       פתיחה מלאה ועריכה
                     </button>
