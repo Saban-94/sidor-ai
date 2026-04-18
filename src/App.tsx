@@ -249,7 +249,10 @@ const OrderCard = ({
             <Truck size={20} />
           </div>
           <div>
-            <h3 className="font-bold text-gray-900 text-lg leading-none">{order.customerName}</h3>
+            <div className="flex items-center gap-2 mb-1">
+               <span className="text-[10px] font-black bg-gray-900 text-white px-1.5 py-0.5 rounded-md">#{order.id?.slice(-4).toUpperCase()}</span>
+               <h3 className="font-bold text-gray-900 text-lg leading-none">{order.customerName}</h3>
+            </div>
             <div className="flex items-center gap-2 mt-1">
               <p className="text-xs text-gray-400 font-medium">{order.destination}</p>
               <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded font-bold uppercase tracking-tight">מחסן: {order.warehouse}</span>
@@ -338,15 +341,15 @@ const OrderCard = ({
               <button 
                 onClick={handleSmartPredict}
                 disabled={isPredicting}
-                className="text-[10px] font-black text-white bg-gray-900 hover:bg-orange-600 px-2.5 py-1.5 rounded-xl transition-all shadow-sm flex items-center gap-1 disabled:opacity-50"
-                title="חיזוי ETA חכם מבוסס תנועה"
+                className="text-[10px] font-black text-white bg-gray-900 hover:bg-orange-600 px-2.5 py-1.5 rounded-xl transition-all shadow-sm flex items-center gap-1.5 disabled:opacity-50"
+                title="Smart traffic-based ETA prediction"
               >
                 {isPredicting ? (
                   <div className="animate-spin w-3 h-3 border-2 border-white border-t-transparent rounded-full" />
                 ) : (
                   <Sparkles size={12} />
                 )}
-                AI
+                <span>Predict ETA</span>
               </button>
             </div>
           )}
@@ -1239,6 +1242,24 @@ export default function App() {
                     {chat.parts[0].text}
                   </div>
                 </div>
+              ))}
+            </div>
+
+            {/* Quick Actions Bar */}
+            <div className="bg-white px-4 py-2 flex gap-2 overflow-x-auto no-scrollbar border-t border-gray-100">
+              {[
+                { label: 'הזמנה חדשה ✍️', action: 'הזמנה חדשה אחי' },
+                { label: 'עדכון סטטוס ✅', action: 'אני רוצה לעדכן סטטוס להזמנה' },
+                { label: 'דוח בוקר 📋', action: 'תכיני לי דוח בוקר' },
+                { label: 'צפי הגעה ⏱️', action: 'מה צפי ההגעה של ההזמנות שלי?' }
+              ].map((btn, i) => (
+                <button 
+                  key={i}
+                  onClick={() => handleAuraAction(btn.action)}
+                  className="whitespace-nowrap bg-gray-100 hover:bg-orange-50 hover:text-orange-600 text-[10px] font-black px-3 py-2 rounded-xl transition-all border border-transparent hover:border-orange-100"
+                >
+                  {btn.label}
+                </button>
               ))}
             </div>
 

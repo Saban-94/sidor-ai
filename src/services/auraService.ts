@@ -42,44 +42,23 @@ export const INVENTORY_RULES = [
 ];
 
 export const noaSystemInstruction = `
-אתה נועה, המוח הלוגיסטי של "ח. סבן חומרי בניין". תפקידך לנהל את לוח ההזמנות היומי, לבצע רישום מדויק ולייצר סיכומי הפצה לנהגים.
-פנה למשתמש כ"אחי" או "שותף" בחמימות וגובה העיניים.
+אתה נועה, מנהלת התפעול של "ח. סבן חומרי בניין". המטרה: ניהול סידור עבודה בשיטת פינג-פונג (קצר, פרקטי, חד).
+פנה לראמי כ"אחי" או "שותף". עברית חדה, RTL מלא, בלי חפירות.
 
-ניהול הזמנה חדשה (CREATE_ORDER):
-כאשר המשתמש מבקש "הזמנה חדשה", חלץ את הפרטים:
-- נהג: (חכמת/עלי).
-- לקוח ופריט.
-- מחסן: (החרש/התלמיד). ברירת מחדל "החרש".
-- תאריך ושעת אספקה.
-- יעד (כתובת).
-- חישובים: 
-  * אם הוזמנה ריצופית מעל 40 שקים, הוסף הערה: "מחייב משטח סבן בפיקדון".
-  * אם הוזמן בטון, ודא כמות מינימום של 6 קוב.
+חוקי פינג-פונג ליצירת הזמנה:
+אל תשאל הכל בבת אחת. תשאל שלב-שלב:
+1. "אחי, מי הלקוח ומה היעד?" (חלץ customerName, destination).
+2. "איזה נהג? (חכמת/עלי)".
+3. "מה הפריטים? (שים לב לחוקי בטון/ריצופית)".
+4. "באיזו שעה לתזמן?".
+בסיום, הצג "תמצית לאישור" בולטת. רק אחרי אישור המשתמש ("אשר", "כן", "סגור") השתמש ב-create_order.
 
-חשוב: אם חסר פרט (כמו שעה, כתובת או מחסן), שאל את המשתמש בצורה חברית לפני שאתה יוצר את ההזמנה: "אחי, באיזה שעה לסגור את ההזמנה?" או "מאיזה מחסן להוציא?".
+חוקי נתונים:
+- כתובת מוצא: התלמיד 6 או החרש 10, הוד השרון.
+- הצג תמיד את מזהה ההזמנה (Order ID או מספר סידורי) ליד שם הלקוח.
 
-שיתוף לקבוצת וואטסאפ (SHARE_TO_WHATSAPP):
-צור הודעה מעוצבת ונקייה עם אימוג'ים המיועדת להעתקה. 
-המבנה:
-- כותרת: 📅 סידור עבודה יומי - ח. סבן.
-- ריכוז נהגים: רשימת הזמנות לפי נהג (חכמת/עלי) עם יעדים.
-- סיכום מחסן: מאיזה מחסן יוצאת רוב הסחורה.
-- שורת סיכום: סה"כ הזמנות להיום.
-
-פרוטוקול חיזוי זמן (AI-ETA):
-כאשר אתה מתבקש לחזות זמן הגעה, פעל לפי השלבים הבאים:
-1. זהה את המחסן וכתובת המוצא:
-   - "התלמיד" -> התלמיד 6, הוד השרון.
-   - "החרש" -> החרש 10, הוד השרון.
-2. ודא יעד: אם הכתובת לא ברורה, נחש לפי שם העיר בתוספת מרכז העיר.
-3. חישוב: זמן נסיעה (באמצעות Google Maps) + זמן העמסה (20 דק' לתלמיד, 10 דק' לחרש).
-4. תגובה: תן את השעה הסופית בפורמט HH:mm. אם יש תקלה במפות, בצע הערכה לפי מרחק ואל תסרב לבקשה.
-
-הנחיות ביצוע:
-- בסיום כל פעולה, הצג כפתור דמיוני: [ייצור הודעת וואטסאפ] או [שלח לגיליון].
-- בסוף כל תשובה הוסף TL;DR קצר.
-
-השתמש בכלים (Functions) כשמבקשים ממך לבצע פעולה במערכת.
+הנחיות ל-Quick Actions (אתה מציע אותם בטקסט בסוף התשובה בפורמט [ACTION: תיאור]):
+עודד את המשתמש להשתמש בקיצורי דרך למצבים נפוצים: עדכוני סטטוס, סינון נהגים, דוח בוקר וצפי הגעה.
 `;
 
 export const createOrder = async (orderData: Partial<Order>) => {
@@ -180,33 +159,27 @@ export async function askNoa(message: string, history: any[] = []) {
 export async function predictOrderEta(order: Order, historicalOrders: Order[] = []) {
   const currentDateTime = new Date().toLocaleString('he-IL', { timeZone: 'Asia/Jerusalem' });
   
-  const originAddress = order.warehouse === 'התלמיד' ? 'התלמיד 6, הוד השרון' : 'החרש 10, הוד השרון';
-  const loadingTime = order.warehouse === 'התלמיד' ? 20 : 10;
+  // limit history to avoid noise
+  const slicedHistory = historicalOrders
+    .filter(o => o.destination === order.destination || o.eta)
+    .slice(-5);
 
-  // Prepare short context for Gemini
-  const historyText = historicalOrders.length > 0 
-    ? `היסטוריית נסיעות (ליעדים דומים/אחרונים):\n${historicalOrders.map(o => `- יעד: ${o.destination}, זמן הגעה בפועל: ${o.eta || 'לא ידוע'}`).join('\n')}`
-    : "אין היסטוריית נסיעות זמינה.";
+  const historyText = slicedHistory.length > 0 
+    ? `היסטוריית נסיעות רלוונטית:\n${slicedHistory.map(o => `- יעד: ${o.destination}, זמן הגעה: ${o.eta}`).join('\n')}`
+    : "אין היסטוריה קרובה ליעד זה.";
 
   const prompt = `
-    ### פרוטוקול חיזוי זמן (AI-ETA):
-    תפקידך לחשב זמן הגעה משוער (ETA) מדויק עבור משלוח חומרי בניין.
-    
-    פרטי משלוח:
-    - זמן יציאה נוכחי: ${currentDateTime}
-    - מוצא: ${originAddress} (מחסן ${order.warehouse})
-    - יעד: ${order.destination}
-    - זמן העמסה (יש להוסיף לזמן הנסיעה): ${loadingTime} דקות.
+    חשב זמן הגעה משוער (ETA) עבור משלוח חומרי בניין.
+    זמן יציאה/נוכחי: ${currentDateTime}
+    מקום מוצא: מחסן ${order.warehouse} בהוד השרון.
+    יעד למשלוח: ${order.destination}
     
     ${historyText}
     
-    הנחיות לביצוע:
-    1. ודא יעד: אם הכתובת לא ברורה, נחש לפי שם העיר בתוספת מרכז העיר.
-    2. חישוב: השתמש בכלי Google Maps לבדיקת עומסי תנועה בזמן אמת בין ${originAddress} ל-${order.destination}.
-    3. לוגיקה: זמן הגעה = זמן יציאה + זמן נסיעה (כולל פקקים) + ${loadingTime} דקות העמסה.
-    4. גיבוי: אם יש תקלה טכנית בחיבור למפות, בצע הערכה מבוססת מרחק גיאוגרפי ואל תסרב לבקשה.
+    נא לבצע חיפוש בגוגל (Google Search) כדי למצוא כמה זמן לוקח להגיע מהוד השרון ל-${order.destination} ברכב פרטי/משאית קלה בשעה זו בהתחשב בעומסי תנועה.
+    סיכום את זמן הנסיעה והוסף אותו לשעת היציאה (${currentDateTime}).
     
-    החזר רק את השעה הצפויה בפורמט HH:mm (למשל 14:30), ללא טקסט נוסף.
+    תחזיר אך ורק את השעה הסופית בפורמט HH:mm (למשל 14:15). אל תוסיף שום מילה אחרת.
   `;
 
   try {
@@ -215,16 +188,25 @@ export async function predictOrderEta(order: Order, historicalOrders: Order[] = 
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
       config: {
         tools: [
-          { googleMaps: {} },
           { googleSearch: {} }
         ],
         toolConfig: { includeServerSideToolInvocations: true }
       }
     });
 
-    const text = response.text.trim();
-    const match = text.match(/\d{2}:\d{2}/);
-    return match ? match[0] : null;
+    const text = response.text || "";
+    // Robust parsing for HH:mm or H:mm pattern
+    const match = text.match(/([0-2]?[0-9]):([0-5][0-9])/);
+    
+    if (match) {
+      // Ensure HH:mm format
+      const [full, hour, minute] = match;
+      const formattedHour = hour.padStart(2, '0');
+      return `${formattedHour}:${minute}`;
+    }
+    // Fallback search in case of weird formatting
+    console.warn("Gemini returned non-standard format:", text);
+    return null;
   } catch (err) {
     console.error("ETA Prediction Error:", err);
     return null;
