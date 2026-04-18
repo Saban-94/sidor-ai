@@ -1,0 +1,46 @@
+{
+  "entities": {
+    "Order": {
+      "title": "Order",
+      "description": "A logistics delivery order for H. Saban",
+      "type": "object",
+      "properties": {
+        "date": { "type": "string", "description": "Delivery date (YYYY-MM-DD)" },
+        "time": { "type": "string", "description": "Delivery time (HH:mm)" },
+        "driverId": { "type": "string", "description": "ID or name of the driver assigned" },
+        "customerName": { "type": "string" },
+        "destination": { "type": "string" },
+        "items": { "type": "string", "description": "Comma separated items and quantities" },
+        "warehouse": { "type": "string", "enum": ["החרש", "התלמיד"] },
+        "status": { "type": "string", "enum": ["pending", "preparing", "ready", "delivered", "cancelled"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "createdBy": { "type": "string" }
+      },
+      "required": ["date", "time", "driverId", "customerName", "destination", "items", "status"]
+    },
+    "InventoryRule": {
+      "title": "Inventory Rule",
+      "description": "Rules for specific items (e.g. minimum quantity)",
+      "type": "object",
+      "properties": {
+        "itemName": { "type": "string" },
+        "minQuantity": { "type": "number" },
+        "depositRequired": { "type": "boolean" },
+        "depositThreshold": { "type": "number" },
+        "description": { "type": "string" }
+      },
+      "required": ["itemName"]
+    }
+  },
+  "firestore": {
+    "/orders/{orderId}": {
+      "schema": "Order",
+      "description": "Collection of logistics orders"
+    },
+    "/inventoryRules/{ruleId}": {
+      "schema": "InventoryRule",
+      "description": "Item-specific business logic rules"
+    }
+  }
+}
