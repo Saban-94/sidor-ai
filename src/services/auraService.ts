@@ -168,23 +168,37 @@ export async function askNoa(message: string, history: any[] = []) {
   return response;
 }
 
+/**
+ * פונקציית חיזוי ETA משופרת עם כתובות מחסנים מדויקות
+ */
 export async function predictOrderEta(order: Order, historicalOrders: Order[] = []) {
   const currentDateTime = new Date().toLocaleString('he-IL', { timeZone: 'Asia/Jerusalem' });
   
-  // Prepare short context for Gemini
+  // הגדרת נקודת מוצא וזמן העמסה לפי המחסן
+  const originAddress = order.warehouse === 'התלמיד' 
+    ? "התלמיד 6, הוד השרון" 
+    : "החרש 10, הוד השרון";
+    
+  const loadingBuffer = order.warehouse === 'התלמיד' ? 20 : 10;
+
   const historyText = historicalOrders.length > 0 
     ? `היסטוריית נסיעות (ליעדים דומים/אחרונים):\n${historicalOrders.map(o => `- יעד: ${o.destination}, זמן הגעה בפועל: ${o.eta || 'לא ידוע'}`).join('\n')}`
     : "אין היסטוריית נסיעות זמינה.";
 
   const prompt = `
-    אני צריך עזרה בחיזוי זמן הגעה משוער (ETA) למשלוח חומרי בניין.
+    אני צריך חיזוי ETA מדויק (רמת נאס"א) למשלוח חומרי בניין של ח. סבן.
+    
     זמן נוכחי: ${currentDateTime}
     יעד: ${order.destination}
-    יוצא מ: מחסן ${order.warehouse} בפוריידיס
+    נקודת מוצא (מחסן ${order.warehouse}): ${originAddress}
+    זמן העמסה משוער במחסן זה: ${loadingBuffer} דקות.
+    נהג: ${order.driverId === 'hikmat' ? 'חכמת (מנוף)' : 'עלי (משאית)'}
     
     ${historyText}
     
-    נא להשתמש בכלים של Google Maps כדי לבדוק עומסי תנועה בזמן אמת בדרך לכתובת ${order.destination}.
+    השתמש ב-Google Maps כדי לבדוק עומסי תנועה בזמן אמת מהכתובת המדויקת ${originAddress} לכתובת ${order.destination}.
+    חובה לשקלל את זמן העמסה (${loadingBuffer} דק') בחישוב הסופי.
+    אם הכתובת ביעד לא ברורה, בצע הערכה לפי מרכז העיר של היעד.
     החזר רק את השעה הצפויה בפורמט HH:mm (למשל 14:30), ללא טקסט נוסף.
   `;
 
