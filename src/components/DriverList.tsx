@@ -71,10 +71,19 @@ export const DriverList = ({
             </div>
 
             <div className="flex items-center justify-between mb-4 mt-2">
-              <div className={`p-3 rounded-2xl ${
+              <div className={`relative ${driver.avatar ? 'p-0 overflow-hidden' : 'p-3'} rounded-2xl ${
                 selectedDriverId === driver.id ? 'bg-white/20' : 'bg-sky-50 text-sky-600'
-              }`}>
-                {driver.vehicleType === 'crane' ? <Truck size={24} /> : <Truck size={24} />}
+              } w-12 h-12 flex items-center justify-center`}>
+                {driver.avatar ? (
+                  <img 
+                    src={driver.avatar} 
+                    alt={driver.name} 
+                    className="w-full h-full object-cover" 
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  driver.vehicleType === 'crane' ? <Truck size={24} /> : <Truck size={24} />
+                )}
               </div>
               <div className="flex flex-col items-end gap-1">
                  <span className={`text-[10px] font-black px-2 py-0.5 rounded-lg border ${

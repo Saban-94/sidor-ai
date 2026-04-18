@@ -45,8 +45,17 @@ export const DriverCard = ({
       <div className="p-6 md:p-8 bg-gradient-to-br from-white to-sky-50/30">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="flex items-center gap-5">
-            <div className={`p-5 rounded-[2rem] shadow-inner ${driver.vehicleType === 'crane' ? 'bg-sky-100 text-sky-600' : 'bg-blue-100 text-blue-600'}`}>
-              <Truck size={36} strokeWidth={2.5} />
+            <div className={`relative ${driver.avatar ? 'p-0 overflow-hidden' : 'p-5'} rounded-[2rem] shadow-inner ${driver.vehicleType === 'crane' ? 'bg-sky-100 text-sky-600' : 'bg-blue-100 text-blue-600'} w-20 h-20 flex items-center justify-center border-4 border-white shadow-lg`}>
+              {driver.avatar ? (
+                <img 
+                  src={driver.avatar} 
+                  alt={driver.name} 
+                  className="w-full h-full object-cover" 
+                  referrerPolicy="no-referrer"
+                />
+              ) : (
+                <Truck size={36} strokeWidth={2.5} />
+              )}
             </div>
             <div>
               <h2 className="text-3xl font-black text-gray-900 tracking-tight leading-none mb-2">{driver.name}</h2>

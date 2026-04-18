@@ -577,6 +577,15 @@ export default function App() {
             } else {
               setChatHistory(prev => [...prev, { role: 'model', parts: [{ text: `לא מצאתי הזמנה עבור ${customerName} אחי.` }] }]);
             }
+          } else if (call.name === 'update_driver') {
+            const { driverId, ...rest } = call.args as any;
+            await updateDriver(driverId, rest);
+            addToast('עדכון נהג', `פרטי הנהג עודכנו בהצלחה אחי`, 'success');
+          } else if (call.name === 'search_drivers') {
+            const { query: qStr } = call.args as any;
+            setSearchQuery(qStr);
+            setViewMode('drivers');
+            addToast('חיפוש נהגים', `מחפשת נהגים בשם "${qStr}" אחי`, 'info');
           }
         }
       }

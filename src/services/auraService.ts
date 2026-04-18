@@ -36,6 +36,7 @@ export interface Driver {
   id: string;
   name: string;
   phone: string;
+  avatar?: string;
   vehicleType: 'truck' | 'crane';
   plateNumber?: string;
   vehicleModel?: string;
@@ -95,6 +96,7 @@ export const noaSystemInstruction = `
 - הצג תמיד את מזהה ההזמנה (orderNumber או 4 ספרות אחרונות של ה-ID) ליד שם הלקוח.
 - בחיפוש הזמנות: חפש גם לפי שם לקוח וגם לפי מספר הזמנה/ליד (orderNumber).
 - כאשר משתמש שואל על "צפי הגעה" או "מתי הוא מגיע?", השתמש ב-get_order_eta (חובה לנסות למצוא קודם את ההזמנה).
+- לניהול נהגים: השתמש ב-search_drivers כדי למצוא נהג ו-update_driver כדי לעדכן פרטים (כמו תמונת פרופיל - avatar - מלינק).
 
 הנחיות ל-Quick Actions (אתה מציע אותם בטקסט בסוף התשובה בפורמט [ACTION: תיאור]):
 עודד את המשתמש להשתמש בקיצורי דרך למצבים נפוצים: עדכוני סטטוס, סינון נהגים, דוח בוקר וצפי הגעה.
@@ -217,6 +219,35 @@ export const tools = [
           type: Type.OBJECT,
           properties: {
             query: { type: Type.STRING, description: "מילת חיפוש (שם, יעד או מספר הזמנה)" }
+          },
+          required: ["query"]
+        }
+      },
+      {
+        name: "update_driver",
+        description: "עדכן פרטי נהג (שם, טלפון, רכב, תמונת פרופיל וכו')",
+        parameters: {
+          type: Type.OBJECT,
+          properties: {
+            driverId: { type: Type.STRING, description: "מזהה הנהג" },
+            name: { type: Type.STRING },
+            phone: { type: Type.STRING },
+            avatar: { type: Type.STRING, description: "לינק לתמונת פרופיל (URL)" },
+            vehicleType: { type: Type.STRING, enum: ["truck", "crane"] },
+            plateNumber: { type: Type.STRING },
+            vehicleModel: { type: Type.STRING },
+            status: { type: Type.STRING, enum: ["active", "off_duty"] }
+          },
+          required: ["driverId"]
+        }
+      },
+      {
+        name: "search_drivers",
+        description: "חפש נהגים לפי שם",
+        parameters: {
+          type: Type.OBJECT,
+          properties: {
+            query: { type: Type.STRING, description: "שם הנהג לחיפוש" }
           },
           required: ["query"]
         }
