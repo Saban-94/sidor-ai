@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { 
+  FileText,
   Plus, 
   Search, 
   Truck, 
@@ -34,7 +35,8 @@ import {
   ArrowDown,
   Info,
   CheckCircle,
-  AlertTriangle
+  AlertTriangle,
+  Sparkles
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
@@ -55,6 +57,7 @@ import {
 } from 'date-fns';
 import { he } from 'date-fns/locale';
 import { auth, loginWithGoogle, logout, db } from './lib/firebase';
+import MorningReportSystem from './components/MorningReportSystem';
 import { 
   Order, 
   DRIVERS, 
@@ -62,6 +65,7 @@ import {
   updateOrder, 
   deleteOrder, 
   askNoa, 
+  predictOrderEta,
   INVENTORY_RULES 
 } from './services/auraService';
 
@@ -69,19 +73,19 @@ import {
 
 const StatusBadge = ({ status }: { status: Order['status'] }) => {
   const configs = {
-    pending: { color: 'bg-yellow-100 text-yellow-700 border-yellow-200', icon: Clock, label: 'ממתין' },
-    preparing: { color: 'bg-blue-100 text-blue-700 border-blue-200', icon: Truck, label: 'בהכנה' },
-    ready: { color: 'bg-green-100 text-green-700 border-green-200', icon: CheckCircle2, label: 'מוכן ✅' },
-    delivered: { color: 'bg-gray-100 text-gray-700 border-gray-200', icon: CheckCircle2, label: 'סופק' },
-    cancelled: { color: 'bg-red-100 text-red-700 border-red-200', icon: AlertCircle, label: 'בוטל' },
+    pending: { color: 'bg-yellow-50 text-yellow-700 border-yellow-200', icon: Clock, label: 'ממתין' },
+    preparing: { color: 'bg-blue-50 text-blue-700 border-blue-200', icon: Truck, label: 'בהכנה' },
+    ready: { color: 'bg-green-50 text-green-700 border-green-200', icon: CheckCircle2, label: 'מוכן' },
+    delivered: { color: 'bg-gray-100 text-gray-700 border-gray-200', icon: CheckCircle, label: 'סופק' },
+    cancelled: { color: 'bg-red-50 text-red-700 border-red-200', icon: AlertCircle, label: 'בוטל' },
   };
 
   const config = configs[status] || configs.pending;
   const Icon = config.icon;
 
   return (
-    <span className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${config.color}`}>
-      <Icon size={14} />
+    <span className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-black border ${config.color} shadow-sm uppercase tracking-tight`}>
+      <Icon size={12} strokeWidth={3} />
       {config.label}
     </span>
   );
@@ -134,88 +138,237 @@ const EmptyState = () => (
   </div>
 );
 
+const DriverTooltip = ({ driverId, allOrders, children }: { driverId: string, allOrders: Order[], children: React.ReactNode }) => {
+  const driverOrders = allOrders.filter(o => o.driverId === driverId).sort((a,b) => a.time.localeCompare(b.time));
+  const driver = DRIVERS.find(d => d.id === driverId);
+
+  return (
+    <div className="relative group/tooltip inline-block">
+      {children}
+      <div className="absolute bottom-full right-0 mb-3 w-72 bg-gray-900 text-white rounded-[24px] shadow-2xl p-5 opacity-0 invisible group-hover/tooltip:opacity-100 group-hover/tooltip:visible transition-all z-[100] pointer-events-none border border-white/10 backdrop-blur-md bg-opacity-95 translate-y-2 group-hover/tooltip:translate-y-0 text-right" dir="rtl">
+        <div className="flex items-center gap-3 mb-4 border-b border-white/10 pb-3">
+          <div className="bg-orange-600 p-2 rounded-xl">
+            <Truck size={16} />
+          </div>
+          <div>
+            <h4 className="font-bold text-sm leading-tight">{driver?.name}</h4>
+            <p className="text-[10px] text-gray-400">סיכום הזמנות להיום</p>
+          </div>
+        </div>
+        <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
+          {driverOrders.length === 0 ? (
+            <p className="text-xs opacity-50 text-center py-4">אין הזמנות משויכות</p>
+          ) : (
+            driverOrders.map(o => (
+              <div key={o.id} className="text-xs flex justify-between items-start gap-3 border-b border-white/5 pb-3 last:border-0 hover:bg-white/5 p-2 rounded-xl transition-colors">
+                <div className="flex-1 min-w-0">
+                  <p className="font-black text-gray-100 truncate mb-1" title={o.customerName}>{o.customerName}</p>
+                  <p className="text-[10px] text-gray-500 truncate" title={o.destination}>{o.destination}</p>
+                </div>
+                <div className="flex flex-col items-end gap-1.5 shrink-0">
+                   <div className="flex items-center gap-1.5 font-black text-orange-400 text-sm">
+                     <Clock size={12} />
+                     <span>{o.time}</span>
+                   </div>
+                   <div className={`flex items-center gap-1 px-2 py-0.5 rounded-lg text-[9px] font-black ${
+                     o.status === 'delivered' ? 'bg-green-500/20 text-green-400' :
+                     o.status === 'ready' ? 'bg-blue-500/20 text-blue-400' :
+                     o.status === 'preparing' ? 'bg-orange-500/10 text-orange-300' :
+                     'bg-gray-500/20 text-gray-400'
+                   }`}>
+                     {o.status === 'pending' && <Clock size={10} />}
+                     {o.status === 'preparing' && <Truck size={10} />}
+                     {o.status === 'ready' && <CheckCircle2 size={10} />}
+                     {o.status === 'delivered' && <CheckCircle size={10} />}
+                     <span>{o.status === 'pending' ? 'ממתין' : o.status === 'preparing' ? 'בהכנה' : o.status === 'ready' ? 'מוכן' : 'נמסר'}</span>
+                   </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const OrderCard = ({ 
   order, 
   onEdit, 
   onUpdateStatus, 
-  onDelete 
+  onUpdateEta,
+  onDelete,
+  onAddToast,
+  allOrders
 }: { 
   order: Order, 
   onEdit: (o: Order) => void, 
   onUpdateStatus: (id: string, s: any) => void, 
+  onUpdateEta: (id: string, eta: string) => void,
   onDelete: (id: string) => void,
+  onAddToast: (title: string, msg: string, type?: any) => void,
+  allOrders: Order[],
   key?: string
-}) => (
-  <motion.div 
-    layout
-    initial={{ opacity: 0, y: 10 }}
-    animate={{ opacity: 1, y: 0 }}
-    className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow relative group"
-  >
-    <div className="flex justify-between items-start mb-4">
-      <div className="flex items-center gap-3">
-        <div className={`p-2.5 rounded-2xl ${DRIVERS.find(d => d.id === order.driverId)?.type === 'crane' ? 'bg-orange-50 text-orange-600' : 'bg-blue-50 text-blue-600'}`}>
-          <Truck size={20} />
+}) => {
+  const [isEditingEta, setIsEditingEta] = useState(false);
+  const [etaInput, setEtaInput] = useState(order.eta || '');
+  const [isPredicting, setIsPredicting] = useState(false);
+
+  const handleSmartPredict = async () => {
+    setIsPredicting(true);
+    try {
+      // Use delivered orders as historical context
+      const historicalOrders = allOrders.filter(o => o.status === 'delivered');
+      const predictedEta = await predictOrderEta(order, historicalOrders);
+      
+      if (predictedEta) {
+        setEtaInput(predictedEta);
+        onUpdateEta(order.id!, predictedEta);
+        onAddToast('חיזוי ETA חכם', `נמצא זמן הגעה משוער: ${predictedEta} על סמך תנועה אחי`, 'success');
+      } else {
+        onAddToast('שגיאה בחיזוי', 'לא הצלחתי לחשב זמן הגעה, תנסה שוב שותף', 'warning');
+      }
+    } catch (error) {
+      console.error(error);
+      onAddToast('שגיאה', 'משהו השתבש בחיבור ל-AI', 'warning');
+    } finally {
+      setIsPredicting(false);
+    }
+  };
+
+  return (
+    <motion.div 
+      layout
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow relative group"
+    >
+      <div className="flex justify-between items-start mb-4">
+        <div className="flex items-center gap-3">
+          <div className={`p-2.5 rounded-2xl ${DRIVERS.find(d => d.id === order.driverId)?.type === 'crane' ? 'bg-orange-50 text-orange-600' : 'bg-blue-50 text-blue-600'}`}>
+            <Truck size={20} />
+          </div>
+          <div>
+            <h3 className="font-bold text-gray-900 text-lg leading-none">{order.customerName}</h3>
+            <div className="flex items-center gap-2 mt-1">
+              <p className="text-xs text-gray-400 font-medium">{order.destination}</p>
+              <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded font-bold uppercase tracking-tight">מחסן: {order.warehouse}</span>
+            </div>
+          </div>
         </div>
+        <div className="flex flex-col items-end gap-2">
+          <StatusBadge status={order.status} />
+          {order.eta && (
+            <div className="flex items-center gap-1.5 bg-orange-50 text-orange-700 px-2 py-0.5 rounded-lg text-[10px] font-black border border-orange-100 animate-pulse">
+              <Clock size={10} />
+              <span>הגעה משוערת: {order.eta}</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="bg-gray-50/50 rounded-2xl p-4 mb-4 grid grid-cols-2 gap-4">
         <div>
-          <h3 className="font-bold text-gray-900 text-lg leading-none">{order.customerName}</h3>
-          <div className="flex items-center gap-2 mt-1">
-            <p className="text-xs text-gray-400 font-medium">{order.destination}</p>
-            <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded font-bold uppercase tracking-tight">מחסן: {order.warehouse}</span>
+          <span className="text-[10px] text-gray-400 font-bold block mb-1 uppercase tracking-wider">פריטים</span>
+          <p className="text-sm font-bold text-gray-700">{order.items}</p>
+        </div>
+        <div className="text-left" dir="ltr">
+          <span className="text-[10px] text-gray-400 font-bold block mb-1 uppercase tracking-wider text-right">נהג, שעה ותאריך</span>
+          <div className="flex items-center gap-2 justify-end">
+            <span className="text-sm font-black text-gray-900">{order.time}</span>
+            <span className="text-sm font-bold text-gray-600">| {order.date.split('-').reverse().slice(0, 2).join('/')}</span>
+            <DriverTooltip driverId={order.driverId} allOrders={allOrders}>
+              <span className="text-sm font-bold text-gray-600 hover:text-orange-600 transition-colors cursor-help">| {DRIVERS.find(d => d.id === order.driverId)?.name || order.driverId}</span>
+            </DriverTooltip>
           </div>
         </div>
       </div>
-      <StatusBadge status={order.status} />
-    </div>
 
-    <div className="bg-gray-50/50 rounded-2xl p-4 mb-4 grid grid-cols-2 gap-4">
-      <div>
-        <span className="text-[10px] text-gray-400 font-bold block mb-1 uppercase tracking-wider">פריטים</span>
-        <p className="text-sm font-bold text-gray-700">{order.items}</p>
-      </div>
-      <div className="text-left" dir="ltr">
-        <span className="text-[10px] text-gray-400 font-bold block mb-1 uppercase tracking-wider text-right">נהג, שעה ותאריך</span>
-        <div className="flex items-center gap-2 justify-end">
-          <span className="text-sm font-black text-gray-900">{order.time}</span>
-          <span className="text-sm font-bold text-gray-600">| {order.date.split('-').reverse().slice(0, 2).join('/')}</span>
-          <span className="text-sm font-bold text-gray-600">| {DRIVERS.find(d => d.id === order.driverId)?.name || order.driverId}</span>
+      <div className="flex items-center justify-between pt-2">
+        <div className="flex gap-2 items-center">
+          <button 
+            onClick={() => {
+              const nextStatusMap: Record<string, string> = {
+                  pending: 'preparing',
+                  preparing: 'ready',
+                  ready: 'delivered'
+              };
+              const newStatus = nextStatusMap[order.status] || order.status;
+              onUpdateStatus(order.id!, newStatus);
+            }}
+            className="text-xs font-black text-orange-600 hover:bg-orange-50 px-3 py-1.5 rounded-xl transition-colors border border-orange-100 flex items-center gap-1.5"
+          >
+            <ChevronLeft size={14} strokeWidth={3} />
+            קדם סטטוס
+          </button>
+          
+          {isEditingEta ? (
+            <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-xl p-1 shadow-sm">
+              <input 
+                type="time" 
+                value={etaInput}
+                onChange={(e) => setEtaInput(e.target.value)}
+                className="text-xs font-bold border-none bg-transparent outline-none w-20 px-1"
+              />
+              <button 
+                onClick={() => {
+                  onUpdateEta(order.id!, etaInput);
+                  setIsEditingEta(false);
+                }}
+                className="bg-orange-600 text-white p-1 rounded-lg hover:bg-orange-700"
+              >
+                <Plus size={12} />
+              </button>
+              <button 
+                onClick={() => setIsEditingEta(false)}
+                className="text-gray-400 p-1"
+              >
+                <X size={12} />
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1">
+              <button 
+                onClick={() => setIsEditingEta(true)}
+                className="text-xs font-bold text-blue-600 hover:bg-blue-50 px-3 py-1.5 rounded-xl transition-colors border border-blue-100 flex items-center gap-1"
+              >
+                <Clock size={12} />
+                עדכן הגעה
+              </button>
+              <button 
+                onClick={handleSmartPredict}
+                disabled={isPredicting}
+                className="text-[10px] font-black text-white bg-gray-900 hover:bg-orange-600 px-2.5 py-1.5 rounded-xl transition-all shadow-sm flex items-center gap-1 disabled:opacity-50"
+                title="חיזוי ETA חכם מבוסס תנועה"
+              >
+                {isPredicting ? (
+                  <div className="animate-spin w-3 h-3 border-2 border-white border-t-transparent rounded-full" />
+                ) : (
+                  <Sparkles size={12} />
+                )}
+                AI
+              </button>
+            </div>
+          )}
+
+          <button 
+            onClick={() => onEdit(order)}
+            className="text-xs font-bold text-gray-600 hover:bg-gray-100 px-3 py-1.5 rounded-xl transition-colors border border-gray-200 flex items-center gap-1"
+          >
+            <Pencil size={12} />
+            ערוך
+          </button>
         </div>
-      </div>
-    </div>
-
-    <div className="flex items-center justify-between pt-2">
-      <div className="flex gap-2">
         <button 
-          onClick={() => {
-            const nextStatusMap: Record<string, string> = {
-                pending: 'preparing',
-                preparing: 'ready',
-                ready: 'delivered'
-            };
-            const newStatus = nextStatusMap[order.status] || order.status;
-            onUpdateStatus(order.id!, newStatus);
-          }}
-          className="text-xs font-bold text-orange-600 hover:bg-orange-50 px-3 py-1.5 rounded-xl transition-colors border border-orange-100"
+          onClick={() => onDelete(order.id!)}
+          className="p-2 text-gray-300 hover:text-red-500 transition-colors"
         >
-          קדם סטטוס
-        </button>
-        <button 
-          onClick={() => onEdit(order)}
-          className="text-xs font-bold text-gray-600 hover:bg-gray-100 px-3 py-1.5 rounded-xl transition-colors border border-gray-200 flex items-center gap-1"
-        >
-          <Pencil size={12} />
-          ערוך
+          <Trash2 size={18} />
         </button>
       </div>
-      <button 
-        onClick={() => onDelete(order.id!)}
-        className="p-2 text-gray-300 hover:text-red-500 transition-colors"
-      >
-        <Trash2 size={18} />
-      </button>
-    </div>
-  </motion.div>
-);
+    </motion.div>
+  );
+};
 
 // --- Main App ---
 
@@ -236,7 +389,7 @@ export default function App() {
   const [sortBy, setSortBy] = useState<string>('time');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [groupByDriver, setGroupByDriver] = useState(false);
-  const [viewMode, setViewMode] = useState<'list' | 'calendar' | 'table'>('list');
+  const [viewMode, setViewMode] = useState<'list' | 'calendar' | 'table' | 'reports'>('list');
   const [calendarMonth, setCalendarMonth] = useState(new Date());
   const [isRangeMode, setIsRangeMode] = useState(false);
   const [startDate, setStartDate] = useState(new Date());
@@ -448,6 +601,10 @@ export default function App() {
       </div>
     </div>
   );
+
+  if (viewMode === 'reports') {
+    return <MorningReportSystem onBack={() => setViewMode('list')} />;
+  }
 
   const filteredOrders = orders
     .filter(order => {
@@ -764,6 +921,13 @@ export default function App() {
               >
                 <Table size={20} />
               </button>
+              <button 
+                onClick={() => setViewMode('reports')}
+                className={`p-1.5 rounded-lg transition-all ${viewMode === 'reports' ? 'bg-white shadow-sm text-orange-600' : 'text-gray-400 hover:text-gray-600'}`}
+                title="ארכיון דוחות"
+              >
+                <FileText size={20} />
+              </button>
             </div>
           </div>
           <button 
@@ -883,6 +1047,9 @@ export default function App() {
                       <th onClick={() => toggleSort('time')} className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors">
                         <div className="flex items-center">שעת יציאה <SortIcon field="time" currentSort={sortBy} direction={sortDirection} /></div>
                       </th>
+                      <th onClick={() => toggleSort('eta')} className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors">
+                        <div className="flex items-center">הגעה משוערת <SortIcon field="eta" currentSort={sortBy} direction={sortDirection} /></div>
+                      </th>
                       <th onClick={() => toggleSort('driverId')} className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors">
                         <div className="flex items-center">נהג <SortIcon field="driverId" currentSort={sortBy} direction={sortDirection} /></div>
                       </th>
@@ -911,8 +1078,15 @@ export default function App() {
                           {format(new Date(order.date), 'dd/MM/yy')}
                         </td>
                         <td className="px-6 py-4 font-bold text-orange-600">{order.time}</td>
+                        <td className="px-6 py-4 font-black text-orange-700 bg-orange-50/30">
+                          {order.eta || '-'}
+                        </td>
                         <td className="px-6 py-4 text-gray-600">
-                          {DRIVERS.find(d => d.id === order.driverId)?.name.split(' ')[0] || order.driverId}
+                          <DriverTooltip driverId={order.driverId} allOrders={orders}>
+                            <span className="cursor-help hover:text-orange-600 transition-colors">
+                              {DRIVERS.find(d => d.id === order.driverId)?.name.split(' ')[0] || order.driverId}
+                            </span>
+                          </DriverTooltip>
                         </td>
                         <td className="px-6 py-4 font-black text-gray-900">{order.customerName}</td>
                         <td className="px-6 py-4 text-gray-400 text-xs">{order.destination}</td>
@@ -969,9 +1143,12 @@ export default function App() {
                         <OrderCard 
                           key={order.id} 
                           order={order} 
+                          allOrders={orders}
                           onEdit={setEditingOrder}
                           onUpdateStatus={(id, status) => updateOrder(id, { status })}
+                          onUpdateEta={(id, eta) => updateOrder(id, { eta })}
                           onDelete={deleteOrder}
+                          onAddToast={addToast}
                         />
                       ))}
                     </div>
@@ -985,9 +1162,12 @@ export default function App() {
                 <OrderCard 
                   key={order.id} 
                   order={order} 
+                  allOrders={orders}
                   onEdit={setEditingOrder}
                   onUpdateStatus={(id, status) => updateOrder(id, { status })}
+                  onUpdateEta={(id, eta) => updateOrder(id, { eta })}
                   onDelete={deleteOrder}
+                  onAddToast={addToast}
                 />
               ))}
             </div>
@@ -1050,11 +1230,11 @@ export default function App() {
                 </div>
               )}
               {chatHistory.map((chat, idx) => (
-                <div key={idx} className={`flex ${chat.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[85%] p-3.5 rounded-2xl text-sm font-medium leading-relaxed ${
+                <div key={idx} className={`flex ${chat.role === 'user' ? 'justify-start' : 'justify-end'}`}>
+                  <div className={`max-w-[85%] p-3.5 rounded-2xl text-sm font-medium leading-relaxed shadow-sm ${
                     chat.role === 'user' 
-                      ? 'bg-orange-600 text-white rounded-tr-none shadow-md shadow-orange-600/20' 
-                      : 'bg-white text-gray-800 rounded-tl-none border border-gray-100 shadow-sm'
+                      ? 'bg-orange-600 text-white rounded-tr-none shadow-orange-600/10' 
+                      : 'bg-white text-gray-800 rounded-tl-none border border-gray-100'
                   }`}>
                     {chat.parts[0].text}
                   </div>

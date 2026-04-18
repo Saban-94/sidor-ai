@@ -27,7 +27,7 @@ service cloud.firestore {
     // --- Order Validation ---
     function isValidOrder(data) {
       return data.keys().hasAll(['date', 'time', 'driverId', 'customerName', 'destination', 'items', 'warehouse', 'status', 'createdAt', 'updatedAt', 'createdBy'])
-        && data.keys().size() == 11
+        && (data.keys().size() == 11 || (data.keys().size() == 12 && data.eta is string))
         && data.date is string && data.date.size() <= 10
         && data.time is string && data.time.size() <= 6
         && data.driverId is string && data.driverId.size() <= 100
@@ -50,10 +50,15 @@ service cloud.firestore {
         && (
           // Allow full update by owner
           isOwner(resource.data)
-          // or specific status updates by any verified staff
-          || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt']))
+          // or specific status/eta updates by any verified staff
+          || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'eta', 'updatedAt']))
         );
       allow delete: if isEmailVerified() && isOwner(resource.data);
+    }
+
+    match /morning_reports/{reportId} {
+      allow read: if isSignedIn();
+      allow write: if isEmailVerified();
     }
 
     // --- Inventory Rules Validation ---

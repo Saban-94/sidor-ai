@@ -13,11 +13,24 @@
         "items": { "type": "string", "description": "Comma separated items and quantities" },
         "warehouse": { "type": "string", "enum": ["החרש", "התלמיד"] },
         "status": { "type": "string", "enum": ["pending", "preparing", "ready", "delivered", "cancelled"] },
+        "eta": { "type": "string", "description": "Estimated Time of Arrival (HH:mm)" },
         "createdAt": { "type": "string", "format": "date-time" },
         "updatedAt": { "type": "string", "format": "date-time" },
         "createdBy": { "type": "string" }
       },
       "required": ["date", "time", "driverId", "customerName", "destination", "items", "status"]
+    },
+    "MorningReport": {
+      "title": "Morning Report",
+      "description": "Daily logistics summary report sent to drivers/management",
+      "type": "object",
+      "properties": {
+        "date": { "type": "string" },
+        "orderIds": { "type": "array", "items": { "type": "string" } },
+        "reportText": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["date", "orderIds", "reportText", "createdAt"]
     },
     "InventoryRule": {
       "title": "Inventory Rule",
