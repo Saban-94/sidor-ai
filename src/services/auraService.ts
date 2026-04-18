@@ -1,4 +1,6 @@
-import { GoogleGenAI, Type } from "@google/genai";
+// saban-94/sidor-ai/src/services/auraService.ts
+
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { 
   collection, 
   addDoc, 
@@ -11,9 +13,10 @@ import {
   serverTimestamp,
   orderBy
 } from 'firebase/firestore';
-import { db, auth } from '../lib/firebase';
+import { db } from '../lib/firebase'; // ודא שהנתיב תואם למבנה הפרויקט שלך
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+// שימוש במשתנה סביבה של Vercel עבור ה-API Key
+const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY || "");
 
 export interface Order {
   id?: string;
@@ -72,14 +75,14 @@ export const noaSystemInstruction = `
 השתמש בכלים (Functions) כשמבקשים ממך לבצע פעולה במערכת.
 `;
 
+// --- פונקציות בסיס נתונים Firebase ---
+
 export const createOrder = async (orderData: Partial<Order>) => {
-  if (!auth.currentUser) throw new Error('Not authenticated');
   const fullOrder = {
     ...orderData,
     status: orderData.status || 'pending',
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
-    createdBy: auth.currentUser.uid,
   } as Order;
   
   const docRef = await addDoc(collection(db, 'orders'), fullOrder);
@@ -107,62 +110,49 @@ export const fetchOrders = async (date?: string) => {
   return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Order[];
 };
 
+// --- הגדרת כלים עבור Gemini ---
+
 export const tools = [
   {
     functionDeclarations: [
       {
         name: "create_order",
-        description: "צור הזמנה חדשה במערכת",
+        description: "צור הזמנה חדשה במערכת ח. סבן",
         parameters: {
-          type: Type.OBJECT,
+          type: "OBJECT",
           properties: {
-            date: { type: Type.STRING, description: "תאריך האספקה (YYYY-MM-DD)" },
-            time: { type: Type.STRING, description: "שעת האספקה (HH:mm)" },
-            driverId: { type: Type.STRING, description: "שם או מזהה הנהג (hikmat, ali)" },
-            customerName: { type: Type.STRING, description: "שם הלקוח" },
-            destination: { type: Type.STRING, description: "יעד האספקה" },
-            items: { type: Type.STRING, description: "הפריטים והכמויות" },
-            warehouse: { type: Type.STRING, enum: ["החרש", "התלמיד"], description: "המחסן ממנו יוצאת ההזמנה (ברירת מחדל: החרש)" },
-            status: { type: Type.STRING, enum: ["pending", "preparing", "ready", "delivered"] }
+            date: { type: "STRING", description: "תאריך האספקה (YYYY-MM-DD)" },
+            time: { type: "STRING", description: "שעת האספקה (HH:mm)" },
+            driverId: { type: "STRING", description: "מזהה הנהג (hikmat, ali)" },
+            customerName: { type: "STRING", description: "שם הלקוח" },
+            destination: { type: "STRING", description: "יעד האספקה" },
+            items: { type: "STRING", description: "הפריטים והכמויות" },
+            warehouse: { type: "STRING", description: "המחסן (החרש/התלמיד)" },
+            status: { type: "STRING" }
           },
           required: ["date", "time", "driverId", "customerName", "destination", "items"]
-        }
-      },
-      {
-        name: "update_order_status",
-        description: "עדכן סטטוס של הזמנה קיימת",
-        parameters: {
-          type: Type.OBJECT,
-          properties: {
-            orderId: { type: Type.STRING, description: "מזהה ההזמנה" },
-            status: { type: Type.STRING, enum: ["pending", "preparing", "ready", "delivered", "cancelled"] }
-          },
-          required: ["orderId", "status"]
-        }
-      },
-      {
-        name: "delete_order_by_customer",
-        description: "מחק הזמנה לפי שם לקוח",
-        parameters: {
-          type: Type.OBJECT,
-          properties: {
-            customerName: { type: Type.STRING, description: "שם הלקוח שאת הזמנתו יש למחוק" }
-          },
-          required: ["customerName"]
         }
       }
     ]
   }
 ];
 
-export async function askNoa(message: string, history: any[] = []) {
-  const response = await ai.models.generateContent({
+// --- פונקציית השיחה המרכזית ---
+
+export const askNoa = async (message: string, history: any[] = []) => {
+  const model = genAI.getGenerativeModel({ 
     model: "gemini-3-flash-preview",
-    contents: [...history, { role: 'user', parts: [{ text: message }] }],
-    config: {
-      systemInstruction: noaSystemInstruction,
-      tools: tools
-    }
+    systemInstruction: noaSystemInstruction,
+    tools: tools as any
   });
-  return response;
-}
+
+  const chat = model.startChat({
+    history: history.map(msg => ({
+      role: msg.role === 'user' ? 'user' : 'model',
+      parts: [{ text: msg.content }],
+    })),
+  });
+
+  const result = await chat.sendMessage(message);
+  return result.response;
+};
