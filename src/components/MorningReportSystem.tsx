@@ -28,7 +28,7 @@ import {
   getDoc
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { Order, DRIVERS } from '../services/auraService';
+import { Order, Driver } from '../services/auraService';
 import { format } from 'date-fns';
 import { he } from 'date-fns/locale';
 
@@ -40,7 +40,7 @@ interface MorningReport {
   createdAt: any;
 }
 
-export default function MorningReportSystem({ onBack }: { onBack: () => void }) {
+export default function MorningReportSystem({ onBack, drivers }: { onBack: () => void, drivers: Driver[] }) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [reports, setReports] = useState<MorningReport[]>([]);
   const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
@@ -83,7 +83,7 @@ export default function MorningReportSystem({ onBack }: { onBack: () => void }) 
     
     let text = `📅 *דוח בוקר - ח. סבן | ${reportDate}*\n\n`;
 
-    DRIVERS.forEach(driver => {
+    drivers.forEach(driver => {
       const driverOrders = selectedOrdersData.filter(o => o.driverId === driver.id);
       if (driverOrders.length > 0) {
         text += `👤 *${driver.name}:*\n`;
@@ -99,7 +99,7 @@ export default function MorningReportSystem({ onBack }: { onBack: () => void }) 
     const total = selectedOrdersData.length;
     const harashCount = selectedOrdersData.filter(o => o.warehouse === 'החרש').length;
     const talmidCount = selectedOrdersData.filter(o => o.warehouse === 'התלמיד').length;
-    const craneCount = selectedOrdersData.filter(o => DRIVERS.find(d => d.id === o.driverId)?.type === 'crane').length;
+    const craneCount = selectedOrdersData.filter(o => drivers.find(d => d.id === o.driverId)?.vehicleType === 'crane').length;
     const truckCount = total - craneCount;
 
     text += `📊 *סיכום לוגיסטי:*\n`;
@@ -232,7 +232,7 @@ export default function MorningReportSystem({ onBack }: { onBack: () => void }) 
                           </td>
                           <td className="px-6 py-4">
                             <div className="text-xs font-bold text-gray-600">
-                              {DRIVERS.find(d => d.id === order.driverId)?.name.split(' ')[0]}
+                              {drivers.find(d => d.id === order.driverId)?.name.split(' ')[0]}
                             </div>
                           </td>
                           <td className="px-6 py-4">

@@ -32,19 +32,54 @@ export interface Order {
   createdBy?: string;
 }
 
-export const DRIVERS = [
-  { id: 'hikmat', name: 'חכמת (מנוף 🏗️)', type: 'crane' },
-  { id: 'ali', name: 'עלי (משאית 🚛)', type: 'truck' }
-];
+export interface Driver {
+  id: string;
+  name: string;
+  phone: string;
+  vehicleType: 'truck' | 'crane';
+  plateNumber?: string;
+  vehicleModel?: string;
+  status: 'active' | 'off_duty';
+  totalDeliveries?: number;
+  onTimeRate?: number;
+  rating?: number;
+  createdAt?: any;
+  updatedAt?: any;
+}
 
-export const INVENTORY_RULES = [
-  { item: 'בטון', rule: 'הזמנת בטון ב-30 מחייבת מינימום 6 קוב' },
-  { item: 'ריצופית', rule: 'מעל 40 שקי ריצופית מחייב משטח סבן בפיקדון' }
-];
+export const INVENTORY_RULES = [];
+
+export const createDriver = async (driverData: Partial<Driver>) => {
+  const fullDriver = {
+    ...driverData,
+    status: driverData.status || 'active',
+    totalDeliveries: 0,
+    onTimeRate: 100,
+    rating: 5,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  };
+  const docRef = await addDoc(collection(db, 'drivers'), fullDriver);
+  return { id: docRef.id, ...fullDriver };
+};
+
+export const updateDriver = async (driverId: string, updates: Partial<Driver>) => {
+  const docRef = doc(db, 'drivers', driverId);
+  await updateDoc(docRef, {
+    ...updates,
+    updatedAt: serverTimestamp(),
+  });
+};
+
+export const getAllDrivers = async () => {
+  const q = query(collection(db, 'drivers'), orderBy('name', 'asc'));
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Driver[];
+};
 
 export const noaSystemInstruction = `
-את נועה, מנהלת התפעול של "ח.סבן חומרי בניין". המטרה: ניהול סידור עבודה בשיטת פינג-פונג (קצר, פרקטי, חד).
-פנה לראמי כ"אהובי ראמי" או "שותפה". עברית חדה, RTL מלא, בלי חפירות. 
+אתה נועה, מנהלת התפעול של "ח. סבן חומרי בניין". המטרה: ניהול סידור עבודה בשיטת פינג-פונג (קצר, פרקטי, חד).
+פנה לראמי כ"אחי" או "שותף". עברית חדה, RTL מלא, בלי חפירות.
 
 חוקי פינג-פונג ליצירת הזמנה:
 אל תשאל הכל בבת אחת. תשאל שלב-שלב:
@@ -63,8 +98,6 @@ export const noaSystemInstruction = `
 
 הנחיות ל-Quick Actions (אתה מציע אותם בטקסט בסוף התשובה בפורמט [ACTION: תיאור]):
 עודד את המשתמש להשתמש בקיצורי דרך למצבים נפוצים: עדכוני סטטוס, סינון נהגים, דוח בוקר וצפי הגעה.
-לא להציג למשתמש סוגי פעולה באנגלית כמו (action) ועוד.
-
 `;
 
 export const createOrder = async (orderData: Partial<Order>) => {

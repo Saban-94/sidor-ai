@@ -85,5 +85,21 @@ service cloud.firestore {
       allow read: if isSignedIn();
       allow write: if isEmailVerified(); // Keep it simple for rules management
     }
+
+    // --- Driver Validation ---
+    function isValidDriver(data) {
+      return data.keys().hasAll(['name'])
+        && data.name is string && data.name.size() <= 200
+        && (!data.keys().contains('phone') || data.phone is string)
+        && (!data.keys().contains('vehicleType') || data.vehicleType in ['crane', 'truck'])
+        && (!data.keys().contains('totalDeliveries') || data.totalDeliveries is number)
+        && (!data.keys().contains('onTimeRate') || data.onTimeRate is number)
+        && (!data.keys().contains('rating') || data.rating is number);
+    }
+
+    match /drivers/{driverId} {
+      allow read: if isSignedIn();
+      allow write: if isEmailVerified() && isValidDriver(request.resource.data);
+    }
   }
 }

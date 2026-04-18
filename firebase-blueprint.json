@@ -45,6 +45,25 @@
         "description": { "type": "string" }
       },
       "required": ["itemName"]
+    },
+    "Driver": {
+      "title": "Driver",
+      "description": "A logistics driver profile for H. Saban",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "phone": { "type": "string" },
+        "vehicleType": { "type": "string", "enum": ["truck", "crane"] },
+        "plateNumber": { "type": "string" },
+        "vehicleModel": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "off_duty"] },
+        "totalDeliveries": { "type": "number" },
+        "onTimeRate": { "type": "number" },
+        "rating": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "phone", "vehicleType"]
     }
   },
   "firestore": {
@@ -59,6 +78,10 @@
     "/inventoryRules/{ruleId}": {
       "schema": "InventoryRule",
       "description": "Item-specific business logic rules"
+    },
+    "/drivers/{driverId}": {
+      "schema": "Driver",
+      "description": "Collection of driver profiles"
     }
   }
 }

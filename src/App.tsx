@@ -60,38 +60,23 @@ import {
 import { he } from 'date-fns/locale';
 import { auth, loginWithGoogle, logout, db } from './lib/firebase';
 import MorningReportSystem from './components/MorningReportSystem';
+import { OrderCard, StatusBadge } from './components/OrderCard';
+import { DriverList } from './components/DriverList';
+import { DriverCard } from './components/DriverCard';
+import { SearchSuggestions } from './components/SearchSuggestions';
 import { 
   Order, 
-  DRIVERS, 
+  Driver,
   createOrder, 
   updateOrder, 
+  updateDriver,
   deleteOrder, 
   askNoa, 
   predictOrderEta,
-  INVENTORY_RULES 
+  createDriver
 } from './services/auraService';
 
 // --- Components ---
-
-const StatusBadge = ({ status }: { status: Order['status'] }) => {
-  const configs = {
-    pending: { color: 'bg-yellow-50 text-yellow-700 border-yellow-200', icon: Clock, label: 'ממתין' },
-    preparing: { color: 'bg-blue-50 text-blue-700 border-blue-200', icon: Truck, label: 'בהכנה' },
-    ready: { color: 'bg-green-50 text-green-700 border-green-200', icon: CheckCircle2, label: 'מוכן' },
-    delivered: { color: 'bg-gray-100 text-gray-700 border-gray-200', icon: CheckCircle, label: 'סופק' },
-    cancelled: { color: 'bg-red-50 text-red-700 border-red-200', icon: AlertCircle, label: 'בוטל' },
-  };
-
-  const config = configs[status] || configs.pending;
-  const Icon = config.icon;
-
-  return (
-    <span className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-black border ${config.color} shadow-sm uppercase tracking-tight`}>
-      <Icon size={12} strokeWidth={3} />
-      {config.label}
-    </span>
-  );
-};
 
 const SortIcon = ({ field, currentSort, direction }: { field: string, currentSort: string, direction: 'asc' | 'desc' }) => {
   if (currentSort !== field) return <ArrowUpDown size={12} className="inline mr-2 opacity-20" />;
@@ -281,267 +266,7 @@ const EmptyState = () => (
   </div>
 );
 
-const INVENTORY_DATA = [
-  { item: "מלט 50 ק\"ג", stock: 120, unit: "שקים", status: "ok" },
-  { item: "חול מחצבה", stock: 15, unit: "באלות", status: "low" },
-  { item: "בלוק 10 תקני", stock: 450, unit: "יח'", status: "ok" },
-  { item: "בלוק 20 תקני", stock: 80, unit: "יח'", status: "critical" },
-  { item: "טיח חוץ", stock: 40, unit: "שקים", status: "ok" },
-  { item: "סיד לבן", stock: 12, unit: "מיכלים", status: "low" },
-];
-
-const InventoryStatus = () => (
-  <div className="space-y-4">
-    <div className="flex items-center justify-between mb-6">
-       <h2 className="text-xl font-black italic">סטטוס מלאי - מחסן החרש</h2>
-       <div className="flex items-center gap-2">
-          <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse" />
-          <span className="text-[10px] font-black text-gray-400">מעודכן ל-LIVE</span>
-       </div>
-    </div>
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      {INVENTORY_DATA.map((item, i) => (
-        <motion.div 
-          key={i}
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: i * 0.1 }}
-          className="bg-white/90 backdrop-blur-md p-6 rounded-[2rem] border border-sky-100 shadow-lg flex items-center justify-between"
-        >
-          <div className="flex items-center gap-4">
-             <div className={`p-4 rounded-2xl ${
-               item.status === 'critical' ? 'bg-red-50 text-red-600 border-red-100' :
-               item.status === 'low' ? 'bg-orange-50 text-orange-600 border-orange-100' :
-               'bg-green-50 text-green-600 border-green-100'
-             } border`}>
-                <Package size={24} />
-             </div>
-             <div>
-                <h4 className="font-black text-lg text-gray-900 leading-none">{item.item}</h4>
-                <p className={`text-[10px] font-black mt-1 uppercase ${
-                   item.status === 'critical' ? 'text-red-500' :
-                   item.status === 'low' ? 'text-orange-500' : 'text-green-500'
-                }`}>
-                   {item.status === 'critical' ? 'חוסר קריטי' : item.status === 'low' ? 'מלאי נמוך' : 'מלאי תקין'}
-                </p>
-             </div>
-          </div>
-          <div className="text-left">
-             <span className="text-2xl font-black text-gray-900">{item.stock}</span>
-             <span className="text-xs font-bold text-gray-400 mr-1">{item.unit}</span>
-          </div>
-        </motion.div>
-      ))}
-    </div>
-    <button className="w-full mt-8 bg-gray-900 text-white py-4 rounded-2xl font-black text-lg shadow-xl active:scale-95 transition-all">
-       הזמן חוסרים אחי 🏗️
-    </button>
-  </div>
-);
-
-const DriverTooltip = ({ driverId, allOrders, children }: { driverId: string, allOrders: Order[], children: React.ReactNode }) => {
-  const driverOrders = allOrders.filter(o => o.driverId === driverId).sort((a,b) => a.time.localeCompare(b.time));
-  const driver = DRIVERS.find(d => d.id === driverId);
-
-  return (
-    <div className="relative group/tooltip inline-block">
-      {children}
-      <div className="absolute bottom-full right-0 mb-3 w-72 bg-gray-900 text-white rounded-[24px] shadow-2xl p-5 opacity-0 invisible group-hover/tooltip:opacity-100 group-hover/tooltip:visible transition-all z-[100] pointer-events-none border border-white/10 backdrop-blur-md bg-opacity-95 translate-y-2 group-hover/tooltip:translate-y-0 text-right" dir="rtl">
-        <div className="flex items-center gap-3 mb-4 border-b border-white/10 pb-3">
-          <div className="bg-sky-600 p-2 rounded-xl">
-            <Truck size={16} />
-          </div>
-          <div>
-            <h4 className="font-bold text-sm leading-tight">{driver?.name}</h4>
-            <p className="text-[10px] text-gray-400">סיכום הזמנות להיום</p>
-          </div>
-        </div>
-        <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
-          {driverOrders.length === 0 ? (
-            <p className="text-xs opacity-50 text-center py-4">אין הזמנות משויכות</p>
-          ) : (
-            driverOrders.map(o => (
-              <div key={o.id} className="text-xs flex justify-between items-start gap-3 border-b border-white/5 pb-3 last:border-0 hover:bg-white/5 p-2 rounded-xl transition-colors">
-                <div className="flex-1 min-w-0">
-                  <p className="font-black text-gray-100 truncate mb-1" title={o.customerName}>{o.customerName}</p>
-                  <p className="text-[10px] text-gray-500 truncate" title={o.destination}>{o.destination}</p>
-                </div>
-                <div className="flex flex-col items-end gap-1.5 shrink-0">
-                   <div className="flex items-center gap-1.5 font-black text-sky-400 text-sm">
-                     <Clock size={12} />
-                     <span>{o.time}</span>
-                   </div>
-                   <div className={`flex items-center gap-1 px-2 py-0.5 rounded-lg text-[9px] font-black ${
-                     o.status === 'delivered' ? 'bg-green-500/20 text-green-400' :
-                     o.status === 'ready' ? 'bg-blue-500/20 text-blue-400' :
-                     o.status === 'preparing' ? 'bg-sky-500/10 text-sky-300' :
-                     'bg-gray-500/20 text-gray-400'
-                   }`}>
-                     {o.status === 'pending' && <Clock size={10} />}
-                     {o.status === 'preparing' && <Truck size={10} />}
-                     {o.status === 'ready' && <CheckCircle2 size={10} />}
-                     {o.status === 'delivered' && <CheckCircle size={10} />}
-                     <span>{o.status === 'pending' ? 'ממתין' : o.status === 'preparing' ? 'בהכנה' : o.status === 'ready' ? 'מוכן' : 'נמסר'}</span>
-                   </div>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const OrderCard = ({ 
-  order, 
-  onEdit, 
-  onUpdateStatus, 
-  onUpdateEta,
-  onDelete,
-  onAddToast,
-  allOrders
-}: { 
-  order: Order, 
-  onEdit: (o: Order) => void, 
-  onUpdateStatus: (id: string, s: any) => void, 
-  onUpdateEta: (id: string, eta: string) => void,
-  onDelete: (id: string) => void,
-  onAddToast: (title: string, msg: string, type?: any) => void,
-  allOrders: Order[],
-  key?: string
-}) => {
-  const [isEditingEta, setIsEditingEta] = useState(false);
-  const [etaInput, setEtaInput] = useState(order.eta || '');
-  const [isPredicting, setIsPredicting] = useState(false);
-
-  const handleSmartPredict = async () => {
-    setIsPredicting(true);
-    try {
-      if ('geolocation' in navigator) {
-        navigator.geolocation.getCurrentPosition(() => {});
-      }
-      const historicalOrders = allOrders.filter(o => o.status === 'delivered');
-      const predictedEta = await predictOrderEta(order, historicalOrders);
-      if (predictedEta) {
-        setEtaInput(predictedEta);
-        onUpdateEta(order.id!, predictedEta);
-        onAddToast('חיזוי ETA חכם', `נמצא זמן הגעה משוער: ${predictedEta} על סמך תנועה אחי`, 'success');
-      } else {
-        onAddToast('שגיאה בחיזוי', 'לא הצלחתי לחשב זמן הגעה, תנסה שוב שותף', 'warning');
-      }
-    } catch (error) {
-      console.error(error);
-      onAddToast('שגיאה', 'משהו השתבש בחיבור ל-AI', 'warning');
-    } finally {
-      setIsPredicting(false);
-    }
-  };
-
-  const handleShare = () => {
-    const text = `📦 הזמנה #${order.orderNumber || order.id?.slice(-4)} ל${order.customerName}\n📍 יעד: ${order.destination}\n🚚 נהג: ${DRIVERS.find(d => d.id === order.driverId)?.name}\n⏰ שעה: ${order.time}\n📊 סטטוס: ${order.status}`;
-    if (navigator.share) {
-      navigator.share({ title: 'שיתוף הזמנה', text }).catch(console.error);
-    } else {
-      navigator.clipboard.writeText(text);
-      onAddToast('הועתק', 'פרטי ההזמנה הועתקו ללוח אחי', 'success');
-    }
-  };
-
-  return (
-    <motion.div 
-      layout
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="bg-white/95 backdrop-blur-sm p-5 rounded-[2rem] border border-sky-100 shadow-lg hover:shadow-xl transition-all relative group"
-    >
-      <div className="absolute top-4 left-4 bg-gray-900 text-white px-3 py-1 rounded-full text-[10px] font-black z-10 shadow-lg">
-        #{order.orderNumber || order.id?.slice(-4).toUpperCase()}
-      </div>
-
-      <div className="flex gap-4 mb-6 pt-2">
-        <div className={`p-4 rounded-3xl h-fit border shadow-sm ${DRIVERS.find(d => d.id === order.driverId)?.type === 'crane' ? 'bg-sky-50 text-sky-600 border-sky-100' : 'bg-blue-50 text-blue-600 border-blue-100'}`}>
-          <Truck size={28} strokeWidth={2.5} />
-        </div>
-        <div className="flex-1 min-w-0 text-right">
-          <h3 className="font-black text-gray-900 text-xl leading-tight mb-1 truncate">{order.customerName}</h3>
-          <div className="flex flex-wrap items-center gap-2">
-            <p className="text-xs text-gray-400 font-bold flex items-center gap-1">
-               <Info size={12} /> {order.destination}
-            </p>
-            <span className="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-lg font-black border border-gray-200 uppercase">{order.warehouse}</span>
-          </div>
-        </div>
-      </div>
-
-      <div className="flex items-center justify-between p-4 bg-sky-50/50 rounded-2xl mb-6 border border-sky-50/50">
-        <div className="flex flex-col gap-1 text-right">
-          <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">נהג וזמן</span>
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-black text-gray-900">{order.driverId === 'self' ? 'איסוף עצמי' : DRIVERS.find(d=>d.id===order.driverId)?.name.split(' ')[0]}</span>
-            <span className="text-sm font-black text-sky-600">| {order.time}</span>
-          </div>
-        </div>
-        <div className="flex flex-col items-end gap-1">
-          <StatusBadge status={order.status} />
-          {order.eta && (
-            <span className="text-[10px] font-black text-sky-600 animate-pulse">צפי: {order.eta}</span>
-          )}
-        </div>
-      </div>
-
-      <div className="space-y-4">
-        <div className="bg-gray-50/80 p-4 rounded-2xl border border-gray-100 text-right">
-           <span className="text-[10px] font-black text-gray-400 uppercase mb-2 block tracking-widest">פירוט פריטים</span>
-           <p className="text-sm font-medium text-gray-700 leading-relaxed">{order.items}</p>
-        </div>
-
-        <div className="flex items-center gap-2 pt-2 border-t border-gray-100">
-          <button 
-            onClick={() => {
-              const nextStatusMap: Record<string, string> = {
-                pending: 'preparing',
-                preparing: 'ready',
-                ready: 'delivered'
-              };
-              onUpdateStatus(order.id!, nextStatusMap[order.status] || order.status);
-            }}
-            className="flex-1 bg-sky-600 text-white py-3.5 rounded-2xl font-black text-xs flex items-center justify-center gap-2 shadow-lg shadow-sky-600/20 active:scale-95 transition-all"
-          >
-            <CheckCircle2 size={16} /> עדכן סטטוס
-          </button>
-          
-          <button 
-            onClick={handleSmartPredict}
-            disabled={isPredicting}
-            className="bg-gray-900 text-white p-3.5 rounded-2xl hover:bg-sky-700 transition-all flex items-center justify-center gap-2 shadow-lg shadow-gray-900/10 active:scale-95 disabled:opacity-50"
-          >
-            {isPredicting ? (
-              <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full" />
-            ) : (
-              <Sparkles size={18} />
-            )}
-            <span className="hidden sm:inline text-xs font-bold">AI ETA</span>
-          </button>
-
-          <button 
-            onClick={handleShare}
-            className="bg-white border-2 border-gray-100 text-gray-600 p-3.5 rounded-2xl hover:bg-gray-50 transition-all active:scale-95"
-          >
-            <Send size={18} className="translate-x-0.5" />
-          </button>
-
-          <button 
-            onClick={() => onEdit(order)}
-            className="p-3.5 text-gray-400 hover:text-sky-600 hover:bg-sky-50 rounded-2xl transition-all"
-          >
-            <Pencil size={18} />
-          </button>
-        </div>
-      </div>
-    </motion.div>
-  );
-};
+// Drawer and other UI components...
 
 // --- Main App ---
 
@@ -549,19 +274,22 @@ export default function App() {
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [drivers, setDrivers] = useState<Driver[]>([]);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [chatHistory, setChatHistory] = useState<any[]>([]);
   const [isAddingOrder, setIsAddingOrder] = useState(false);
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [driverFilter, setDriverFilter] = useState<string>('all');
   const [warehouseFilter, setWarehouseFilter] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('time');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [groupByDriver, setGroupByDriver] = useState(false);
-  const [viewMode, setViewMode] = useState<'list' | 'calendar' | 'table' | 'reports' | 'chat'>('list');
+  const [selectedDriverId, setSelectedDriverId] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'list' | 'calendar' | 'reports' | 'chat' | 'drivers'>('list');
   const [calendarMonth, setCalendarMonth] = useState(new Date());
   const [isRangeMode, setIsRangeMode] = useState(false);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -585,6 +313,41 @@ export default function App() {
     const { outcome } = await installPrompt.userChoice;
     if (outcome === 'accepted') {
       setInstallPrompt(null);
+    }
+  };
+
+  const handleStatusUpdate = async (id: string, newStatus: Order['status']) => {
+    try {
+      await updateOrder(id, { status: newStatus });
+      
+      // Auto-predict ETA when status changes to 'preparing'
+      if (newStatus === 'preparing') {
+        const order = orders.find(o => o.id === id);
+        if (order) {
+          addToast('מחשבת צפי הגעה', `מעדכנת צפי ל-${order.customerName} אחי...`, 'info');
+          const predictedEta = await predictOrderEta(order, orders.filter(o => o.status === 'delivered'));
+          if (predictedEta) {
+            await updateOrder(id, { eta: predictedEta });
+            addToast('צפי עודכן אוטומטית', `צפי הגעה ל-${order.customerName}: ${predictedEta}`, 'success');
+          }
+        }
+      }
+
+      // Update driver metrics when delivered
+      if (newStatus === 'delivered') {
+        const order = orders.find(o => o.id === id);
+        if (order && order.driverId && order.driverId !== 'self') {
+          const driver = drivers.find(d => d.id === order.driverId);
+          if (driver) {
+            await updateDriver(driver.id, { 
+              totalDeliveries: (driver.totalDeliveries || 0) + 1 
+            });
+          }
+        }
+      }
+    } catch (error) {
+      console.error(error);
+      addToast('שגיאה', 'משהו השתבש בעדכון הסטטוס אחי', 'warning');
     }
   };
 
@@ -713,6 +476,40 @@ export default function App() {
     return () => unsubscribe();
   }, [user, startDate, endDate, isRangeMode, viewMode, calendarMonth]);
 
+  // --- Fetch Drivers ---
+  useEffect(() => {
+    if (!user) return;
+    
+    const q = query(collection(db, 'drivers'), orderBy('name', 'asc'));
+    const unsubscribe = onSnapshot(q, async (snapshot) => {
+      if (snapshot.empty) {
+        // Seed default drivers if none exist
+        const DEFAULT_DRIVERS = [
+          { id: 'hikmat', name: 'חכמת (מנוף 🏗️)', phone: '050-0000001', vehicleType: 'crane', plateNumber: '12-345-67', vehicleModel: 'Volvo FM', status: 'active' },
+          { id: 'ali', name: 'עלי (משאית 🚛)', phone: '050-0000002', vehicleType: 'truck', plateNumber: '89-012-34', vehicleModel: 'Scania R450', status: 'active' }
+        ];
+        
+        const { setDoc, doc, serverTimestamp } = await import('firebase/firestore');
+        for (const driverData of DEFAULT_DRIVERS) {
+          const { id, ...data } = driverData;
+          await setDoc(doc(db, 'drivers', id), {
+            ...data,
+            totalDeliveries: 0,
+            onTimeRate: 100,
+            rating: 5,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          });
+        }
+      } else {
+        const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Driver[];
+        setDrivers(docs);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [user]);
+
   useEffect(() => {
     if (chatScrollRef.current) {
       chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
@@ -737,7 +534,7 @@ export default function App() {
             await updateOrder(orderId, rest);
           } else if (call.name === 'update_order_status') {
             const { orderId, status } = call.args as any;
-            await updateOrder(orderId, { status });
+            await handleStatusUpdate(orderId, status);
           } else if (call.name === 'delete_order_by_customer') {
             const { customerName } = call.args as any;
             const q = query(collection(db, 'orders'), where('customerName', '==', customerName));
@@ -835,7 +632,7 @@ export default function App() {
   );
 
   if (viewMode === 'reports') {
-    return <MorningReportSystem onBack={() => setViewMode('list')} />;
+    return <MorningReportSystem onBack={() => setViewMode('list')} drivers={drivers} />;
   }
 
   if (viewMode === 'chat') {
@@ -856,17 +653,6 @@ export default function App() {
               <div className="bg-white p-4 rounded-2xl border border-gray-100 flex items-center gap-3">
                 <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(34,197,94,0.5)]"></div>
                 <span className="text-sm font-bold">זמינה לראמי</span>
-              </div>
-            </div>
-
-            <div>
-              <p className="text-[10px] font-black text-gray-400 mb-2 uppercase">חוקי תפעול</p>
-              <div className="space-y-2">
-                {INVENTORY_RULES.map((r, i) => (
-                  <div key={i} className="bg-sky-50 text-sky-800 text-[10px] font-bold p-3 rounded-xl border border-sky-100 backdrop-blur-sm">
-                    {r.item}: {r.rule}
-                  </div>
-                ))}
               </div>
             </div>
           </div>
@@ -1119,8 +905,8 @@ export default function App() {
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-gray-400 mb-1">נהג</label>
-                    <select name="driver" required defaultValue={editingOrder?.driverId || DRIVERS[0].id} className="w-full bg-gray-50 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-sky-600 outline-none">
-                      {DRIVERS.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                    <select name="driver" required defaultValue={editingOrder?.driverId || (drivers.length > 0 ? drivers[0].id : '')} className="w-full bg-gray-50 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-sky-600 outline-none">
+                      {drivers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                     </select>
                   </div>
                 </div>
@@ -1348,7 +1134,7 @@ export default function App() {
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-4">
             <h2 className="text-2xl font-black text-gray-900 underline decoration-sky-500 decoration-4 underline-offset-8">
-              {viewMode === 'list' ? 'דוח בוקר' : viewMode === 'calendar' ? 'לוח שנתי' : 'כל הנתונים'}
+              {viewMode === 'list' ? 'דוח בוקר' : viewMode === 'calendar' ? 'לוח שנתי' : viewMode === 'drivers' ? 'נהגים וביצועים' : 'ארכיון דוחות'}
             </h2>
             <div className="flex bg-gray-100 p-1 rounded-xl">
               <button 
@@ -1364,13 +1150,11 @@ export default function App() {
                 <CalendarDays size={20} />
               </button>
               <button 
-                onClick={() => {
-                   setViewMode('table');
-                   setIsRangeMode(true); // Default table view to range for better overview
-                }}
-                className={`p-1.5 rounded-lg transition-all ${viewMode === 'table' ? 'bg-white shadow-sm text-sky-600' : 'text-gray-400 hover:text-gray-600'}`}
+                onClick={() => setViewMode('drivers')}
+                className={`p-1.5 rounded-lg transition-all ${viewMode === 'drivers' ? 'bg-white shadow-sm text-sky-600' : 'text-gray-400 hover:text-gray-600'}`}
+                title="נהגים וביצועים"
               >
-                <Table size={20} />
+                <Users size={20} />
               </button>
               <button 
                 onClick={() => setViewMode('reports')}
@@ -1406,8 +1190,24 @@ export default function App() {
               placeholder="חפש לקוח, יעד, פריט או מס' הזמנה..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              onFocus={() => setIsSearchFocused(true)}
+              onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
               className="w-full bg-white border border-gray-100 rounded-2xl py-3 pr-12 pl-4 text-sm focus:ring-2 focus:ring-sky-600 outline-none shadow-sm transition-all"
             />
+            
+            <AnimatePresence>
+              {isSearchFocused && (
+                <SearchSuggestions 
+                  orders={orders} 
+                  searchQuery={searchQuery} 
+                  isVisible={isSearchFocused}
+                  onSelect={(val) => {
+                    setSearchQuery(val);
+                    setIsSearchFocused(false);
+                  }}
+                />
+              )}
+            </AnimatePresence>
           </div>
           <div className="flex flex-wrap gap-3">
             <select 
@@ -1429,7 +1229,7 @@ export default function App() {
               className="flex-1 min-w-[140px] bg-white border border-gray-100 rounded-2xl px-4 py-3 text-sm font-bold text-gray-700 outline-none shadow-sm focus:ring-2 focus:ring-sky-600 transition-all cursor-pointer"
             >
               <option value="all">כל הנהגים</option>
-              {DRIVERS.map(d => (
+              {drivers.map(d => (
                 <option key={d.id} value={d.id}>{d.name}</option>
               ))}
             </select>
@@ -1477,40 +1277,35 @@ export default function App() {
               <h3 className="text-lg font-bold text-gray-800">לא מצאתי תוצאות אחי</h3>
               <p className="text-gray-500 text-sm">נסה לחפש משהו אחר או לשנות את הסינון.</p>
             </div>
-          ) : viewMode === 'table' ? (
-            <InventoryStatus />
           ) : groupByDriver ? (
-            <div className="space-y-8">
-              {DRIVERS.filter(driver => filteredOrders.some(o => o.driverId === driver.id)).map(driver => {
-                const driverOrders = filteredOrders.filter(o => o.driverId === driver.id);
-                return (
-                  <div key={driver.id} className="space-y-4">
-                    <div className="flex items-center justify-between px-2">
-                       <div className="flex items-center gap-2">
-                         <div className={`w-2 h-8 rounded-full ${driver.type === 'crane' ? 'bg-sky-500' : 'bg-blue-500'}`} />
-                         <h3 className="text-xl font-black text-gray-900">{driver.name}</h3>
-                         <span className="bg-gray-100 text-gray-500 px-2 py-0.5 rounded-lg text-xs font-bold">
-                           {driverOrders.length} הזמנות
-                         </span>
-                       </div>
-                    </div>
-                    <div className="grid gap-4">
-                      {driverOrders.map((order) => (
-                        <OrderCard 
-                          key={order.id} 
-                          order={order} 
-                          allOrders={orders}
-                          onEdit={setEditingOrder}
-                          onUpdateStatus={(id, status) => updateOrder(id, { status })}
-                          onUpdateEta={(id, eta) => updateOrder(id, { eta })}
-                          onDelete={deleteOrder}
-                          onAddToast={addToast}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
+            <DriverList 
+              orders={filteredOrders}
+              drivers={drivers}
+              searchQuery={searchQuery}
+              onOrderEdit={setEditingOrder}
+              onOrderUpdateStatus={handleStatusUpdate}
+              onOrderUpdateEta={(id, eta) => updateOrder(id, { eta })}
+              onOrderDelete={deleteOrder}
+              onAddToast={addToast}
+              onDriverSelect={id => setSelectedDriverId(id === selectedDriverId ? null : id)}
+              selectedDriverId={selectedDriverId}
+            />
+          ) : viewMode === 'drivers' ? (
+            <div className="space-y-6">
+              {drivers.map(driver => (
+                <DriverCard
+                  key={driver.id}
+                  driver={driver}
+                  orders={orders.filter(o => o.driverId === driver.id && (isRangeMode || isSameDay(new Date(o.date), selectedDate)))}
+                  allOrders={orders}
+                  searchQuery={searchQuery}
+                  onOrderEdit={setEditingOrder}
+                  onOrderUpdateStatus={handleStatusUpdate}
+                  onOrderUpdateEta={(id, eta) => updateOrder(id, { eta })}
+                  onOrderDelete={deleteOrder}
+                  onAddToast={addToast}
+                />
+              ))}
             </div>
           ) : (
             <div className="grid gap-4">
@@ -1518,9 +1313,11 @@ export default function App() {
                 <OrderCard 
                   key={order.id} 
                   order={order} 
+                  drivers={drivers}
                   allOrders={orders}
+                  searchQuery={searchQuery}
                   onEdit={setEditingOrder}
-                  onUpdateStatus={(id, status) => updateOrder(id, { status })}
+                  onUpdateStatus={handleStatusUpdate}
                   onUpdateEta={(id, eta) => updateOrder(id, { eta })}
                   onDelete={deleteOrder}
                   onAddToast={addToast}
@@ -1530,20 +1327,6 @@ export default function App() {
           )}
         </div>
 
-        {/* Quick Rules Section */}
-        <div className="mt-12 mb-20 overflow-hidden">
-          <div className="flex items-center gap-2 mb-4">
-            <AlertCircle size={18} className="text-sky-500" />
-            <h3 className="font-bold text-gray-800">חוקי מלאי ותפעול</h3>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {INVENTORY_RULES.map((rule, idx) => (
-              <div key={idx} className="bg-sky-50/50 p-4 rounded-2xl border border-sky-100 backdrop-blur-sm">
-                <p className="text-sm text-sky-800 font-bold">● {rule.item}: {rule.rule}</p>
-              </div>
-            ))}
-          </div>
-        </div>
       </main>
 
       {/* Toasts */}
@@ -1563,6 +1346,13 @@ export default function App() {
         >
           <MessageSquare size={20} />
           <span className="text-[10px] font-bold">נועה</span>
+        </button>
+        <button 
+          onClick={() => setViewMode('drivers')}
+          className={`flex flex-col items-center gap-1 ${viewMode === 'drivers' ? 'text-sky-600' : 'text-gray-300'}`}
+        >
+          <Users size={20} />
+          <span className="text-[10px] font-bold">נהגים</span>
         </button>
         <button 
           onClick={() => setViewMode('reports')}
