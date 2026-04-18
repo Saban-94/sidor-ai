@@ -250,7 +250,9 @@ const OrderCard = ({
           </div>
           <div>
             <div className="flex items-center gap-2 mb-1">
-               <span className="text-[10px] font-black bg-gray-900 text-white px-1.5 py-0.5 rounded-md">#{order.id?.slice(-4).toUpperCase()}</span>
+               <span className="text-[10px] font-black bg-gray-900 text-white px-1.5 py-0.5 rounded-md">
+                 #{order.orderNumber || order.id?.slice(-4).toUpperCase()}
+               </span>
                <h3 className="font-bold text-gray-900 text-lg leading-none">{order.customerName}</h3>
             </div>
             <div className="flex items-center gap-2 mt-1">
@@ -380,7 +382,6 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [orders, setOrders] = useState<Order[]>([]);
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatHistory, setChatHistory] = useState<any[]>([]);
   const [isAddingOrder, setIsAddingOrder] = useState(false);
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
@@ -392,7 +393,7 @@ export default function App() {
   const [sortBy, setSortBy] = useState<string>('time');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [groupByDriver, setGroupByDriver] = useState(false);
-  const [viewMode, setViewMode] = useState<'list' | 'calendar' | 'table' | 'reports'>('list');
+  const [viewMode, setViewMode] = useState<'list' | 'calendar' | 'table' | 'reports' | 'chat'>('list');
   const [calendarMonth, setCalendarMonth] = useState(new Date());
   const [isRangeMode, setIsRangeMode] = useState(false);
   const [startDate, setStartDate] = useState(new Date());
@@ -530,7 +531,7 @@ export default function App() {
     if (chatScrollRef.current) {
       chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
     }
-  }, [chatHistory, isChatOpen]);
+  }, [chatHistory]);
 
   // --- Aura AI Handlers ---
   const handleAuraAction = async (msg: string) => {
@@ -555,6 +556,11 @@ export default function App() {
             for (const d of snap.docs) {
               await deleteOrder(d.id);
             }
+          } else if (call.name === 'search_orders') {
+            const { query: qStr } = call.args as any;
+            setSearchQuery(qStr);
+            setViewMode('list');
+            addToast('חיפוש הזמנות', `מחפשת את "${qStr}" בלוח אחי`, 'info');
           }
         }
       }
@@ -609,10 +615,139 @@ export default function App() {
     return <MorningReportSystem onBack={() => setViewMode('list')} />;
   }
 
+  if (viewMode === 'chat') {
+    return (
+      <div className="h-screen bg-white flex flex-col md:flex-row" dir="rtl">
+        {/* Left Sidebar for Desktop (Quick Info) */}
+        <div className="hidden md:flex w-72 bg-gray-50 border-l border-gray-100 flex-col p-6 overflow-y-auto">
+          <div className="flex items-center gap-3 mb-8">
+            <button onClick={() => setViewMode('list')} className="p-2 hover:bg-gray-200 rounded-xl transition-colors">
+              <ChevronRight size={20} />
+            </button>
+            <h1 className="text-xl font-bold">נועה AI</h1>
+          </div>
+          
+          <div className="space-y-6">
+            <div>
+              <p className="text-[10px] font-black text-gray-400 mb-2 uppercase">סטטוס מערכת</p>
+              <div className="bg-white p-4 rounded-2xl border border-gray-100 flex items-center gap-3">
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(34,197,94,0.5)]"></div>
+                <span className="text-sm font-bold">זמינה לראמי</span>
+              </div>
+            </div>
+
+            <div>
+              <p className="text-[10px] font-black text-gray-400 mb-2 uppercase">חוקי תפעול</p>
+              <div className="space-y-2">
+                {INVENTORY_RULES.map((r, i) => (
+                  <div key={i} className="bg-orange-50 text-orange-800 text-[10px] font-bold p-3 rounded-xl border border-orange-100">
+                    {r.item}: {r.rule}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Main Chat Area */}
+        <div className="flex-1 flex flex-col h-full bg-white relative">
+          <header className="p-4 border-b border-gray-100 flex items-center justify-between md:hidden">
+            <div className="flex items-center gap-3">
+               <button onClick={() => setViewMode('list')} className="p-2 hover:bg-gray-100 rounded-xl">
+                 <ChevronRight size={20} />
+               </button>
+               <h1 className="font-bold">נועה לוגיסטיקה</h1>
+            </div>
+          </header>
+
+          <div 
+            ref={chatScrollRef}
+            className="flex-1 overflow-y-auto p-6 space-y-6 max-w-4xl mx-auto w-full pb-60"
+          >
+            {chatHistory.length === 0 && (
+              <div className="text-center py-20 opacity-30">
+                <div className="bg-gray-50 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6">
+                   <MessageSquare size={48} />
+                </div>
+                <h2 className="text-xl font-black mb-2">אחי, אני כאן בשבילך</h2>
+                <p className="text-sm">"תפתחי הזמנה חדשה לחכמת לשעה 9 ליעד ברקאי"</p>
+              </div>
+            )}
+            
+            {chatHistory.map((chat, idx) => (
+              <motion.div 
+                key={idx} 
+                initial={{ opacity: 0, scale: 0.9, y: 10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                className={`flex w-full ${chat.role === 'user' ? 'justify-start' : 'justify-end'}`}
+              >
+                <div className={`max-w-[70%] md:max-w-md p-5 rounded-[2.5rem] text-sm md:text-base font-medium leading-relaxed shadow-xl ${
+                  chat.role === 'user' 
+                    ? 'bg-orange-600 text-white rounded-tr-none shadow-orange-600/10' 
+                    : 'bg-white text-gray-800 rounded-tl-none border border-gray-100'
+                }`}>
+                  {chat.parts[0].text}
+                </div>
+              </motion.div>
+            ))}
+          </div>
+
+          <div className="fixed bottom-0 md:bottom-0 left-0 right-0 md:right-72 bg-gradient-to-t from-white via-white to-transparent pt-10 pb-20 md:pb-10 px-6 z-20">
+            <div className="max-w-4xl mx-auto space-y-4">
+              {/* Quick Actions */}
+              <div className="flex gap-2 overflow-x-auto no-scrollbar py-2 scroll-smooth">
+                {[
+                  { label: 'הזמנה חדשה ✍️', action: 'הזמנה חדשה אחי' },
+                  { label: 'עדכון סטטוס ✅', action: 'אני רוצה לעדכן סטטוס להזמנה' },
+                  { label: 'דוח בוקר 📋', action: 'תכיני לי דוח בוקר' },
+                  { label: 'צפי הגעה ⏱️', action: 'מה צפי ההגעה של ההזמנות שלי?' }
+                ].map((btn, i) => (
+                  <button 
+                    key={i}
+                    onClick={() => handleAuraAction(btn.action)}
+                    className="whitespace-nowrap bg-white hover:bg-orange-600 hover:text-white text-gray-900 text-[11px] font-black px-4 py-2.5 rounded-xl transition-all border border-gray-100 shadow-sm hover:shadow-orange-200"
+                  >
+                    {btn.label}
+                  </button>
+                ))}
+              </div>
+
+              <form 
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const input = e.target as any;
+                  const val = input.message.value;
+                  if (!val) return;
+                  handleAuraAction(val);
+                  input.message.value = '';
+                }}
+                className="flex gap-3 items-center"
+              >
+                <input 
+                  name="message"
+                  autoComplete="off"
+                  placeholder="דבר איתי אחי..."
+                  className="flex-1 bg-white border-2 border-gray-100 rounded-[2rem] px-8 py-4 text-base focus:border-orange-600 transition-all outline-none shadow-xl"
+                />
+                <button 
+                  type="submit"
+                  className="bg-gray-900 text-white p-4 rounded-full hover:bg-orange-600 transition-all shadow-xl hover:scale-110 active:scale-95"
+                >
+                  <Send size={24} />
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const filteredOrders = orders
     .filter(order => {
       const matchesSearch = 
         order.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        order.orderNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         order.destination.toLowerCase().includes(searchQuery.toLowerCase()) ||
         order.items.toLowerCase().includes(searchQuery.toLowerCase());
       
@@ -694,6 +829,7 @@ export default function App() {
                     date: form.date.value,
                     time: form.time.value,
                     driverId: form.driver.value,
+                    orderNumber: form.orderNumber.value,
                     customerName: form.customer.value,
                     destination: form.destination.value,
                     items: form.items.value,
@@ -738,9 +874,15 @@ export default function App() {
                   </div>
                 </div>
                 
-                <div>
-                  <label className="block text-xs font-bold text-gray-400 mb-1">לקוח</label>
-                  <input name="customer" required defaultValue={editingOrder?.customerName || ''} placeholder="שם הלקוח" className="w-full bg-gray-50 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-orange-600 outline-none" />
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-400 mb-1">לקוח</label>
+                    <input name="customer" required defaultValue={editingOrder?.customerName || ''} placeholder="שם הלקוח" className="w-full bg-gray-50 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-orange-600 outline-none" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-400 mb-1">מספר הזמנה / ליד</label>
+                    <input name="orderNumber" defaultValue={editingOrder?.orderNumber || ''} placeholder="מס' נתור / הזמנה" className="w-full bg-gray-50 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-orange-600 outline-none" />
+                  </div>
                 </div>
                 
                 <div>
@@ -931,6 +1073,13 @@ export default function App() {
               >
                 <FileText size={20} />
               </button>
+              <button 
+                onClick={() => setViewMode('chat')}
+                className={`p-1.5 rounded-lg transition-all ${viewMode === 'chat' ? 'bg-white shadow-sm text-orange-600' : 'text-gray-400 hover:text-gray-600'}`}
+                title="נועה AI"
+              >
+                <MessageSquare size={20} />
+              </button>
             </div>
           </div>
           <button 
@@ -1059,6 +1208,9 @@ export default function App() {
                       <th onClick={() => toggleSort('customerName')} className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors">
                         <div className="flex items-center">לקוח <SortIcon field="customerName" currentSort={sortBy} direction={sortDirection} /></div>
                       </th>
+                      <th onClick={() => toggleSort('orderNumber')} className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors">
+                        <div className="flex items-center">מס' הזמנה <SortIcon field="orderNumber" currentSort={sortBy} direction={sortDirection} /></div>
+                      </th>
                       <th onClick={() => toggleSort('destination')} className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors">
                         <div className="flex items-center">יעד <SortIcon field="destination" currentSort={sortBy} direction={sortDirection} /></div>
                       </th>
@@ -1092,6 +1244,7 @@ export default function App() {
                           </DriverTooltip>
                         </td>
                         <td className="px-6 py-4 font-black text-gray-900">{order.customerName}</td>
+                        <td className="px-6 py-4 font-bold text-gray-500 text-xs">#{order.orderNumber || '-'}</td>
                         <td className="px-6 py-4 text-gray-400 text-xs">{order.destination}</td>
                         <td className="px-6 py-4 text-gray-600 text-xs max-w-[200px] truncate" title={order.items}>
                           {order.items}
@@ -1193,127 +1346,30 @@ export default function App() {
         </div>
       </main>
 
-      {/* Noa Chat Interface */}
-      <AnimatePresence>
-        {isChatOpen && (
-          <motion.div 
-            initial={{ opacity: 0, y: 20, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 20, scale: 0.95 }}
-            className="fixed bottom-24 left-6 right-6 md:left-auto md:right-8 md:bottom-24 md:w-96 bg-white rounded-3xl shadow-2xl z-50 overflow-hidden border border-gray-100 flex flex-col max-h-[70vh]"
-          >
-            {/* Chat Header */}
-            <div className="bg-gray-900 p-4 flex items-center justify-between text-white" dir="rtl">
-              <div className="flex items-center gap-3">
-                <div className="bg-orange-600 p-2 rounded-xl">
-                  <User size={18} />
-                </div>
-                <div>
-                  <h3 className="font-bold text-sm">נועה - מנהלת לוגיסטיקה</h3>
-                  <div className="flex items-center gap-1">
-                    <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                    <span className="text-[10px] opacity-70">חייבת לך, שותף</span>
-                  </div>
-                </div>
-              </div>
-              <button onClick={() => setIsChatOpen(false)} className="hover:bg-white/10 p-1.5 rounded-lg transition-colors">
-                <X size={20} />
-              </button>
-            </div>
-
-            {/* Chat Body */}
-            <div 
-              ref={chatScrollRef}
-              className="flex-1 overflow-y-auto p-4 space-y-4 min-h-[300px] bg-gray-50/50"
-            >
-              {chatHistory.length === 0 && (
-                <div className="text-center py-10 opacity-50 px-6">
-                  <MessageSquare className="mx-auto mb-3" />
-                  <p className="text-sm font-medium">"אחי, יש הזמנה של זבולון לשעה 8 אצל חכמת"</p>
-                </div>
-              )}
-              {chatHistory.map((chat, idx) => (
-                <div key={idx} className={`flex ${chat.role === 'user' ? 'justify-start' : 'justify-end'}`}>
-                  <div className={`max-w-[85%] p-3.5 rounded-2xl text-sm font-medium leading-relaxed shadow-sm ${
-                    chat.role === 'user' 
-                      ? 'bg-orange-600 text-white rounded-tr-none shadow-orange-600/10' 
-                      : 'bg-white text-gray-800 rounded-tl-none border border-gray-100'
-                  }`}>
-                    {chat.parts[0].text}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Quick Actions Bar */}
-            <div className="bg-white px-4 py-2 flex gap-2 overflow-x-auto no-scrollbar border-t border-gray-100">
-              {[
-                { label: 'הזמנה חדשה ✍️', action: 'הזמנה חדשה אחי' },
-                { label: 'עדכון סטטוס ✅', action: 'אני רוצה לעדכן סטטוס להזמנה' },
-                { label: 'דוח בוקר 📋', action: 'תכיני לי דוח בוקר' },
-                { label: 'צפי הגעה ⏱️', action: 'מה צפי ההגעה של ההזמנות שלי?' }
-              ].map((btn, i) => (
-                <button 
-                  key={i}
-                  onClick={() => handleAuraAction(btn.action)}
-                  className="whitespace-nowrap bg-gray-100 hover:bg-orange-50 hover:text-orange-600 text-[10px] font-black px-3 py-2 rounded-xl transition-all border border-transparent hover:border-orange-100"
-                >
-                  {btn.label}
-                </button>
-              ))}
-            </div>
-
-            {/* Chat Input */}
-            <form 
-              onSubmit={(e) => {
-                e.preventDefault();
-                const input = e.target as any;
-                const val = input.message.value;
-                if (!val) return;
-                handleAuraAction(val);
-                input.message.value = '';
-              }}
-              className="p-4 bg-white border-t border-gray-100 flex gap-2"
-            >
-              <input 
-                name="message"
-                autoComplete="off"
-                placeholder="דבר איתי אחי..."
-                className="flex-1 bg-gray-100 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-orange-600 transition-shadow outline-none"
-              />
-              <button 
-                type="submit"
-                className="bg-gray-900 text-white p-3 rounded-xl hover:bg-orange-600 transition-colors"
-              >
-                <Send size={18} />
-              </button>
-            </form>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Floating Action Button */}
-      <button 
-        onClick={() => setIsChatOpen(!isChatOpen)}
-        className="fixed bottom-6 left-6 md:left-auto md:right-8 bg-gray-900 text-white p-4 rounded-2xl shadow-2xl z-40 hover:scale-110 transition-transform group flex items-center gap-3"
-      >
-        <span className="font-bold text-sm hidden group-hover:block transition-all">דבר עם נועה :)</span>
-        <User size={24} />
-      </button>
+      {/* Toasts */}
 
       {/* Mobile Nav Overlay */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-8 py-3 flex justify-between items-center z-30 shadow-[0_-5px_20px_rgba(0,0,0,0.05)]">
-        <button className="flex flex-col items-center gap-1 text-orange-600">
+        <button 
+          onClick={() => setViewMode('list')}
+          className={`flex flex-col items-center gap-1 ${viewMode === 'list' ? 'text-orange-600' : 'text-gray-300'}`}
+        >
           <Truck size={20} />
           <span className="text-[10px] font-bold">סידור</span>
         </button>
-        <button className="flex flex-col items-center gap-1 text-gray-300">
-          <Search size={20} />
-          <span className="text-[10px] font-bold">חיפוש</span>
+        <button 
+          onClick={() => setViewMode('chat')}
+          className={`flex flex-col items-center gap-1 ${viewMode === 'chat' ? 'text-orange-600' : 'text-gray-300'}`}
+        >
+          <MessageSquare size={20} />
+          <span className="text-[10px] font-bold">נועה</span>
         </button>
-        <button className="flex flex-col items-center gap-1 text-gray-300">
-          <Settings size={20} />
-          <span className="text-[10px] font-bold">הגדרות</span>
+        <button 
+          onClick={() => setViewMode('reports')}
+          className={`flex flex-col items-center gap-1 ${viewMode === 'reports' ? 'text-orange-600' : 'text-gray-300'}`}
+        >
+          <FileText size={20} />
+          <span className="text-[10px] font-bold">דוחות</span>
         </button>
       </div>
 

@@ -88,7 +88,8 @@ export default function MorningReportSystem({ onBack }: { onBack: () => void }) 
       if (driverOrders.length > 0) {
         text += `👤 *${driver.name}:*\n`;
         driverOrders.forEach(o => {
-          text += `• ${o.time} | ${o.customerName} - ${o.destination} (${o.warehouse})\n`;
+          const idStr = o.orderNumber ? `#${o.orderNumber}` : `#${o.id?.slice(-4).toUpperCase()}`;
+          text += `• ${o.time} | ${idStr} ${o.customerName} - ${o.destination} (${o.warehouse})\n`;
         });
         text += `\n`;
       }
@@ -219,6 +220,11 @@ export default function MorningReportSystem({ onBack }: { onBack: () => void }) 
                             ) : (
                               <div className="w-5 h-5 border-2 border-gray-200 rounded-lg mx-auto group-hover:border-orange-200" />
                             )}
+                          </td>
+                          <td className="px-6 py-4 text-center">
+                            <span className="text-[10px] font-black bg-gray-900 text-white px-1.5 py-0.5 rounded-md">
+                              #{order.orderNumber || order.id?.slice(-4).toUpperCase()}
+                            </span>
                           </td>
                           <td className="px-6 py-4">
                             <div className="font-bold text-gray-900 text-sm">{order.customerName}</div>

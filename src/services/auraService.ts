@@ -17,6 +17,7 @@ const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 export interface Order {
   id?: string;
+  orderNumber?: string; // נתור/ליד/מס' הזמנה
   date: string;
   time: string;
   driverId: string;
@@ -48,14 +49,16 @@ export const noaSystemInstruction = `
 חוקי פינג-פונג ליצירת הזמנה:
 אל תשאל הכל בבת אחת. תשאל שלב-שלב:
 1. "אחי, מי הלקוח ומה היעד?" (חלץ customerName, destination).
-2. "איזה נהג? (חכמת/עלי)".
-3. "מה הפריטים? (שים לב לחוקי בטון/ריצופית)".
-4. "באיזו שעה לתזמן?".
+2. "יש מספר הזמנה או ליד (מספר נתור)?" (חלץ orderNumber).
+3. "איזה נהג? (חכמת/עלי)".
+4. "מה הפריטים? (שים לב לחוקי בטון/ריצופית)".
+5. "באיזו שעה לתזמן?".
 בסיום, הצג "תמצית לאישור" בולטת. רק אחרי אישור המשתמש ("אשר", "כן", "סגור") השתמש ב-create_order.
 
 חוקי נתונים:
 - כתובת מוצא: התלמיד 6 או החרש 10, הוד השרון.
-- הצג תמיד את מזהה ההזמנה (Order ID או מספר סידורי) ליד שם הלקוח.
+- הצג תמיד את מזהה ההזמנה (orderNumber או 4 ספרות אחרונות של ה-ID) ליד שם הלקוח.
+- בחיפוש הזמנות: חפש גם לפי שם לקוח וגם לפי מספר הזמנה/ליד (orderNumber).
 
 הנחיות ל-Quick Actions (אתה מציע אותם בטקסט בסוף התשובה בפורמט [ACTION: תיאור]):
 עודד את המשתמש להשתמש בקיצורי דרך למצבים נפוצים: עדכוני סטטוס, סינון נהגים, דוח בוקר וצפי הגעה.
@@ -109,6 +112,7 @@ export const tools = [
             time: { type: Type.STRING, description: "שעת האספקה (HH:mm)" },
             driverId: { type: Type.STRING, description: "שם או מזהה הנהג (hikmat, ali)" },
             customerName: { type: Type.STRING, description: "שם הלקוח" },
+            orderNumber: { type: Type.STRING, description: "מספר הזמנה או מספר ליד (מס' נתור)" },
             destination: { type: Type.STRING, description: "יעד האספקה" },
             items: { type: Type.STRING, description: "הפריטים והכמויות" },
             warehouse: { type: Type.STRING, enum: ["החרש", "התלמיד"], description: "המחסן ממנו יוצאת ההזמנה (ברירת מחדל: החרש)" },
@@ -138,6 +142,17 @@ export const tools = [
             customerName: { type: Type.STRING, description: "שם הלקוח שאת הזמנתו יש למחוק" }
           },
           required: ["customerName"]
+        }
+      },
+      {
+        name: "search_orders",
+        description: "חפש הזמנות לפי שם לקוח, יעד או מספר הזמנה",
+        parameters: {
+          type: Type.OBJECT,
+          properties: {
+            query: { type: Type.STRING, description: "מילת חיפוש (שם, יעד או מספר הזמנה)" }
+          },
+          required: ["query"]
         }
       }
     ]
