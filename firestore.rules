@@ -26,8 +26,8 @@ service cloud.firestore {
 
     // --- Order Validation ---
     function isValidOrder(data) {
-      return data.keys().hasAll(['date', 'time', 'driverId', 'customerName', 'destination', 'items', 'warehouse', 'status', 'createdAt', 'updatedAt', 'createdBy'])
-        && (data.keys().size() == 11 || (data.keys().size() == 12 && data.eta is string))
+      let requiredFields = ['date', 'time', 'driverId', 'customerName', 'destination', 'items', 'warehouse', 'status', 'createdAt', 'updatedAt', 'createdBy'];
+      return data.keys().hasAll(requiredFields)
         && data.date is string && data.date.size() <= 10
         && data.time is string && data.time.size() <= 6
         && data.driverId is string && data.driverId.size() <= 100
@@ -38,27 +38,41 @@ service cloud.firestore {
         && data.status in ['pending', 'preparing', 'ready', 'delivered', 'cancelled']
         && data.createdAt is timestamp
         && data.updatedAt is timestamp
-        && data.createdBy == request.auth.uid;
+        && data.createdBy is string
+        && (!data.keys().contains('orderNumber') || data.orderNumber is string)
+        && (!data.keys().contains('eta') || data.eta is string);
     }
 
     match /orders/{orderId} {
-      allow read: if isSignedIn(); // All staff can read orders
-      allow create: if isEmailVerified() && isValidId(orderId) && isValidOrder(request.resource.data) && request.resource.data.createdAt == request.time;
+      allow read: if isSignedIn(); 
+      allow create: if isEmailVerified() && isValidId(orderId) && isValidOrder(request.resource.data) && request.resource.data.createdBy == request.auth.uid && request.resource.data.createdAt == request.time;
       allow update: if isEmailVerified() && isValidOrder(request.resource.data) 
         && request.resource.data.updatedAt == request.time
         && request.resource.data.createdBy == resource.data.createdBy
         && (
-          // Allow full update by owner
           isOwner(resource.data)
-          // or specific status/eta updates by any verified staff
           || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'eta', 'updatedAt']))
         );
       allow delete: if isEmailVerified() && isOwner(resource.data);
     }
 
+    // --- Morning Report Validation ---
+    function isValidMorningReport(data) {
+      return data.keys().hasAll(['date', 'orderIds', 'reportText', 'createdAt'])
+        && data.date is string
+        && data.orderIds is list
+        && data.reportText is string
+        && data.createdAt is timestamp;
+    }
+
     match /morning_reports/{reportId} {
       allow read: if isSignedIn();
-      allow write: if isEmailVerified();
+      allow create: if isEmailVerified() && isValidMorningReport(request.resource.data) && request.resource.data.createdAt == request.time;
+      allow update, delete: if isEmailVerified() && isAdmin(); // Or keep restricted
+    }
+
+    function isAdmin() {
+      return isEmailVerified() && (request.auth.token.email == 'hsaban2025@gmail.com');
     }
 
     // --- Inventory Rules Validation ---

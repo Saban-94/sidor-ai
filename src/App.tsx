@@ -546,6 +546,9 @@ export default function App() {
         for (const call of functionCalls) {
           if (call.name === 'create_order') {
             await createOrder(call.args as any);
+          } else if (call.name === 'update_order') {
+            const { orderId, ...rest } = call.args as any;
+            await updateOrder(orderId, rest);
           } else if (call.name === 'update_order_status') {
             const { orderId, status } = call.args as any;
             await updateOrder(orderId, { status });
@@ -822,6 +825,7 @@ export default function App() {
               </div>
               
               <form 
+                key={editingOrder?.id || 'new'}
                 onSubmit={async (e) => {
                   e.preventDefault();
                   const form = e.target as any;
@@ -1097,7 +1101,7 @@ export default function App() {
             <Search className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
             <input 
               type="text"
-              placeholder="חפש לקוח, יעד או פריט..."
+              placeholder="חפש לקוח, יעד, פריט או מס' הזמנה..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full bg-white border border-gray-100 rounded-2xl py-3 pr-12 pl-4 text-sm focus:ring-2 focus:ring-orange-600 outline-none shadow-sm transition-all"

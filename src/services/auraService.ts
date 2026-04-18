@@ -122,6 +122,24 @@ export const tools = [
         }
       },
       {
+        name: "update_order",
+        description: "עדכן פרטי הזמנה קיימת (לקוח, יעד, פריטים, מספר הזמנה וכו')",
+        parameters: {
+          type: Type.OBJECT,
+          properties: {
+            orderId: { type: Type.STRING, description: "מזהה ההזמנה" },
+            customerName: { type: Type.STRING },
+            orderNumber: { type: Type.STRING },
+            destination: { type: Type.STRING },
+            items: { type: Type.STRING },
+            driverId: { type: Type.STRING },
+            warehouse: { type: Type.STRING, enum: ["החרש", "התלמיד"] },
+            status: { type: Type.STRING, enum: ["pending", "preparing", "ready", "delivered", "cancelled"] }
+          },
+          required: ["orderId"]
+        }
+      },
+      {
         name: "update_order_status",
         description: "עדכן סטטוס של הזמנה קיימת",
         parameters: {
