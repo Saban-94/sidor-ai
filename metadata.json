@@ -1,6 +1,6 @@
 {
   "name": "נועה - מנהלת לוגיסטיקה ח. סבן",
   "description": "נועה, המוח הלוגיסטי של ח. סבן חומרי בניין. ניהול סבבי בוקר, נהגים, מלאי וסיכומי הפצה.",
-  "requestFramePermissions": [],
+  "requestFramePermissions": ["geolocation"],
   "majorCapabilities": []
 }

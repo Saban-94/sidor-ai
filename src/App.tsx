@@ -36,7 +36,9 @@ import {
   Info,
   CheckCircle,
   AlertTriangle,
-  Sparkles
+  Sparkles,
+  Package,
+  Menu
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
@@ -96,19 +98,48 @@ const SortIcon = ({ field, currentSort, direction }: { field: string, currentSor
   return direction === 'asc' ? <ArrowUp size={12} className="inline mr-2 text-sky-600" /> : <ArrowDown size={12} className="inline mr-2 text-sky-600" />;
 };
 
-const Header = ({ user, notificationsEnabled, onToggleNotifications }: { user: FirebaseUser, notificationsEnabled: boolean, onToggleNotifications: () => void }) => (
+const Header = ({ 
+  user, 
+  notificationsEnabled, 
+  onToggleNotifications,
+  onOpenDrawer,
+  onInstallApp
+}: { 
+  user: FirebaseUser, 
+  notificationsEnabled: boolean, 
+  onToggleNotifications: () => void,
+  onOpenDrawer: () => void,
+  onInstallApp: () => void | null
+}) => (
   <header className="flex items-center justify-between px-6 py-4 bg-white/80 backdrop-blur-md border-b border-sky-100 sticky top-0 z-30">
-    <div className="flex items-center gap-4">
-      <div className="bg-sky-600/10 p-2 rounded-xl">
-        <Truck className="text-sky-600" size={24} />
-      </div>
-      <div>
-        <h1 className="text-xl font-bold text-gray-900 leading-tight tracking-tight">ח. סבן לוגיסטיקה</h1>
-        <p className="text-xs text-gray-500 font-medium">בוקר טוב, {user.displayName?.split(' ')[0] || 'ראמי'} אחי</p>
+    <div className="flex items-center gap-3">
+      <button 
+        onClick={onOpenDrawer}
+        className="p-2 hover:bg-sky-50 rounded-xl text-gray-600 md:hidden"
+      >
+        <MoreVertical size={24} />
+      </button>
+      <div className="flex items-center gap-3">
+        <div className="bg-sky-600/10 p-2 rounded-xl">
+          <Truck className="text-sky-600" size={24} />
+        </div>
+        <div className="hidden sm:block">
+          <h1 className="text-lg font-bold text-gray-900 leading-tight tracking-tight">ח. סבן לוגיסטיקה</h1>
+          <p className="text-[10px] text-gray-500 font-medium">בוקר טוב, {user.displayName?.split(' ')[0] || 'ראמי'} אחי</p>
+        </div>
       </div>
     </div>
     
-    <div className="flex items-center gap-3">
+    <div className="flex items-center gap-2">
+      {onInstallApp && (
+        <button 
+          onClick={onInstallApp}
+          className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-gray-900 text-white rounded-xl text-[10px] font-bold shadow-lg hover:scale-105 transition-all"
+        >
+          <Plus size={14} /> התקן אפליקציה
+        </button>
+      )}
+      
       <button 
         onClick={onToggleNotifications}
         className={`p-2.5 rounded-xl transition-all border ${notificationsEnabled ? 'bg-sky-50 text-sky-600 border-sky-100' : 'bg-gray-50 text-gray-400 border-gray-100'}`}
@@ -117,15 +148,127 @@ const Header = ({ user, notificationsEnabled, onToggleNotifications }: { user: F
         {notificationsEnabled ? <Bell size={20} /> : <BellOff size={20} />}
       </button>
 
-      <div className="hidden md:flex flex-col items-end">
+      <div className="hidden md:flex flex-col items-end mr-2">
         <span className="text-sm font-semibold text-gray-800">{user.displayName}</span>
         <button onClick={logout} className="text-xs text-red-500 hover:text-red-600 transition-colors flex items-center gap-1">
           <LogOut size={12} /> התנתק
         </button>
       </div>
-      <img src={user.photoURL || ''} alt="" className="w-10 h-10 rounded-full border-2 border-sky-50" referrerPolicy="no-referrer" />
+      <img src={user.photoURL || ''} alt="" className="w-9 h-9 rounded-full border-2 border-sky-50 shadow-sm" referrerPolicy="no-referrer" />
     </div>
   </header>
+);
+
+const Drawer = ({ 
+  isOpen, 
+  onClose, 
+  user, 
+  viewMode, 
+  setViewMode,
+  installPrompt
+}: { 
+  isOpen: boolean, 
+  onClose: () => void, 
+  user: FirebaseUser,
+  viewMode: string,
+  setViewMode: (v: any) => void,
+  installPrompt: any
+}) => (
+  <AnimatePresence>
+    {isOpen && (
+      <>
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onClick={onClose}
+          className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-[60]"
+        />
+        <motion.div 
+          initial={{ x: '100%' }}
+          animate={{ x: 0 }}
+          exit={{ x: '100%' }}
+          transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+          className="fixed inset-y-0 right-0 w-80 bg-white shadow-2xl z-[70] flex flex-col p-6 overflow-y-auto"
+          dir="rtl"
+        >
+          <div className="flex justify-between items-center mb-10">
+            <div className="flex items-center gap-3">
+              <div className="bg-sky-600 p-2 rounded-xl text-white">
+                <Truck size={20} />
+              </div>
+              <h2 className="text-xl font-bold italic">ח. סבן</h2>
+            </div>
+            <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-xl transition-colors">
+              <X size={24} className="text-gray-400" />
+            </button>
+          </div>
+
+          <div className="flex-1 space-y-2">
+            {[
+              { id: 'chat', label: 'דברו עם נועה (AI)', icon: MessageSquare },
+              { id: 'list', label: 'לוח הזמנות', icon: LayoutList },
+              { id: 'calendar', label: 'סידור עבודה שבועי', icon: CalendarDays },
+              { id: 'reports', label: 'דוח בוקר (ארכיון)', icon: FileText },
+              { id: 'table', label: 'סטטוס מלאי', icon: Table },
+            ].map((item) => {
+              const Icon = item.icon;
+              const isActive = viewMode === item.id;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => {
+                    setViewMode(item.id);
+                    onClose();
+                  }}
+                  className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all ${
+                    isActive 
+                      ? 'bg-sky-600 text-white shadow-lg shadow-sky-600/20 transform scale-[1.02]' 
+                      : 'text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  <Icon size={20} strokeWidth={isActive ? 3 : 2} />
+                  <span className="font-bold">{item.label}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="pt-8 border-t border-gray-100 mt-auto">
+            {installPrompt && (
+              <button 
+                onClick={() => {
+                  installPrompt.prompt();
+                  onClose();
+                }}
+                className="w-full mb-4 flex items-center justify-center gap-2 bg-gray-900 text-white py-4 rounded-2xl font-bold shadow-xl active:scale-95 transition-transform"
+              >
+                <Plus size={20} /> התקן כאפליקציה
+              </button>
+            )}
+            
+            <div className="flex items-center gap-4 mb-6 px-2">
+              <img src={user.photoURL || ''} alt="" className="w-12 h-12 rounded-full border-2 border-sky-100" />
+              <div>
+                <p className="font-bold text-gray-900 leading-none mb-1">{user.displayName}</p>
+                <p className="text-[10px] text-gray-400 font-bold uppercase">{user.email}</p>
+              </div>
+            </div>
+            
+            <button 
+              onClick={() => {
+                logout();
+                onClose();
+              }}
+              className="w-full flex items-center justify-center gap-2 text-red-500 font-bold p-4 hover:bg-red-50 rounded-2xl transition-colors"
+            >
+              <LogOut size={20} /> התנתק מהמערכת
+            </button>
+          </div>
+        </motion.div>
+      </>
+    )}
+  </AnimatePresence>
 );
 
 const EmptyState = () => (
@@ -135,6 +278,64 @@ const EmptyState = () => (
     </div>
     <h3 className="text-lg font-bold text-gray-800">אין הזמנות ליום הזה</h3>
     <p className="text-gray-500 mt-2 max-w-xs text-sm">הסידור ריק בינתיים אחי. אפשר להוסיף הזמנה חדשה או לבקש מ-Aura לעזור.</p>
+  </div>
+);
+
+const INVENTORY_DATA = [
+  { item: "מלט 50 ק\"ג", stock: 120, unit: "שקים", status: "ok" },
+  { item: "חול מחצבה", stock: 15, unit: "באלות", status: "low" },
+  { item: "בלוק 10 תקני", stock: 450, unit: "יח'", status: "ok" },
+  { item: "בלוק 20 תקני", stock: 80, unit: "יח'", status: "critical" },
+  { item: "טיח חוץ", stock: 40, unit: "שקים", status: "ok" },
+  { item: "סיד לבן", stock: 12, unit: "מיכלים", status: "low" },
+];
+
+const InventoryStatus = () => (
+  <div className="space-y-4">
+    <div className="flex items-center justify-between mb-6">
+       <h2 className="text-xl font-black italic">סטטוס מלאי - מחסן החרש</h2>
+       <div className="flex items-center gap-2">
+          <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse" />
+          <span className="text-[10px] font-black text-gray-400">מעודכן ל-LIVE</span>
+       </div>
+    </div>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {INVENTORY_DATA.map((item, i) => (
+        <motion.div 
+          key={i}
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: i * 0.1 }}
+          className="bg-white/90 backdrop-blur-md p-6 rounded-[2rem] border border-sky-100 shadow-lg flex items-center justify-between"
+        >
+          <div className="flex items-center gap-4">
+             <div className={`p-4 rounded-2xl ${
+               item.status === 'critical' ? 'bg-red-50 text-red-600 border-red-100' :
+               item.status === 'low' ? 'bg-orange-50 text-orange-600 border-orange-100' :
+               'bg-green-50 text-green-600 border-green-100'
+             } border`}>
+                <Package size={24} />
+             </div>
+             <div>
+                <h4 className="font-black text-lg text-gray-900 leading-none">{item.item}</h4>
+                <p className={`text-[10px] font-black mt-1 uppercase ${
+                   item.status === 'critical' ? 'text-red-500' :
+                   item.status === 'low' ? 'text-orange-500' : 'text-green-500'
+                }`}>
+                   {item.status === 'critical' ? 'חוסר קריטי' : item.status === 'low' ? 'מלאי נמוך' : 'מלאי תקין'}
+                </p>
+             </div>
+          </div>
+          <div className="text-left">
+             <span className="text-2xl font-black text-gray-900">{item.stock}</span>
+             <span className="text-xs font-bold text-gray-400 mr-1">{item.unit}</span>
+          </div>
+        </motion.div>
+      ))}
+    </div>
+    <button className="w-full mt-8 bg-gray-900 text-white py-4 rounded-2xl font-black text-lg shadow-xl active:scale-95 transition-all">
+       הזמן חוסרים אחי 🏗️
+    </button>
   </div>
 );
 
@@ -217,10 +418,11 @@ const OrderCard = ({
   const handleSmartPredict = async () => {
     setIsPredicting(true);
     try {
-      // Use delivered orders as historical context
+      if ('geolocation' in navigator) {
+        navigator.geolocation.getCurrentPosition(() => {});
+      }
       const historicalOrders = allOrders.filter(o => o.status === 'delivered');
       const predictedEta = await predictOrderEta(order, historicalOrders);
-      
       if (predictedEta) {
         setEtaInput(predictedEta);
         onUpdateEta(order.id!, predictedEta);
@@ -236,140 +438,106 @@ const OrderCard = ({
     }
   };
 
+  const handleShare = () => {
+    const text = `📦 הזמנה #${order.orderNumber || order.id?.slice(-4)} ל${order.customerName}\n📍 יעד: ${order.destination}\n🚚 נהג: ${DRIVERS.find(d => d.id === order.driverId)?.name}\n⏰ שעה: ${order.time}\n📊 סטטוס: ${order.status}`;
+    if (navigator.share) {
+      navigator.share({ title: 'שיתוף הזמנה', text }).catch(console.error);
+    } else {
+      navigator.clipboard.writeText(text);
+      onAddToast('הועתק', 'פרטי ההזמנה הועתקו ללוח אחי', 'success');
+    }
+  };
+
   return (
     <motion.div 
       layout
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-white/90 backdrop-blur-sm p-5 rounded-3xl border border-sky-100 shadow-sm hover:shadow-md transition-shadow relative group"
+      className="bg-white/95 backdrop-blur-sm p-5 rounded-[2rem] border border-sky-100 shadow-lg hover:shadow-xl transition-all relative group"
     >
-      <div className="flex justify-between items-start mb-4">
-        <div className="flex items-center gap-3">
-          <div className={`p-2.5 rounded-2xl ${DRIVERS.find(d => d.id === order.driverId)?.type === 'crane' ? 'bg-sky-50 text-sky-600' : 'bg-blue-50 text-blue-600'}`}>
-            <Truck size={20} />
-          </div>
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-               <span className="text-[10px] font-black bg-gray-900 text-white px-1.5 py-0.5 rounded-md">
-                 #{order.orderNumber || order.id?.slice(-4).toUpperCase()}
-               </span>
-               <h3 className="font-bold text-gray-900 text-lg leading-none">{order.customerName}</h3>
-            </div>
-            <div className="flex items-center gap-2 mt-1">
-              <p className="text-xs text-gray-400 font-medium">{order.destination}</p>
-              <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded font-bold uppercase tracking-tight">מחסן: {order.warehouse}</span>
-            </div>
+      <div className="absolute top-4 left-4 bg-gray-900 text-white px-3 py-1 rounded-full text-[10px] font-black z-10 shadow-lg">
+        #{order.orderNumber || order.id?.slice(-4).toUpperCase()}
+      </div>
+
+      <div className="flex gap-4 mb-6 pt-2">
+        <div className={`p-4 rounded-3xl h-fit border shadow-sm ${DRIVERS.find(d => d.id === order.driverId)?.type === 'crane' ? 'bg-sky-50 text-sky-600 border-sky-100' : 'bg-blue-50 text-blue-600 border-blue-100'}`}>
+          <Truck size={28} strokeWidth={2.5} />
+        </div>
+        <div className="flex-1 min-w-0 text-right">
+          <h3 className="font-black text-gray-900 text-xl leading-tight mb-1 truncate">{order.customerName}</h3>
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-xs text-gray-400 font-bold flex items-center gap-1">
+               <Info size={12} /> {order.destination}
+            </p>
+            <span className="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-lg font-black border border-gray-200 uppercase">{order.warehouse}</span>
           </div>
         </div>
-        <div className="flex flex-col items-end gap-2">
+      </div>
+
+      <div className="flex items-center justify-between p-4 bg-sky-50/50 rounded-2xl mb-6 border border-sky-50/50">
+        <div className="flex flex-col gap-1 text-right">
+          <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">נהג וזמן</span>
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-black text-gray-900">{order.driverId === 'self' ? 'איסוף עצמי' : DRIVERS.find(d=>d.id===order.driverId)?.name.split(' ')[0]}</span>
+            <span className="text-sm font-black text-sky-600">| {order.time}</span>
+          </div>
+        </div>
+        <div className="flex flex-col items-end gap-1">
           <StatusBadge status={order.status} />
           {order.eta && (
-            <div className="flex items-center gap-1.5 bg-sky-50 text-sky-700 px-2 py-0.5 rounded-lg text-[10px] font-black border border-sky-100 animate-pulse">
-              <Clock size={10} />
-              <span>הגעה משוערת: {order.eta}</span>
-            </div>
+            <span className="text-[10px] font-black text-sky-600 animate-pulse">צפי: {order.eta}</span>
           )}
         </div>
       </div>
 
-      <div className="bg-gray-50/50 rounded-2xl p-4 mb-4 grid grid-cols-2 gap-4">
-        <div>
-          <span className="text-[10px] text-gray-400 font-bold block mb-1 uppercase tracking-wider">פריטים</span>
-          <p className="text-sm font-bold text-gray-700">{order.items}</p>
+      <div className="space-y-4">
+        <div className="bg-gray-50/80 p-4 rounded-2xl border border-gray-100 text-right">
+           <span className="text-[10px] font-black text-gray-400 uppercase mb-2 block tracking-widest">פירוט פריטים</span>
+           <p className="text-sm font-medium text-gray-700 leading-relaxed">{order.items}</p>
         </div>
-        <div className="text-left" dir="ltr">
-          <span className="text-[10px] text-gray-400 font-bold block mb-1 uppercase tracking-wider text-right">נהג, שעה ותאריך</span>
-          <div className="flex items-center gap-2 justify-end">
-            <span className="text-sm font-black text-gray-900">{order.time}</span>
-            <span className="text-sm font-bold text-gray-600">| {order.date.split('-').reverse().slice(0, 2).join('/')}</span>
-            <DriverTooltip driverId={order.driverId} allOrders={allOrders}>
-              <span className="text-sm font-bold text-gray-600 hover:text-sky-600 transition-colors cursor-help">| {DRIVERS.find(d => d.id === order.driverId)?.name || order.driverId}</span>
-            </DriverTooltip>
-          </div>
-        </div>
-      </div>
 
-      <div className="flex items-center justify-between pt-2">
-        <div className="flex gap-2 items-center">
+        <div className="flex items-center gap-2 pt-2 border-t border-gray-100">
           <button 
             onClick={() => {
               const nextStatusMap: Record<string, string> = {
-                  pending: 'preparing',
-                  preparing: 'ready',
-                  ready: 'delivered'
+                pending: 'preparing',
+                preparing: 'ready',
+                ready: 'delivered'
               };
-              const newStatus = nextStatusMap[order.status] || order.status;
-              onUpdateStatus(order.id!, newStatus);
+              onUpdateStatus(order.id!, nextStatusMap[order.status] || order.status);
             }}
-            className="text-xs font-black text-sky-600 hover:bg-sky-50 px-3 py-1.5 rounded-xl transition-colors border border-sky-100 flex items-center gap-1.5"
+            className="flex-1 bg-sky-600 text-white py-3.5 rounded-2xl font-black text-xs flex items-center justify-center gap-2 shadow-lg shadow-sky-600/20 active:scale-95 transition-all"
           >
-            <ChevronLeft size={14} strokeWidth={3} />
-            קדם סטטוס
+            <CheckCircle2 size={16} /> עדכן סטטוס
           </button>
           
-          {isEditingEta ? (
-            <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-xl p-1 shadow-sm">
-              <input 
-                type="time" 
-                value={etaInput}
-                onChange={(e) => setEtaInput(e.target.value)}
-                className="text-xs font-bold border-none bg-transparent outline-none w-20 px-1"
-              />
-              <button 
-                onClick={() => {
-                  onUpdateEta(order.id!, etaInput);
-                  setIsEditingEta(false);
-                }}
-                className="bg-sky-600 text-white p-1 rounded-lg hover:bg-sky-700"
-              >
-                <Plus size={12} />
-              </button>
-              <button 
-                onClick={() => setIsEditingEta(false)}
-                className="text-gray-400 p-1"
-              >
-                <X size={12} />
-              </button>
-            </div>
-          ) : (
-            <div className="flex items-center gap-1">
-              <button 
-                onClick={() => setIsEditingEta(true)}
-                className="text-xs font-bold text-blue-600 hover:bg-blue-50 px-3 py-1.5 rounded-xl transition-colors border border-blue-100 flex items-center gap-1"
-              >
-                <Clock size={12} />
-                עדכן הגעה
-              </button>
-              <button 
-                onClick={handleSmartPredict}
-                disabled={isPredicting}
-                className="text-[10px] font-black text-white bg-gray-900 hover:bg-sky-600 px-2.5 py-1.5 rounded-xl transition-all shadow-sm flex items-center gap-1.5 disabled:opacity-50"
-                title="Smart traffic-based ETA prediction"
-              >
-                {isPredicting ? (
-                  <div className="animate-spin w-3 h-3 border-2 border-white border-t-transparent rounded-full" />
-                ) : (
-                  <Sparkles size={12} />
-                )}
-                <span>Predict ETA</span>
-              </button>
-            </div>
-          )}
+          <button 
+            onClick={handleSmartPredict}
+            disabled={isPredicting}
+            className="bg-gray-900 text-white p-3.5 rounded-2xl hover:bg-sky-700 transition-all flex items-center justify-center gap-2 shadow-lg shadow-gray-900/10 active:scale-95 disabled:opacity-50"
+          >
+            {isPredicting ? (
+              <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full" />
+            ) : (
+              <Sparkles size={18} />
+            )}
+            <span className="hidden sm:inline text-xs font-bold">AI ETA</span>
+          </button>
+
+          <button 
+            onClick={handleShare}
+            className="bg-white border-2 border-gray-100 text-gray-600 p-3.5 rounded-2xl hover:bg-gray-50 transition-all active:scale-95"
+          >
+            <Send size={18} className="translate-x-0.5" />
+          </button>
 
           <button 
             onClick={() => onEdit(order)}
-            className="text-xs font-bold text-gray-600 hover:bg-gray-100 px-3 py-1.5 rounded-xl transition-colors border border-gray-200 flex items-center gap-1"
+            className="p-3.5 text-gray-400 hover:text-sky-600 hover:bg-sky-50 rounded-2xl transition-all"
           >
-            <Pencil size={12} />
-            ערוך
+            <Pencil size={18} />
           </button>
         </div>
-        <button 
-          onClick={() => onDelete(order.id!)}
-          className="p-2 text-gray-300 hover:text-red-500 transition-colors"
-        >
-          <Trash2 size={18} />
-        </button>
       </div>
     </motion.div>
   );
@@ -396,11 +564,29 @@ export default function App() {
   const [viewMode, setViewMode] = useState<'list' | 'calendar' | 'table' | 'reports' | 'chat'>('list');
   const [calendarMonth, setCalendarMonth] = useState(new Date());
   const [isRangeMode, setIsRangeMode] = useState(false);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [installPrompt, setInstallPrompt] = useState<any>(null);
   const [startDate, setStartDate] = useState(new Date());
   const [endDate, setEndDate] = useState(new Date());
   const [toasts, setToasts] = useState<any[]>([]);
   const chatScrollRef = useRef<HTMLDivElement>(null);
   const isNotificationListenerReady = useRef(false);
+
+  useEffect(() => {
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      setInstallPrompt(e);
+    });
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (!installPrompt) return;
+    installPrompt.prompt();
+    const { outcome } = await installPrompt.userChoice;
+    if (outcome === 'accepted') {
+      setInstallPrompt(null);
+    }
+  };
 
   const addToast = (title: string, message: string, type: 'info' | 'success' | 'warning' = 'info') => {
     const id = Math.random().toString(36).substr(2, 9);
@@ -688,12 +874,16 @@ export default function App() {
 
         {/* Main Chat Area */}
         <div className="flex-1 flex flex-col h-full bg-white relative">
-          <header className="p-4 border-b border-gray-100 flex items-center justify-between md:hidden">
+          <header className="p-4 border-b border-gray-100 flex items-center justify-between md:hidden sticky top-0 bg-white/80 backdrop-blur-md z-30">
             <div className="flex items-center gap-3">
-               <button onClick={() => setViewMode('list')} className="p-2 hover:bg-gray-100 rounded-xl">
+               <button onClick={() => setViewMode('list')} className="p-2 hover:bg-gray-100 rounded-xl transition-colors">
                  <ChevronRight size={20} />
                </button>
-               <h1 className="font-bold">נועה לוגיסטיקה</h1>
+               <h1 className="font-black text-lg text-gray-900 italic">נועה</h1>
+            </div>
+            <div className="flex items-center gap-2">
+               <div className="w-2 h-2 bg-green-500 rounded-full" />
+               <span className="text-[10px] font-black text-gray-400">ONLINE</span>
             </div>
           </header>
 
@@ -702,26 +892,38 @@ export default function App() {
             className="flex-1 overflow-y-auto p-6 space-y-6 max-w-4xl mx-auto w-full pb-60"
           >
             {chatHistory.length === 0 && (
-              <div className="text-center py-20 opacity-30">
-                <div className="bg-gray-50 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6">
-                   <MessageSquare size={48} />
+              <div className="text-center py-20">
+                <div className="bg-sky-50 w-24 h-24 rounded-[3rem] flex items-center justify-center mx-auto mb-6 shadow-inner">
+                   <MessageSquare className="text-sky-600" size={48} />
                 </div>
-                <h2 className="text-xl font-black mb-2">אחי, אני כאן בשבילך</h2>
-                <p className="text-sm">"תפתחי הזמנה חדשה לחכמת לשעה 9 ליעד ברקאי"</p>
+                <h2 className="text-2xl font-black mb-2 italic">אהלן ראמי, אחי</h2>
+                <p className="text-sm font-bold text-gray-400 mb-8">"תפתחי הזמנה חדשה לחכמת לשעה 9 ליעד ברקאי"</p>
+                
+                <div className="grid grid-cols-1 gap-3 max-w-xs mx-auto">
+                   {['תכיני לי דוח בוקר 📋', 'צפי הגעה להזמנה ⏱️', 'מה המצב במחסן? 🏗️'].map(suggestion => (
+                     <button 
+                       key={suggestion}
+                       onClick={() => handleAuraAction(suggestion)}
+                       className="p-4 bg-gray-50 rounded-2xl border border-gray-100 text-xs font-bold text-gray-600 hover:bg-sky-50 hover:border-sky-100 transition-all text-right"
+                     >
+                       {suggestion}
+                     </button>
+                   ))}
+                </div>
               </div>
             )}
             
             {chatHistory.map((chat, idx) => (
               <motion.div 
                 key={idx} 
-                initial={{ opacity: 0, scale: 0.9, y: 10 }}
+                initial={{ opacity: 0, scale: 0.95, y: 10 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 className={`flex w-full ${chat.role === 'user' ? 'justify-start' : 'justify-end'}`}
               >
-                <div className={`max-w-[70%] md:max-w-md p-5 rounded-[2.5rem] text-sm md:text-base font-medium leading-relaxed shadow-xl backdrop-blur-md ${
+                <div className={`max-w-[85%] md:max-w-md p-5 rounded-[2.5rem] text-sm md:text-base font-bold leading-relaxed shadow-xl backdrop-blur-md ${
                   chat.role === 'user' 
                     ? 'bg-sky-600 text-white rounded-tr-none shadow-sky-600/10' 
-                    : 'bg-white/90 text-gray-800 rounded-tl-none border border-sky-100'
+                    : 'bg-white/95 text-gray-800 rounded-tl-none border-2 border-sky-50'
                 }`}>
                   {chat.parts[0].text}
                 </div>
@@ -731,18 +933,18 @@ export default function App() {
 
           <div className="fixed bottom-0 md:bottom-0 left-0 right-0 md:right-72 bg-gradient-to-t from-white via-white to-transparent pt-10 pb-20 md:pb-10 px-6 z-20">
             <div className="max-w-4xl mx-auto space-y-4">
-              {/* Quick Actions */}
+              {/* Context-Aware Quick Actions */}
               <div className="flex gap-2 overflow-x-auto no-scrollbar py-2 scroll-smooth">
                 {[
                   { label: 'הזמנה חדשה ✍️', action: 'הזמנה חדשה אחי' },
                   { label: 'עדכון סטטוס ✅', action: 'אני רוצה לעדכן סטטוס להזמנה' },
                   { label: 'דוח בוקר 📋', action: 'תכיני לי דוח בוקר' },
-                  { label: 'צפי הגעה ⏱️', action: 'מה צפי ההגעה של ההזמנות שלי?' }
+                  ...(orders.length > 0 ? [{ label: `צפי ל${orders[0].customerName.split(' ')[0]} ⏱️`, action: `מה צפי ההגעה של ההזמנה של ${orders[0].customerName}` }] : [])
                 ].map((btn, i) => (
                   <button 
                     key={i}
                     onClick={() => handleAuraAction(btn.action)}
-                    className="whitespace-nowrap bg-white/80 backdrop-blur-md hover:bg-sky-600 hover:text-white text-gray-900 text-[11px] font-black px-4 py-2.5 rounded-xl transition-all border border-sky-100 shadow-sm hover:shadow-sky-200"
+                    className="whitespace-nowrap bg-white/90 backdrop-blur-md hover:bg-sky-600 hover:text-white text-sky-900 text-[11px] font-black px-4 py-2.5 rounded-2xl transition-all border border-sky-100 shadow-md hover:shadow-sky-200 active:scale-95"
                   >
                     {btn.label}
                   </button>
@@ -764,13 +966,13 @@ export default function App() {
                   name="message"
                   autoComplete="off"
                   placeholder="דבר איתי אחי..."
-                  className="flex-1 bg-white/80 backdrop-blur-md border-2 border-sky-100 rounded-[2rem] px-8 py-4 text-base focus:border-sky-600 transition-all outline-none shadow-xl"
+                  className="flex-1 bg-white/90 backdrop-blur-md border-3 border-sky-100 rounded-[2.5rem] px-8 py-5 text-base focus:border-sky-600 transition-all outline-none shadow-2xl font-bold"
                 />
                 <button 
                   type="submit"
-                  className="bg-gray-900 text-white p-4 rounded-full hover:bg-sky-600 transition-all shadow-xl hover:scale-110 active:scale-95"
+                  className="bg-gray-900 text-white p-5 rounded-full hover:bg-sky-600 transition-all shadow-2xl hover:scale-110 active:scale-95 flex items-center justify-center"
                 >
-                  <Send size={24} />
+                  <Send size={24} strokeWidth={2.5} />
                 </button>
               </form>
             </div>
@@ -826,6 +1028,17 @@ export default function App() {
         user={user} 
         notificationsEnabled={notificationsEnabled} 
         onToggleNotifications={toggleNotifications} 
+        onOpenDrawer={() => setIsDrawerOpen(true)}
+        onInstallApp={installPrompt ? handleInstallClick : null}
+      />
+
+      <Drawer 
+        isOpen={isDrawerOpen} 
+        onClose={() => setIsDrawerOpen(false)} 
+        user={user} 
+        viewMode={viewMode}
+        setViewMode={setViewMode}
+        installPrompt={installPrompt}
       />
 
       {/* Manual Order Modal */}
@@ -1254,25 +1467,9 @@ export default function App() {
             {groupByDriver ? 'בטל הקבצה' : 'קבץ לפי נהג'}
           </button>
         </div>
-        
-        <div className="grid grid-cols-3 gap-3 mb-8">
-          <div className="bg-white p-4 rounded-[24px] border border-gray-100 shadow-sm flex flex-col items-center text-center">
-            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">סה"כ</span>
-            <span className="text-2xl font-black text-gray-900">{totalOrders}</span>
-          </div>
-          <div className="bg-white p-4 rounded-[24px] border border-gray-100 shadow-sm flex flex-col items-center text-center">
-            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">סופקו</span>
-            <span className="text-2xl font-black text-green-600">{deliveredOrders}</span>
-          </div>
-          <div className="bg-white p-4 rounded-[24px] border border-gray-100 shadow-sm flex flex-col items-center text-center">
-            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">ממתינות</span>
-            <span className="text-2xl font-black text-sky-600">{pendingOrders}</span>
-          </div>
-        </div>
 
-        {/* Orders List / Table */}
         <div className="space-y-4">
-          {filteredOrders.length === 0 ? (
+          {filteredOrders.length === 0 && viewMode === 'list' ? (
             <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
               <div className="bg-gray-100 p-4 rounded-full mb-3 text-gray-400">
                 <Search size={32} />
@@ -1281,97 +1478,7 @@ export default function App() {
               <p className="text-gray-500 text-sm">נסה לחפש משהו אחר או לשנות את הסינון.</p>
             </div>
           ) : viewMode === 'table' ? (
-            <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full text-right text-sm">
-                  <thead className="bg-gray-50 text-gray-400 font-bold uppercase tracking-wider text-[10px]">
-                    <tr>
-                      <th onClick={() => toggleSort('date')} className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors">
-                        <div className="flex items-center">תאריך <SortIcon field="date" currentSort={sortBy} direction={sortDirection} /></div>
-                      </th>
-                      <th onClick={() => toggleSort('time')} className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors">
-                        <div className="flex items-center">שעת יציאה <SortIcon field="time" currentSort={sortBy} direction={sortDirection} /></div>
-                      </th>
-                      <th onClick={() => toggleSort('eta')} className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors">
-                        <div className="flex items-center">הגעה משוערת <SortIcon field="eta" currentSort={sortBy} direction={sortDirection} /></div>
-                      </th>
-                      <th onClick={() => toggleSort('driverId')} className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors">
-                        <div className="flex items-center">נהג <SortIcon field="driverId" currentSort={sortBy} direction={sortDirection} /></div>
-                      </th>
-                      <th onClick={() => toggleSort('customerName')} className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors">
-                        <div className="flex items-center">לקוח <SortIcon field="customerName" currentSort={sortBy} direction={sortDirection} /></div>
-                      </th>
-                      <th onClick={() => toggleSort('orderNumber')} className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors">
-                        <div className="flex items-center">מס' הזמנה <SortIcon field="orderNumber" currentSort={sortBy} direction={sortDirection} /></div>
-                      </th>
-                      <th onClick={() => toggleSort('destination')} className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors">
-                        <div className="flex items-center">יעד <SortIcon field="destination" currentSort={sortBy} direction={sortDirection} /></div>
-                      </th>
-                      <th onClick={() => toggleSort('items')} className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors">
-                        <div className="flex items-center">פריטים <SortIcon field="items" currentSort={sortBy} direction={sortDirection} /></div>
-                      </th>
-                      <th onClick={() => toggleSort('warehouse')} className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors">
-                        <div className="flex items-center">מחסן <SortIcon field="warehouse" currentSort={sortBy} direction={sortDirection} /></div>
-                      </th>
-                      <th onClick={() => toggleSort('status')} className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors">
-                        <div className="flex items-center">סטטוס <SortIcon field="status" currentSort={sortBy} direction={sortDirection} /></div>
-                      </th>
-                      <th className="px-6 py-4">פעולות</th>
-                    </tr>
-                  </thead>
-                      <tbody className="divide-y divide-gray-100">
-                        {filteredOrders.map(order => (
-                          <tr key={order.id} className="hover:bg-sky-50/30 transition-colors">
-                            <td className="px-6 py-4 font-bold text-gray-900 whitespace-nowrap">
-                              {format(new Date(order.date), 'dd/MM/yy')}
-                            </td>
-                            <td className="px-6 py-4 font-bold text-sky-600">{order.time}</td>
-                            <td className="px-6 py-4 font-black text-sky-700 bg-sky-50/30 font-mono">
-                              {order.eta || '-'}
-                            </td>
-                            <td className="px-6 py-4 text-gray-600">
-                              <DriverTooltip driverId={order.driverId} allOrders={orders}>
-                                <span className="cursor-help hover:text-sky-600 transition-colors">
-                                  {DRIVERS.find(d => d.id === order.driverId)?.name.split(' ')[0] || order.driverId}
-                                </span>
-                              </DriverTooltip>
-                            </td>
-                            <td className="px-6 py-4 font-black text-gray-900">{order.customerName}</td>
-                            <td className="px-6 py-4 font-bold text-gray-500 text-xs">#{order.orderNumber || '-'}</td>
-                            <td className="px-6 py-4 text-gray-400 text-xs">{order.destination}</td>
-                            <td className="px-6 py-4 text-gray-600 text-xs max-w-[200px] truncate" title={order.items}>
-                              {order.items}
-                            </td>
-                            <td className="px-6 py-4">
-                               <span className="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-lg font-bold">{order.warehouse}</span>
-                            </td>
-                            <td className="px-6 py-4">
-                               <StatusBadge status={order.status} />
-                            </td>
-                            <td className="px-6 py-4">
-                              <div className="flex items-center gap-3">
-                                <button 
-                                  onClick={() => setEditingOrder(order)} 
-                                  className="text-gray-400 hover:text-sky-600 transition-colors p-1"
-                                  title="ערוך"
-                                >
-                                  <Pencil size={16} />
-                                </button>
-                                <button 
-                                  onClick={() => deleteOrder(order.id!)} 
-                                  className="text-gray-400 hover:text-red-500 transition-colors p-1"
-                                  title="מחק"
-                                >
-                                  <Trash2 size={16} />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                </table>
-              </div>
-            </div>
+            <InventoryStatus />
           ) : groupByDriver ? (
             <div className="space-y-8">
               {DRIVERS.filter(driver => filteredOrders.some(o => o.driverId === driver.id)).map(driver => {
