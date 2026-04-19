@@ -485,8 +485,26 @@ export default function App() {
       if (snapshot.empty) {
         // Seed default drivers if none exist
         const DEFAULT_DRIVERS = [
-          { id: 'hikmat', name: 'חכמת (מנוף 🏗️)', phone: '050-0000001', vehicleType: 'crane', plateNumber: '12-345-67', vehicleModel: 'Volvo FM', status: 'active' },
-          { id: 'ali', name: 'עלי (משאית 🚛)', phone: '050-0000002', vehicleType: 'truck', plateNumber: '89-012-34', vehicleModel: 'Scania R450', status: 'active' }
+          { 
+            id: 'hikmat', 
+            name: 'חכמת (מנוף 🏗️)', 
+            phone: '050-0000001', 
+            vehicleType: 'crane', 
+            plateNumber: '12-345-67', 
+            vehicleModel: 'Volvo FM', 
+            status: 'active',
+            avatar: 'https://i.postimg.cc/d3S0NJJZ/Screenshot-20250623-200646-Facebook.jpg'
+          },
+          { 
+            id: 'ali', 
+            name: 'עלי (משאית 🚛)', 
+            phone: '050-0000002', 
+            vehicleType: 'truck', 
+            plateNumber: '89-012-34', 
+            vehicleModel: 'Scania R450', 
+            status: 'active',
+            avatar: 'https://i.postimg.cc/tCNbgXK3/Screenshot-20250623-200744-Tik-Tok.jpg'
+          }
         ];
         
         const { setDoc, doc, serverTimestamp } = await import('firebase/firestore');
@@ -504,6 +522,18 @@ export default function App() {
       } else {
         const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Driver[];
         setDrivers(docs);
+
+        // One-time update for existing drivers missing avatars
+        const driversMissingAvatars = docs.filter(d => (d.id === 'ali' || d.id === 'hikmat') && !d.avatar);
+        if (driversMissingAvatars.length > 0) {
+          const { updateDoc, doc } = await import('firebase/firestore');
+          for (const d of driversMissingAvatars) {
+             const avatarUrl = d.id === 'ali' 
+               ? 'https://i.postimg.cc/tCNbgXK3/Screenshot-20250623-200744-Tik-Tok.jpg'
+               : 'https://i.postimg.cc/d3S0NJJZ/Screenshot-20250623-200646-Facebook.jpg';
+             await updateDoc(doc(db, 'drivers', d.id), { avatar: avatarUrl });
+          }
+        }
       }
     });
 
