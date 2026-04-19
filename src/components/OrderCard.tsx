@@ -244,6 +244,19 @@ export const OrderCard = ({
 }: OrderCardProps) => {
   const [isPredicting, setIsPredicting] = useState(false);
   const [showDocs, setShowDocs] = useState(false);
+  const [isLocalUploading, setIsLocalUploading] = useState(false);
+
+  const handleQuickUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && onUploadDoc) {
+      setIsLocalUploading(true);
+      try {
+        await onUploadDoc(file, order.id, 'orderForm');
+      } finally {
+        setIsLocalUploading(false);
+      }
+    }
+  };
 
   const handleSmartPredict = async () => {
     setIsPredicting(true);
@@ -300,35 +313,60 @@ export const OrderCard = ({
         #{order.orderNumber || order.id?.slice(-4).toUpperCase()}
       </div>
 
-      {(order.orderFormId || order.deliveryNoteId) && (
-        <div className="absolute top-4 left-24 z-10">
-          <button 
-            onClick={() => setShowDocs(!showDocs)}
-            disabled={order.orderFormId === 'PENDING_SCAN' || order.deliveryNoteId === 'PENDING_SCAN'}
-            className={`p-1.5 rounded-full shadow-lg border transition-all ${
-              showDocs ? 'bg-sky-600 text-white border-sky-600' : 
-              (order.orderFormId === 'PENDING_SCAN' || order.deliveryNoteId === 'PENDING_SCAN') ? 'bg-gray-100 text-gray-400 border-gray-100 cursor-not-allowed' :
-              'bg-white text-sky-600 border-sky-100 hover:bg-sky-50'
-            }`}
-            title={order.orderFormId === 'PENDING_SCAN' || order.deliveryNoteId === 'PENDING_SCAN' ? "מעבד מסמכים..." : "צפה במסמכים"}
-          >
-            {order.orderFormId === 'PENDING_SCAN' || order.deliveryNoteId === 'PENDING_SCAN' ? (
-              <Loader2 size={14} className="animate-spin" />
+      <div className="absolute top-4 left-24 z-10 flex gap-2">
+        {onUploadDoc && (
+          <div className="flex items-center gap-2">
+            {(order.orderFormId || order.deliveryNoteId) ? (
+              <button 
+                onClick={() => setShowDocs(!showDocs)}
+                disabled={order.orderFormId === 'PENDING_SCAN' || order.deliveryNoteId === 'PENDING_SCAN'}
+                className={`p-1.5 rounded-full shadow-lg border transition-all ${
+                  showDocs ? 'bg-sky-600 text-white border-sky-600' : 
+                  (order.orderFormId === 'PENDING_SCAN' || order.deliveryNoteId === 'PENDING_SCAN') ? 'bg-gray-100 text-gray-400 border-gray-100 cursor-not-allowed' :
+                  'bg-white text-sky-600 border-sky-100 hover:bg-sky-50'
+                }`}
+                title={order.orderFormId === 'PENDING_SCAN' || order.deliveryNoteId === 'PENDING_SCAN' ? "מעבד מסמכים..." : "צפה במסמכים"}
+              >
+                {order.orderFormId === 'PENDING_SCAN' || order.deliveryNoteId === 'PENDING_SCAN' ? (
+                  <Loader2 size={14} className="animate-spin" />
+                ) : (
+                  <Eye size={14} strokeWidth={3} />
+                )}
+              </button>
             ) : (
-              <Eye size={14} strokeWidth={3} />
+              <label 
+                className={`p-1.5 rounded-full shadow-lg border transition-all cursor-pointer ${
+                  isLocalUploading ? 'bg-sky-50 border-sky-200 text-sky-400' : 'bg-white text-sky-600 border-sky-100 hover:bg-sky-50'
+                }`}
+                title="העלאת מסמך מהיר"
+              >
+                {isLocalUploading ? (
+                  <Loader2 size={14} className="animate-spin" />
+                ) : (
+                  <FileUp size={14} strokeWidth={3} />
+                )}
+                <input 
+                  type="file" 
+                  accept="application/pdf" 
+                  className="hidden" 
+                  disabled={isLocalUploading}
+                  onChange={handleQuickUpload}
+                />
+              </label>
             )}
-          </button>
-          <AnimatePresence>
-            {showDocs && (
-              <DocumentSheet 
-                order={order} 
-                onClose={() => setShowDocs(false)} 
-                onUpload={(file, type) => onUploadDoc ? onUploadDoc(file, order.id, type) : Promise.resolve()}
-              />
-            )}
-          </AnimatePresence>
-        </div>
-      )}
+          </div>
+        )}
+
+        <AnimatePresence>
+          {showDocs && (
+            <DocumentSheet 
+              order={order} 
+              onClose={() => setShowDocs(false)} 
+              onUpload={(file, type) => onUploadDoc ? onUploadDoc(file, order.id, type) : Promise.resolve()}
+            />
+          )}
+        </AnimatePresence>
+      </div>
 
       <div className="flex gap-4 mb-6 pt-2">
         <div className={`p-4 rounded-3xl h-fit border shadow-sm ${driver?.vehicleType === 'crane' ? 'bg-sky-50 text-sky-600 border-sky-100' : 'bg-blue-50 text-blue-600 border-blue-100'}`}>

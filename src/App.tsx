@@ -96,14 +96,16 @@ const Header = ({
   onToggleNotifications,
   onOpenDrawer,
   onInstallApp,
-  onFileUpload
+  onFileUpload,
+  isUploading
 }: { 
   user: FirebaseUser, 
   notificationsEnabled: boolean, 
   onToggleNotifications: () => void,
   onOpenDrawer: () => void,
   onInstallApp: () => void | null,
-  onFileUpload: (file: File) => void
+  onFileUpload: (file: File) => void,
+  isUploading?: boolean
 }) => (
   <header className="flex items-center justify-between px-6 py-4 bg-white/80 backdrop-blur-md border-b border-sky-100 sticky top-0 z-30">
     <div className="flex items-center gap-3">
@@ -125,13 +127,22 @@ const Header = ({
     </div>
     
     <div className="flex items-center gap-2">
-      <label className="p-2.5 rounded-xl transition-all border bg-white text-sky-600 border-sky-100 hover:bg-sky-50 cursor-pointer shadow-sm flex items-center gap-2" title="העלאת מסמך לדרייב">
-        <FileUp size={20} />
-        <span className="hidden lg:block text-xs font-bold">העלאת מסמך</span>
+      <label className={`p-2.5 rounded-xl transition-all border shadow-sm flex items-center gap-2 cursor-pointer ${
+        isUploading ? 'bg-sky-50 border-sky-200' : 'bg-white text-sky-600 border-sky-100 hover:bg-sky-50'
+      }`} title="העלאת מסמך לדרייב">
+        {isUploading ? (
+          <Loader2 size={20} className="animate-spin text-sky-600" />
+        ) : (
+          <FileUp size={20} />
+        )}
+        <span className="hidden lg:block text-xs font-bold">
+          {isUploading ? 'מעלה מסמך...' : 'העלאת מסמך'}
+        </span>
         <input 
           type="file" 
           accept="application/pdf" 
           className="hidden" 
+          disabled={isUploading}
           onChange={(e) => {
             const file = e.target.files?.[0];
             if (file) onFileUpload(file);
