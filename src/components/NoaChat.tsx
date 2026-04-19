@@ -30,7 +30,7 @@ export const NoaChat = ({
           <button onClick={onBack} className="p-2 hover:bg-gray-200 rounded-xl transition-colors">
             <ChevronRight size={20} />
           </button>
-          <h1 className="text-xl font-bold">נועה AI</h1>
+          <h1 className="text-xl font-bold">נועה מנהלת סידור ראמי</h1>
         </div>
         
         <div className="space-y-6">
