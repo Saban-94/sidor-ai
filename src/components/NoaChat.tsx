@@ -1,11 +1,17 @@
-import React from 'react';
-import { motion } from 'motion/react';
+import React, { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { 
   MessageSquare, 
   Send, 
-  ChevronRight 
+  ChevronRight,
+  Volume2,
+  VolumeX,
+  Speaker,
+  Settings,
+  Waves
 } from 'lucide-react';
 import { Order } from '../services/auraService';
+import { parseItems } from '../lib/utils';
 
 interface NoaChatProps {
   chatHistory: any[];
@@ -22,6 +28,78 @@ export const NoaChat = ({
   onAction,
   orders 
 }: NoaChatProps) => {
+  const [isAutoVoice, setIsAutoVoice] = useState(() => localStorage.getItem('noa_auto_voice') === 'true');
+  const [currentlySpeaking, setCurrentlySpeaking] = useState<number | null>(null);
+  const synthRef = useRef<SpeechSynthesis | null>(window.speechSynthesis);
+
+  // Persistence of auto voice setting
+  useEffect(() => {
+    localStorage.setItem('noa_auto_voice', String(isAutoVoice));
+  }, [isAutoVoice]);
+
+  const cleanTextForSpeech = (text: string) => {
+    // 1. Detect if it's an item list
+    const items = parseItems(text);
+    if (items.length > 0) {
+      let speech = "הנה הפריטים שמצאתי אחי: ";
+      items.forEach((item, index) => {
+        speech += `פריט ${index + 1}: ${item.name}, כמות: ${item.quantity}. `;
+      });
+      return speech;
+    }
+
+    // 2. Regular cleaning
+    return text
+      .replace(/[*_#]/g, '') // remove markdown
+      .replace(/[^\u0590-\u05FF0-9\s,.?!]/g, ' ') // keep hebrew, numbers, basic punctuation
+      .trim();
+  };
+
+  const stopSpeaking = () => {
+    if (synthRef.current) {
+      synthRef.current.cancel();
+      setCurrentlySpeaking(null);
+    }
+  };
+
+  const speak = (text: string, index: number) => {
+    if (!synthRef.current) return;
+
+    // If already speaking this message, stop
+    if (currentlySpeaking === index) {
+      stopSpeaking();
+      return;
+    }
+
+    // Stop anything else
+    stopSpeaking();
+
+    const utterance = new SpeechSynthesisUtterance(cleanTextForSpeech(text));
+    const voices = synthRef.current.getVoices();
+    const hebrewVoice = voices.find(v => v.lang.includes('he')) || voices[0];
+    
+    utterance.voice = hebrewVoice;
+    utterance.lang = 'he-IL';
+    utterance.rate = 1.0;
+    utterance.pitch = 1.0;
+
+    utterance.onstart = () => setCurrentlySpeaking(index);
+    utterance.onend = () => setCurrentlySpeaking(null);
+    utterance.onerror = () => setCurrentlySpeaking(null);
+
+    synthRef.current.speak(utterance);
+  };
+
+  // Auto-voice effect
+  useEffect(() => {
+    if (isAutoVoice && chatHistory.length > 0) {
+      const lastMessage = chatHistory[chatHistory.length - 1];
+      if (lastMessage.role === 'model' || lastMessage.role === 'assistant') {
+        speak(lastMessage.parts[0].text, chatHistory.length - 1);
+      }
+    }
+  }, [chatHistory.length]);
+
   const dynamicSuggestions = [
     { label: 'סנכרון דרייב 📂', action: 'סרוק את תיקיית SabanOS ותחלץ נתונים מהקובץ האחרון' },
     { label: 'הזמנה חדשה ✍️', action: 'הזמנה חדשה אחי' },
@@ -48,15 +126,34 @@ export const NoaChat = ({
           <h1 className="text-xl font-bold">נועה (SabanOS)</h1>
         </div>
         
-        <div className="space-y-6">
-          <div>
-            <p className="text-[10px] font-black text-gray-400 mb-2 uppercase tracking-widest">סטטוס מערכת</p>
-            <div className="bg-white p-4 rounded-2xl border border-gray-100 flex items-center gap-3">
-              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(34,197,94,0.5)]"></div>
-              <span className="text-sm font-bold">זמינה לראמי</span>
+          <div className="space-y-6">
+            <div>
+              <p className="text-[10px] font-black text-gray-400 mb-2 uppercase tracking-widest text-right">סטטוס מערכת</p>
+              <div className="bg-white p-4 rounded-2xl border border-gray-100 flex items-center gap-3">
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(34,197,94,0.5)]"></div>
+                <span className="text-sm font-bold">זמינה לראמי</span>
+              </div>
+            </div>
+
+            <div>
+              <p className="text-[10px] font-black text-gray-400 mb-2 uppercase tracking-widest text-right">הגדרות קול</p>
+              <div className="bg-white p-4 rounded-2xl border border-gray-100 flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-gray-600">נועה מדברת</span>
+                  <button 
+                    onClick={() => setIsAutoVoice(!isAutoVoice)}
+                    className={`relative w-10 h-5 rounded-full transition-colors ${isAutoVoice ? 'bg-sky-600' : 'bg-gray-200'}`}
+                  >
+                    <motion.div 
+                      animate={{ x: isAutoVoice ? 20 : 2 }}
+                      className="absolute top-1 left-0 w-3 h-3 bg-white rounded-full shadow-sm"
+                    />
+                  </button>
+                </div>
+                <p className="text-[9px] text-gray-400 leading-tight">במצב פעיל, נועה תקריא כל תשובה חדשה באופן אוטומטי אחי.</p>
+              </div>
             </div>
           </div>
-        </div>
       </div>
 
       {/* Main Chat Area */}
@@ -68,9 +165,17 @@ export const NoaChat = ({
              </button>
              <h1 className="font-black text-lg text-gray-900 italic font-sans">נועה AI</h1>
           </div>
-          <div className="flex items-center gap-2">
-             <div className="w-2 h-2 bg-green-500 rounded-full" />
-             <span className="text-[10px] font-black text-gray-400 uppercase">ONLINE</span>
+          <div className="flex items-center gap-4">
+             <button 
+               onClick={() => setIsAutoVoice(!isAutoVoice)}
+               className={`p-2 rounded-xl transition-all ${isAutoVoice ? 'bg-sky-50 text-sky-600' : 'text-gray-400'}`}
+             >
+               <Speaker size={18} />
+             </button>
+             <div className="flex items-center gap-1.5">
+               <div className="w-2 h-2 bg-green-500 rounded-full" />
+               <span className="text-[10px] font-black text-gray-400 uppercase">ONLINE</span>
+             </div>
           </div>
         </header>
 
@@ -84,10 +189,8 @@ export const NoaChat = ({
               <div className="bg-sky-50 w-24 h-24 rounded-[3rem] flex items-center justify-center mx-auto mb-6 shadow-inner">
                  <MessageSquare className="text-sky-600" size={48} />
               </div>
-              <h2 className="text-2xl font-black mb-2 italic"> היי אני נועה 👩🏼  👋🏻 </h2>
-                <h2 className="text-2xl font-black mb-2 italic">הסדרנית של ראמי נשמה❤️ שלי מה בא לך היום לבצע?</h2>
-              <p className="text-sm font-bold text-gray-400 mb-8 max-w-[250px] mx-auto">"ניתן דרכי לבצע פעולות ולברר מה על הכול תבחר מקיצורי דרך או שאל כל שאלה אני פה להקשיב ולשרת אותך"</p>
-              
+              <h2 className="text-2xl font-black mb-2 italic">אהלן ראמי, אחי</h2>
+              <p className="text-sm font-bold text-gray-400 mb-8 max-w-[250px] mx-auto">"תפתחי הזמנה חדשה לחכמת לשעה 9 ליעד ברקאי"</p>
               
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-md mx-auto">
                  {dynamicSuggestions.slice(0, 6).map(suggestion => (
@@ -111,12 +214,36 @@ export const NoaChat = ({
               animate={{ opacity: 1, scale: 1, y: 0 }}
               className={`flex w-full ${chat.role === 'user' ? 'justify-start' : 'justify-end'}`}
             >
-              <div className={`max-w-[90%] md:max-w-md p-5 rounded-[2.5rem] text-sm md:text-base font-bold leading-relaxed shadow-xl backdrop-blur-md ${
+              <div className={`max-w-[90%] md:max-w-md p-5 rounded-[2.5rem] text-sm md:text-base font-bold leading-relaxed shadow-xl backdrop-blur-md relative group/msg ${
                 chat.role === 'user' 
                   ? 'bg-sky-600 text-white rounded-tr-none shadow-sky-600/10' 
                   : 'bg-white/95 text-gray-800 rounded-tl-none border-2 border-sky-50'
               }`}>
                 {chat.parts[0].text}
+                
+                {chat.role !== 'user' && (
+                  <div className="flex items-center gap-2 mt-3 pt-2 border-t border-sky-50/50">
+                    <button 
+                      onClick={() => speak(chat.parts[0].text, idx)}
+                      className={`p-2 rounded-xl transition-all ${currentlySpeaking === idx ? 'bg-sky-100 text-sky-600' : 'hover:bg-gray-100 text-gray-400'}`}
+                    >
+                      {currentlySpeaking === idx ? <VolumeX size={16} /> : <Volume2 size={16} />}
+                    </button>
+                    
+                    {currentlySpeaking === idx && (
+                      <div className="flex items-center gap-0.5 h-4">
+                        {[1, 2, 3, 4, 3, 2, 1].map((h, i) => (
+                          <motion.div 
+                            key={i}
+                            animate={{ height: [4, h * 4, 4] }}
+                            transition={{ duration: 0.5, repeat: Infinity, delay: i * 0.1 }}
+                            className="w-0.5 bg-sky-400 rounded-full"
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </motion.div>
           ))}
