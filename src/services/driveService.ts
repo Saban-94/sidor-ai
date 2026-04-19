@@ -3,10 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-const API_KEY = import.meta.env.NEXT_PUBLIC_GOOGLE_DRIVE_API_KEY;
-const FOLDER_ID = import.meta.env.NEXT_PUBLIC_DRIVE_FOLDER_ID;
-
-const GAS_URL = import.meta.env.VITE_GAS_URL || 'https://script.google.com/macros/s/AKfycbwMBz1tnnL-twFuUm87hOkPO-BKU_Bq8DL3mRh0OPyQv094NI87uLAdQl62X0VBcf7D/exec';
+// שימוש ב-process.env כפי שמוגדר ב-vite.config.ts שלך
+const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_DRIVE_API_KEY;
+const FOLDER_ID = process.env.NEXT_PUBLIC_DRIVE_FOLDER_ID;
+const GAS_URL = process.env.VITE_GAS_URL;
 
 export interface DriveFile {
   id: string;
@@ -16,7 +16,7 @@ export interface DriveFile {
 }
 
 /**
- * List files in the specified Drive folder.
+ * שליפת רשימת קבצים מהדרייב (קריאה בלבד - עובד עם API Key)
  */
 export async function listDriveFiles(folderId: string = FOLDER_ID || ''): Promise<DriveFile[]> {
   if (!API_KEY) {
@@ -38,48 +38,43 @@ export async function listDriveFiles(folderId: string = FOLDER_ID || ''): Promis
 }
 
 /**
- * Get the content of a file as a base64 string.
- * Note: For PDFs, we need to download the file data.
+ * הורדת תוכן קובץ כ-Base64
+ * מעודכן לעבוד דרך ה-GAS Bridge כדי למנוע שגיאות 404/401 של API Key
  */
 export async function getFileBase64(fileId: string): Promise<string> {
-  if (!API_KEY) {
-    throw new Error("NEXT_PUBLIC_GOOGLE_DRIVE_API_KEY is missing");
+  if (!GAS_URL) {
+    throw new Error("VITE_GAS_URL is missing");
   }
 
-  // To download file content using an API key, we use the 'alt=media' parameter.
-  // Note: This only works for files that are publicly accessible or shared with the API Key/Identity.
-  const url = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&key=${API_KEY}`;
-
   try {
-    const response = await fetch(url);
+    // פנייה ל-GAS כדי למשוך את תוכן הקובץ בבטחה
+    const response = await fetch(`${GAS_URL}?fileId=${fileId}`);
+    
     if (!response.ok) {
-      if (response.status === 404) {
-        throw new Error(`קובץ עם מזהה ${fileId} לא נמצא בדרייב. וודא שזה ה-ID הנכון אחי.`);
-      }
-      throw new Error(`שגיאה בהורדת הקובץ: ${response.statusText} (${response.status})`);
+      throw new Error(`שגיאה בהורדת הקובץ מה-Bridge: ${response.status}`);
     }
-    const blob = await response.blob();
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64String = (reader.result as string).split(',')[1];
-        resolve(base64String);
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(blob);
-    });
+    
+    const data = await response.json();
+    if (data.status === 'error') throw new Error(data.message);
+    
+    return data.base64Data;
   } catch (error) {
-    console.error("Error downloading file from Drive:", error);
+    console.error("Error downloading file via GAS bridge:", error);
     throw error;
   }
 }
 
 /**
- * Upload a file to the specified Drive folder.
- * Uses a Google Apps Script (GAS) bridge to bypass client-side CORS and API key restrictions.
+ * העלאת קובץ לדרייב דרך Google Apps Script Bridge
+ * פותר את בעיית ה-CORS ומחזיר fileId אמיתי במקום PENDING_SCAN
  */
 export async function uploadFileToDrive(file: File, folderId: string = FOLDER_ID || ''): Promise<any> {
+  if (!GAS_URL) {
+    throw new Error("VITE_GAS_URL חסר בכתובות המערכת אחי.");
+  }
+
   try {
+    // המרה ל-Base64
     const base64Content = await new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => {
@@ -91,28 +86,33 @@ export async function uploadFileToDrive(file: File, folderId: string = FOLDER_ID
     });
 
     const payload = {
-      filename: file.name,
-      mimeType: file.type,
-      data: base64Content,
+      fileName: file.name,
+      contentType: file.type,
+      base64Data: base64Content,
       folderId: folderId
     };
 
-    // Using mode: 'cors' so we can read the response body. 
-    // GAS bridge must return a JSON response with the fileId.
+    // שליחה ל-GAS
     const response = await fetch(GAS_URL, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'text/plain', // Standard practice for GAS POST
-      },
       body: JSON.stringify(payload)
     });
 
     if (!response.ok) {
-      throw new Error(`Upload failed: ${response.statusText}`);
+      throw new Error(`העלאה נכשלה: ${response.statusText}`);
     }
 
     const result = await response.json();
-    return result; // Should contain { status: 'success', fileId: '...' }
+    
+    if (result.status === 'error') {
+      throw new Error(result.message || "שגיאה פנימית ב-Apps Script");
+    }
+
+    if (!result.fileId) {
+      throw new Error("לא התקבל מזהה קובץ (File ID) מהדרייב.");
+    }
+
+    return result; // מחזיר { status: 'success', fileId: '...', url: '...' }
   } catch (error) {
     console.error("Error uploading file to GAS bridge:", error);
     throw error;
