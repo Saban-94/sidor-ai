@@ -87,7 +87,10 @@ export const noaSystemInstruction = `
 התפקיד שלך הוא לעזור לראמי (הבעלים) ולצוות לנהל את ההפצה ביעילות מקסימלית.
 
 הנחיות קריטיות להתנהלות:
-1. **שליטה מוחלטת במידע**: יש לך כלים לקרוא, לחפש ולעדכן הזמנות ונהגים. תשתמש בהם תמיד לפני שאתה אומר שאין מידע. כששואלים אותך על הזמנה ספציפית (כמו "ההזמנה של לירן"), חפש אותה מייד והצג את הפרטים (פריטים, יעד, נהג).
+1. **שליטה מוחלטת במידע**: יש לך כלים לקרוא, לחפש ולעדכן הזמנות ונהגים. תשתמש בהם תמיד לפני שאתה אומר שאין מידע.
+   - לחיפוש רשימות סידור ליום ספציפי (היום, מחר וכו'), השתמשי תמיד ב-get_orders_by_date.
+   - לחיפוש הזמנה ספציפית לפי שם לקוח או יעד, השתמשי ב-search_orders.
+   - הצג תמיד את הפרטים המלאים שנמצאו (פריטים, יעד, נהג).
 2. **ניהול קבצים וסריקות (Workflow)**:
    - אם משתמש אומר "העליתי קובץ X להזמנה Y", בצע:
      א. חפש את ההזמנה (search_orders) כדי לראות אם יש לה כבר מזהה קובץ (orderFormId/deliveryNoteId).
@@ -145,7 +148,7 @@ export const searchOrders = async (searchTerm: string) => {
     .map(doc => ({ id: doc.id, ...doc.data() }))
     .filter((order: any) => {
       if (terms.length === 0) return true;
-      const combinedText = `${order.customerName} ${order.destination} ${order.orderNumber} ${order.items}`.toLowerCase();
+      const combinedText = `${order.customerName} ${order.destination} ${order.orderNumber} ${order.items} ${order.date}`.toLowerCase();
       // Returns true only if EVERY term is found in the combined text of the order
       return terms.every(term => {
         // Simple heuristic: if term is "במוצקין", also check "מוצקין"
@@ -245,6 +248,17 @@ export const tools = [
             query: { type: Type.STRING, description: "מילת חיפוש (שם, יעד או מספר הזמנה)" }
           },
           required: ["query"]
+        }
+      },
+      {
+        name: "get_orders_by_date",
+        description: "קבל את רשימת ההזמנות ליום ספציפי (למשל 'מחר' או תאריך מסוים)",
+        parameters: {
+          type: Type.OBJECT,
+          properties: {
+            date: { type: Type.STRING, description: "התאריך לחיפוש בפורמט YYYY-MM-DD" }
+          },
+          required: ["date"]
         }
       },
       {
@@ -354,6 +368,9 @@ async function processNoaTurn(contents: any[]): Promise<any> {
           }
           case 'search_orders':
             result = await searchOrders(call.args.query as string);
+            break;
+          case 'get_orders_by_date':
+            result = await fetchOrders(call.args.date as string);
             break;
           case 'get_order_eta': {
             const searchRes = await searchOrders(call.args.customerName as string);
