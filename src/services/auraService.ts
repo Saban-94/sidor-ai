@@ -13,7 +13,7 @@ import {
   limit
 } from 'firebase/firestore';
 import { db, auth } from '../lib/firebase';
-import { Order, Driver, Customer } from '../types';
+import { Order, Driver, Customer, Reminder } from '../types';
 
 import { listDriveFiles, getFileBase64, createCustomerFolderHierarchy } from './driveService';
 
@@ -100,6 +100,54 @@ export const getAllDrivers = async () => {
   const q = query(collection(db, 'drivers'), orderBy('name', 'asc'));
   const snapshot = await getDocs(q);
   return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Driver[];
+};
+
+export const getReminders = async (date?: string) => {
+  if (!auth.currentUser) return [];
+  let q = query(
+    collection(db, 'reminders'), 
+    where('userId', '==', auth.currentUser.uid),
+    orderBy('dueDate', 'asc'),
+    orderBy('dueTime', 'asc')
+  );
+  
+  if (date) {
+    q = query(
+      collection(db, 'reminders'), 
+      where('userId', '==', auth.currentUser.uid),
+      where('dueDate', '==', date),
+      orderBy('dueTime', 'asc')
+    );
+  }
+  
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Reminder[];
+};
+
+export const createReminder = async (reminderData: Partial<Reminder>) => {
+  if (!auth.currentUser) throw new Error('Not authenticated');
+  const fullReminder = {
+    ...reminderData,
+    isCompleted: false,
+    userId: auth.currentUser.uid,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  } as Reminder;
+  
+  const docRef = await addDoc(collection(db, 'reminders'), fullReminder);
+  return { id: docRef.id, ...fullReminder };
+};
+
+export const updateReminder = async (reminderId: string, updates: Partial<Reminder>) => {
+  const docRef = doc(db, 'reminders', reminderId);
+  await updateDoc(docRef, {
+    ...updates,
+    updatedAt: serverTimestamp(),
+  });
+};
+
+export const deleteReminder = async (reminderId: string) => {
+  await deleteDoc(doc(db, 'reminders', reminderId));
 };
 
 export const noaSystemInstruction = `
@@ -374,6 +422,46 @@ export const tools = [
           },
           required: ["fileId"]
         }
+      },
+      {
+        name: "create_reminder",
+        description: "צור תזכורת או משימה חדשה במערכת",
+        parameters: {
+          type: Type.OBJECT,
+          properties: {
+            title: { type: Type.STRING, description: "כותרת התזכורת" },
+            description: { type: Type.STRING, description: "פירוט נוסף (אופציונלי)" },
+            dueDate: { type: Type.STRING, description: "תאריך היעד (YYYY-MM-DD)" },
+            dueTime: { type: Type.STRING, description: "שעת התזכורת (HH:mm)" },
+            orderId: { type: Type.STRING, description: "מזהה הזמנה קשורה (אופציונלי)" }
+          },
+          required: ["title", "dueDate", "dueTime"]
+        }
+      },
+      {
+        name: "get_reminders",
+        description: "קבל רשימת תזכורות ליום ספציפי או לתמיד",
+        parameters: {
+          type: Type.OBJECT,
+          properties: {
+            date: { type: Type.STRING, description: "תאריך לחיפוש (YYYY-MM-DD) - אופציונלי" }
+          }
+        }
+      },
+      {
+        name: "update_reminder",
+        description: "עדכן תזכורת קיימת (שינוי זמן, כותרת או סימון כבוצע)",
+        parameters: {
+          type: Type.OBJECT,
+          properties: {
+            reminderId: { type: Type.STRING, description: "מזהה התזכורת" },
+            title: { type: Type.STRING },
+            dueDate: { type: Type.STRING },
+            dueTime: { type: Type.STRING },
+            isCompleted: { type: Type.BOOLEAN, description: "האם המשימה הושלמה?" }
+          },
+          required: ["reminderId"]
+        }
       }
     ]
   }
@@ -509,6 +597,18 @@ async function processNoaTurn(contents: any[]): Promise<any> {
               }
             });
             result = { analysis: analysisResponse.text };
+            break;
+          }
+          case 'create_reminder':
+            result = await createReminder(call.args as any);
+            break;
+          case 'get_reminders':
+            result = await getReminders(call.args.date as string);
+            break;
+          case 'update_reminder': {
+            const { reminderId, ...remUpdates } = call.args as any;
+            await updateReminder(reminderId, remUpdates);
+            result = { success: true };
             break;
           }
           default:

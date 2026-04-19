@@ -45,3 +45,16 @@ export interface Customer {
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
 }
+
+export interface Reminder {
+  id?: string;
+  title: string;
+  description?: string;
+  dueDate: string; // YYYY-MM-DD
+  dueTime: string; // HH:mm
+  isCompleted: boolean;
+  orderId?: string;
+  userId: string;
+  createdAt?: Timestamp;
+  updatedAt?: Timestamp;
+}

@@ -42,7 +42,8 @@ import {
   Menu,
   FileUp,
   Paperclip,
-  Loader2
+  Loader2,
+  ListTodo
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
@@ -79,9 +80,12 @@ import {
   deleteOrder, 
   askNoa, 
   predictOrderEta,
-  createDriver
+  createDriver,
+  createReminder,
+  updateReminder,
+  deleteReminder
 } from './services/auraService';
-import { Order, Driver, Customer } from './types';
+import { Order, Driver, Customer, Reminder } from './types';
 import { useUserMemory } from './hooks/useUserMemory';
 import { uploadFileToDrive } from './services/driveService';
 
@@ -99,7 +103,8 @@ const Header = ({
   onOpenDrawer,
   onInstallApp,
   onFileUpload,
-  isUploading
+  isUploading,
+  onOpenReminders
 }: { 
   user: FirebaseUser, 
   notificationsEnabled: boolean, 
@@ -107,7 +112,8 @@ const Header = ({
   onOpenDrawer: () => void,
   onInstallApp: () => void | null,
   onFileUpload: (file: File) => void,
-  isUploading?: boolean
+  isUploading?: boolean,
+  onOpenReminders: () => void
 }) => (
   <header className="flex items-center justify-between px-6 py-4 bg-white/80 backdrop-blur-md border-b border-sky-100 sticky top-0 z-30">
     <div className="flex items-center gap-3">
@@ -129,6 +135,13 @@ const Header = ({
     </div>
     
     <div className="flex items-center gap-2">
+      <button 
+        onClick={onOpenReminders}
+        className="p-2.5 rounded-xl bg-white text-sky-600 border border-sky-100 hover:bg-sky-50 relative"
+        title="תזכורות"
+      >
+        <ListTodo size={20} />
+      </button>
       <label className={`p-2.5 rounded-xl transition-all border shadow-sm flex items-center gap-2 cursor-pointer ${
         isUploading ? 'bg-sky-50 border-sky-200' : 'bg-white text-sky-600 border-sky-100 hover:bg-sky-50'
       }`} title="העלאת מסמך לדרייב">
@@ -187,14 +200,16 @@ const Drawer = ({
   user, 
   viewMode, 
   setViewMode,
-  installPrompt
+  installPrompt,
+  onOpenReminders
 }: { 
   isOpen: boolean, 
   onClose: () => void, 
   user: FirebaseUser,
   viewMode: string,
   setViewMode: (v: any) => void,
-  installPrompt: any
+  installPrompt: any,
+  onOpenReminders: () => void
 }) => (
   <AnimatePresence>
     {isOpen && (
@@ -255,6 +270,17 @@ const Drawer = ({
                 </button>
               );
             })}
+            
+            <button
+              onClick={() => {
+                onOpenReminders();
+                onClose();
+              }}
+              className="w-full flex items-center gap-4 p-4 rounded-2xl transition-all text-gray-600 hover:bg-gray-50"
+            >
+              <ListTodo size={20} />
+              <span className="font-bold">תזכורות ומשימות</span>
+            </button>
           </div>
 
           <div className="pt-8 border-t border-gray-100 mt-auto">
@@ -306,6 +332,104 @@ const EmptyState = () => (
 
 // Drawer and other UI components...
 
+// Reminders Sidebar Component
+const RemindersSidebar = ({ 
+  isOpen, 
+  onClose, 
+  reminders,
+  onToggleComplete,
+  onDelete
+}: { 
+  isOpen: boolean, 
+  onClose: () => void,
+  reminders: Reminder[],
+  onToggleComplete: (id: string, completed: boolean) => void,
+  onDelete: (id: string) => void
+}) => (
+  <AnimatePresence>
+    {isOpen && (
+      <>
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onClick={onClose}
+          className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-[80]"
+        />
+        <motion.div 
+          initial={{ x: '-100%' }}
+          animate={{ x: 0 }}
+          exit={{ x: '-100%' }}
+          transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+          className="fixed inset-y-0 left-0 w-80 bg-white shadow-2xl z-[90] flex flex-col p-6 overflow-y-auto"
+          dir="rtl"
+        >
+          <div className="flex justify-between items-center mb-10">
+            <div className="flex items-center gap-3">
+              <div className="bg-sky-600 p-2 rounded-xl text-white">
+                <ListTodo size={20} />
+              </div>
+              <h2 className="text-xl font-bold italic">תזכורות אחי</h2>
+            </div>
+            <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-xl transition-colors">
+              <X size={24} className="text-gray-400" />
+            </button>
+          </div>
+
+          <div className="flex-1 space-y-4">
+            {reminders.length === 0 ? (
+              <div className="text-center py-20">
+                <Sparkles size={40} className="mx-auto text-sky-100 mb-4" />
+                <p className="text-gray-400 font-bold">אין תזכורות לבינתיים אחי. הכל בשליטה!</p>
+              </div>
+            ) : (
+              reminders.map((reminder) => (
+                <div 
+                  key={reminder.id}
+                  className={`p-4 rounded-3xl border transition-all ${
+                    reminder.isCompleted ? 'bg-gray-50 border-gray-100 opacity-60' : 'bg-white border-sky-100 shadow-sm'
+                  }`}
+                >
+                  <div className="flex items-start justify-between mb-2">
+                    <button 
+                      onClick={() => onToggleComplete(reminder.id!, !reminder.isCompleted)}
+                      className={`p-2 rounded-xl transition-all ${
+                        reminder.isCompleted ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-400 hover:bg-sky-50 hover:text-sky-600'
+                      }`}
+                    >
+                      <CheckCircle size={18} />
+                    </button>
+                    <div className="flex-1 mr-3 text-right">
+                      <h4 className={`font-bold text-sm ${reminder.isCompleted ? 'line-through text-gray-400' : 'text-gray-900'}`}>
+                        {reminder.title}
+                      </h4>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Clock size={12} className="text-sky-400" />
+                        <span className="text-[10px] font-bold text-gray-400">{reminder.dueDate} | {reminder.dueTime}</span>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => {
+                        if (window.confirm('למחוק את התזכורת אחי?')) onDelete(reminder.id!);
+                      }}
+                      className="p-1 text-gray-300 hover:text-red-500 transition-colors"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                  {reminder.description && (
+                    <p className="text-xs text-gray-500 mt-2 pr-11">{reminder.description}</p>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        </motion.div>
+      </>
+    )}
+  </AnimatePresence>
+);
+
 // --- Main App ---
 
 export default function App() {
@@ -313,6 +437,8 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [orders, setOrders] = useState<Order[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
+  const [reminders, setReminders] = useState<Reminder[]>([]);
+  const [isRemindersOpen, setIsRemindersOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [chatHistory, setChatHistory] = useState<any[]>([]);
   const [isAddingOrder, setIsAddingOrder] = useState(false);
@@ -696,6 +822,25 @@ export default function App() {
     return () => unsubscribe();
   }, [user]);
 
+  // --- Fetch Reminders ---
+  useEffect(() => {
+    if (!user) return;
+    
+    const q = query(
+      collection(db, 'reminders'),
+      where('userId', '==', user.uid),
+      orderBy('dueDate', 'asc'),
+      orderBy('dueTime', 'asc')
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Reminder[];
+      setReminders(docs);
+    });
+
+    return () => unsubscribe();
+  }, [user]);
+
   useEffect(() => {
     if (chatScrollRef.current) {
       chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
@@ -904,6 +1049,7 @@ export default function App() {
         onOpenDrawer={() => setIsDrawerOpen(true)}
         onInstallApp={installPrompt ? handleInstallClick : null}
         onFileUpload={handleDriveFileUpload}
+        onOpenReminders={() => setIsRemindersOpen(true)}
       />
 
       <Drawer 
@@ -913,6 +1059,15 @@ export default function App() {
         viewMode={viewMode}
         setViewMode={setViewMode}
         installPrompt={installPrompt}
+        onOpenReminders={() => setIsRemindersOpen(true)}
+      />
+
+      <RemindersSidebar 
+        isOpen={isRemindersOpen}
+        onClose={() => setIsRemindersOpen(false)}
+        reminders={reminders}
+        onToggleComplete={(id, completed) => updateReminder(id, { isCompleted: completed })}
+        onDelete={deleteReminder}
       />
 
       {/* Manual Order Modal */}
