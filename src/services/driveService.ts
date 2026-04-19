@@ -107,12 +107,24 @@ export async function uploadFileToDrive(file: File, folderId: string = FOLDER_ID
       body: JSON.stringify(payload)
     });
 
+    console.log("GAS Bridge Response Status:", response.status);
+    
     if (!response.ok) {
-      throw new Error(`Upload failed: ${response.statusText}`);
+      const errorText = await response.text();
+      console.error("GAS Bridge Error Response:", errorText);
+      throw new Error(`Upload failed: ${response.statusText} (${response.status})`);
     }
 
     const result = await response.json();
-    return result; // Should contain { status: 'success', fileId: '...' }
+    console.log("GAS Bridge Raw Result:", result);
+    
+    // Some GAS scripts might return 'id' or 'fileId'
+    const finalId = result?.fileId || result?.id;
+    if (finalId) {
+      return { ...result, fileId: finalId };
+    }
+    
+    return result; 
   } catch (error) {
     console.error("Error uploading file to GAS bridge:", error);
     throw error;

@@ -385,7 +385,8 @@ export default function App() {
       const fileId = uploadResult?.fileId;
       
       if (!fileId) {
-        throw new Error("לא התקבל מזהה קובץ מהדרייב אחי.");
+        const errorMsg = uploadResult?.message || uploadResult?.error || "לא התקבל מזהה קובץ מהדרייב אחי.";
+        throw new Error(errorMsg);
       }
       
       addToast('העלאה הצליחה', 'הקובץ נשמר בתיקיית SabanOS אחי ✅', 'success');
