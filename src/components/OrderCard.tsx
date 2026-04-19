@@ -20,13 +20,14 @@ import {
   FileUp,
   Loader2,
   Paperclip,
+  Package,
   X,
   ExternalLink,
   ChevronLeft
 } from 'lucide-react';
 import { AnimatePresence } from 'motion/react';
 import { Order, Driver, predictOrderEta } from '../services/auraService';
-import { highlightText } from '../lib/utils';
+import { highlightText, parseItems, isKnownProduct, cn } from '../lib/utils';
 
 export const StatusBadge = ({ status }: { status: Order['status'] }) => {
   const configs = {
@@ -437,11 +438,42 @@ export const OrderCard = ({
       </div>
 
       <div className="space-y-4">
-        <div className="bg-gray-50/80 p-4 rounded-2xl border border-gray-100 text-right">
-           <span className="text-[10px] font-black text-gray-400 uppercase mb-2 block tracking-widest">פירוט פריטים</span>
-           <p className="text-sm font-medium text-gray-700 leading-relaxed">
-             {highlightText(order.items, searchQuery)}
-           </p>
+        <div className="bg-gray-50/80 p-5 rounded-[2rem] border border-gray-100 text-right">
+           <div className="flex items-center justify-between mb-3 border-b border-gray-100 pb-2">
+             <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">פירוט פריטים מסודר</span>
+             <Package size={14} className="text-gray-300" />
+           </div>
+           
+           <div className="space-y-3">
+             {(() => {
+               const parsed = parseItems(order.items);
+               if (parsed.length > 0) {
+                 return parsed.map((item, idx) => (
+                   <div key={idx} className="flex items-center justify-between gap-3 group/item">
+                     <div className="flex flex-col items-end flex-1 min-w-0">
+                       <span className={cn(
+                         "text-[13px] font-black truncate w-full text-right",
+                         isKnownProduct(item.name) ? "text-sky-600" : "text-gray-900"
+                       )}>
+                         {highlightText(item.name, searchQuery)}
+                       </span>
+                       {item.sku && (
+                         <span className="text-[9px] font-bold text-gray-400">מק"ט: {item.sku}</span>
+                       )}
+                     </div>
+                     <div className="shrink-0 flex items-center justify-center bg-white border border-gray-100 w-8 h-8 rounded-xl shadow-sm group-hover/item:border-sky-200 transition-colors">
+                       <span className="text-[11px] font-black text-gray-900 leading-none">{item.quantity}</span>
+                     </div>
+                   </div>
+                 ));
+               }
+               return (
+                 <p className="text-sm font-medium text-gray-700 leading-relaxed">
+                   {highlightText(order.items, searchQuery)}
+                 </p>
+               );
+             })()}
+           </div>
         </div>
 
         <div className="flex items-center gap-2 pt-2 border-t border-gray-100">

@@ -64,6 +64,7 @@ import { he } from 'date-fns/locale';
 import { auth, loginWithGoogle, logout, db } from './lib/firebase';
 import MorningReportSystem from './components/MorningReportSystem';
 import { OrderCard, StatusBadge } from './components/OrderCard';
+import { highlightText, parseItems } from './lib/utils';
 import { DriverList } from './components/DriverList';
 import { DriverCard } from './components/DriverCard';
 import { SearchSuggestions } from './components/SearchSuggestions';
@@ -1019,8 +1020,45 @@ export default function App() {
                 </div>
                 
                 <div>
-                  <label className="block text-xs font-bold text-gray-400 mb-1">פריטים</label>
-                  <textarea name="items" required defaultValue={editingOrder ? editingOrder.items : draftOrder.items} placeholder="מה מעמיסים?" rows={3} className="w-full bg-gray-50 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-sky-600 outline-none resize-none" />
+                  <div className="flex justify-between items-center mb-1">
+                    <label className="block text-xs font-bold text-gray-400">פריטים</label>
+                    <button 
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        const currentItems = editingOrder ? editingOrder.items : draftOrder.items;
+                        const parsed = parseItems(currentItems);
+                        if (parsed.length > 0) {
+                          const formatted = parsed.map(p => `${p.quantity} | ${p.name}${p.sku ? ` | ${p.sku}` : ''}`).join('\n');
+                          if (editingOrder) {
+                            setEditingOrder({ ...editingOrder, items: formatted });
+                          } else {
+                            setDraftOrder({ items: formatted });
+                          }
+                          addToast('סידור רשימה', 'הפריטים סודרו בשורות אחי ✅', 'success');
+                        }
+                      }}
+                      className="text-[10px] font-black text-sky-600 bg-sky-50 px-2 py-1 rounded-lg border border-sky-100 hover:bg-sky-100 transition-all flex items-center gap-1 shadow-sm"
+                    >
+                      <Sparkles size={12} />
+                      סדר רשימה
+                    </button>
+                  </div>
+                  <textarea 
+                    name="items" 
+                    required 
+                    value={editingOrder ? editingOrder.items : draftOrder.items}
+                    onChange={(e) => {
+                      if (editingOrder) {
+                        setEditingOrder({ ...editingOrder, items: e.target.value });
+                      } else {
+                        setDraftOrder({ items: e.target.value });
+                      }
+                    }}
+                    placeholder="מה מעמיסים? (למשל: 8 חול 11501)" 
+                    rows={3} 
+                    className="w-full bg-gray-50 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-sky-600 outline-none resize-none" 
+                  />
                 </div>
 
                 <div className="pt-4 flex items-center gap-3">
