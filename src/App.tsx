@@ -39,7 +39,9 @@ import {
   Sparkles,
   Package,
   Menu,
-  FileUp
+  FileUp,
+  Paperclip,
+  Loader2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
@@ -301,6 +303,7 @@ export default function App() {
   const [chatHistory, setChatHistory] = useState<any[]>([]);
   const [isAddingOrder, setIsAddingOrder] = useState(false);
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
+  const [isUploadingDoc, setIsUploadingDoc] = useState(false);
   const [toasts, setToasts] = useState<any[]>([]);
   const chatScrollRef = useRef<HTMLDivElement>(null);
 
@@ -374,16 +377,35 @@ export default function App() {
     }
   };
 
-  const handleDriveFileUpload = async (file: File) => {
+  const handleDriveFileUpload = async (file: File, orderId?: string, documentType: 'orderForm' | 'deliveryNote' = 'orderForm') => {
     addToast('העלאת קובץ', `מעלה את ${file.name} לדרייב...`, 'info');
+    setIsUploadingDoc(true);
     try {
-      await uploadFileToDrive(file);
+      const uploadResult = await uploadFileToDrive(file);
+      // Note: GAS bridge currently returns success message but not the file ID due to no-cors mode limitation.
+      // However, we can try to guess or assume the filename structure if we modified GAS.
+      // For now, let's inform the user we are tracking it.
+      
       addToast('העלאה הצליחה', 'הקובץ נשמר בתיקיית SabanOS אחי ✅', 'success');
+      
+      if (orderId) {
+        // Since we can't get the ID back directly from a no-cors POST,
+        // in a real scenario we'd need a different bridge or OAuth.
+        // For this demo/requirement, we will mark it as "attached" with a dummy ID or name if needed,
+        // or just notify Noa to find it.
+        addToast('עדכון הזמנה', 'משייכת את המסמך להזמנה אחי...', 'info');
+        // We'll use a placeholder or the filename if we can't get the ID
+        const updateField = documentType === 'orderForm' ? { orderFormId: 'PENDING_SCAN' } : { deliveryNoteId: 'PENDING_SCAN' };
+        await updateOrder(orderId, updateField);
+      }
+
       // Suggest to Noa to analyze the new file
-      handleAuraAction(`העליתי עכשיו את הקובץ ${file.name} לדרייב. סרקי אותו ותגידי לי מה נסגר.`);
+      handleAuraAction(`העליתי עכשיו את הקובץ ${file.name} לדרייב. ${orderId ? `זה שייך להזמנה ${orderId}.` : ''} סרקי אותו ותגידי לי מה נסגר.`);
     } catch (error: any) {
       console.error("Upload error:", error);
       addToast('שגיאת העלאה', `לא הצלחתי להעלות: ${error.message}`, 'warning');
+    } finally {
+      setIsUploadingDoc(false);
     }
   };
 
@@ -992,8 +1014,23 @@ export default function App() {
                   <textarea name="items" required defaultValue={editingOrder ? editingOrder.items : draftOrder.items} placeholder="מה מעמיסים?" rows={3} className="w-full bg-gray-50 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-sky-600 outline-none resize-none" />
                 </div>
 
-                <div className="pt-4">
-                  <button type="submit" className="w-full bg-sky-600 text-white py-4 rounded-2xl font-bold text-lg hover:bg-sky-700 transition-colors shadow-lg shadow-sky-600/20">
+                <div className="pt-4 flex items-center gap-3">
+                  {editingOrder && (
+                    <label className="flex items-center justify-center gap-2 px-4 py-4 bg-gray-100 text-gray-600 rounded-2xl font-bold cursor-pointer hover:bg-gray-200 transition-colors h-[60px] min-w-[130px]" title="צרף מסמך PDF">
+                      {isUploadingDoc ? <Loader2 size={20} className="animate-spin" /> : <Paperclip size={20} />}
+                      <span className="text-sm">צרף PDF</span>
+                      <input 
+                        type="file" 
+                        accept="application/pdf" 
+                        className="hidden" 
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file && editingOrder) handleDriveFileUpload(file, editingOrder.id, 'orderForm');
+                        }}
+                      />
+                    </label>
+                  )}
+                  <button type="submit" className="flex-1 bg-sky-600 text-white py-4 rounded-2xl font-bold text-lg hover:bg-sky-700 transition-colors shadow-lg shadow-sky-600/20 h-[60px]">
                     {editingOrder ? 'תעדכן לי אחי' : 'תאשר לי אחי, הכל מוכן'}
                   </button>
                 </div>

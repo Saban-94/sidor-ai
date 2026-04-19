@@ -28,6 +28,8 @@ export interface Order {
   items: string;
   warehouse: 'החרש' | 'התלמיד';
   status: 'pending' | 'preparing' | 'ready' | 'delivered' | 'cancelled';
+  orderFormId?: string;
+  deliveryNoteId?: string;
   eta?: string;
   createdAt?: any;
   updatedAt?: any;

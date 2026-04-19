@@ -14,8 +14,11 @@ import {
   AlertCircle,
   Trash2,
   Share2,
-  RotateCcw
+  RotateCcw,
+  Eye,
+  FileText
 } from 'lucide-react';
+import { AnimatePresence } from 'motion/react';
 import { Order, Driver, predictOrderEta } from '../services/auraService';
 import { highlightText } from '../lib/utils';
 
@@ -53,6 +56,61 @@ interface OrderCardProps {
   key?: React.Key;
 }
 
+const DocumentPopover = ({ order, onClose }: { order: Order, onClose: () => void }) => {
+  const getDriveUrl = (id: string) => `https://drive.google.com/uc?id=${id}`;
+  
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.9, y: 10 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.9, y: 10 }}
+      className="absolute top-12 left-4 z-50 bg-white rounded-2xl shadow-2xl border border-sky-100 p-3 w-48"
+    >
+      <div className="flex flex-col gap-2">
+        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 px-1">מסמכי הזמנה</span>
+        
+        {order.orderFormId && (
+          <a 
+            href={getDriveUrl(order.orderFormId)} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="flex items-center gap-3 p-2.5 hover:bg-sky-50 rounded-xl transition-colors text-right group"
+          >
+            <div className="bg-sky-100 p-1.5 rounded-lg text-sky-600 group-hover:bg-sky-600 group-hover:text-white transition-colors">
+              <FileText size={14} />
+            </div>
+            <span className="text-xs font-bold text-gray-700">טופס הזמנה</span>
+          </a>
+        )}
+
+        {order.deliveryNoteId && (
+          <a 
+            href={getDriveUrl(order.deliveryNoteId)} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="flex items-center gap-3 p-2.5 hover:bg-emerald-50 rounded-xl transition-colors text-right group"
+          >
+            <div className="bg-emerald-100 p-1.5 rounded-lg text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+              <FileText size={14} />
+            </div>
+            <span className="text-xs font-bold text-gray-700">תעודת משלוח</span>
+          </a>
+        )}
+
+        {(!order.orderFormId && !order.deliveryNoteId) && (
+          <span className="text-[10px] text-gray-400 font-bold p-2">אין מסמכים מצורפים אחי</span>
+        )}
+      </div>
+      <button 
+        onClick={(e) => { e.stopPropagation(); onClose(); }}
+        className="mt-2 w-full text-[10px] font-bold text-gray-400 hover:text-gray-600 py-1 transition-colors"
+      >
+        סגור
+      </button>
+    </motion.div>
+  );
+};
+
 export const OrderCard = ({ 
   order, 
   drivers,
@@ -66,6 +124,7 @@ export const OrderCard = ({
   searchQuery = ''
 }: OrderCardProps) => {
   const [isPredicting, setIsPredicting] = useState(false);
+  const [showDocs, setShowDocs] = useState(false);
 
   const handleSmartPredict = async () => {
     setIsPredicting(true);
@@ -121,6 +180,23 @@ export const OrderCard = ({
       <div className="absolute top-4 left-4 bg-gray-900 text-white px-3 py-1 rounded-full text-[10px] font-black z-10 shadow-lg">
         #{order.orderNumber || order.id?.slice(-4).toUpperCase()}
       </div>
+
+      {(order.orderFormId || order.deliveryNoteId) && (
+        <div className="absolute top-4 left-24 z-10">
+          <button 
+            onClick={() => setShowDocs(!showDocs)}
+            className={`p-1.5 rounded-full shadow-lg border transition-all ${showDocs ? 'bg-sky-600 text-white border-sky-600' : 'bg-white text-sky-600 border-sky-100 hover:bg-sky-50'}`}
+            title="צפה במסמכים"
+          >
+            <Eye size={14} strokeWidth={3} />
+          </button>
+          <AnimatePresence>
+            {showDocs && (
+              <DocumentPopover order={order} onClose={() => setShowDocs(false)} />
+            )}
+          </AnimatePresence>
+        </div>
+      )}
 
       <div className="flex gap-4 mb-6 pt-2">
         <div className={`p-4 rounded-3xl h-fit border shadow-sm ${driver?.vehicleType === 'crane' ? 'bg-sky-50 text-sky-600 border-sky-100' : 'bg-blue-50 text-blue-600 border-blue-100'}`}>
