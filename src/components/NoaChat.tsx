@@ -70,7 +70,7 @@ export const NoaChat = ({
                  <MessageSquare className="text-sky-600" size={48} />
               </div>
               <h2 className="text-2xl font-black mb-2 italic">הי זאת נועה מה אפשר לעשות היום?</h2>
-              <p className="text-sm font-bold text-gray-400 mb-8 max-w-[250px] mx-auto">"תפתחי הזמנה חדשה לחכמת לשעה 9 ליעד ברקאי"</p>
+              <p className="text-sm font-bold text-gray-400 mb-8 max-w-[250px] mx-auto">"ניתן דרכי לבצע פעולות ולברר מה על הכול תבחר מקיצורי דרך או שאל כל שאלה אני פה להקשיב ולשרת אותך "</p>
               
               <div className="grid grid-cols-1 gap-3 max-w-xs mx-auto">
                  {['תכיני לי דוח בוקר 📋', 'צפי הגעה להזמנה ⏱️', 'מה המצב נהגים? 🏗️'].map(suggestion => (
