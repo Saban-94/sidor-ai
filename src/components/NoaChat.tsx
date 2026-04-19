@@ -30,7 +30,7 @@ export const NoaChat = ({
           <button onClick={onBack} className="p-2 hover:bg-gray-200 rounded-xl transition-colors">
             <ChevronRight size={20} />
           </button>
-          <h1 className="text-xl font-bold">נועה AI</h1>
+          <h1 className="text-xl font-bold">נועה מנהלת סידור ראמי</h1>
         </div>
         
         <div className="space-y-6">
@@ -69,11 +69,11 @@ export const NoaChat = ({
               <div className="bg-sky-50 w-24 h-24 rounded-[3rem] flex items-center justify-center mx-auto mb-6 shadow-inner">
                  <MessageSquare className="text-sky-600" size={48} />
               </div>
-              <h2 className="text-2xl font-black mb-2 italic">אהלן ראמי, אחי</h2>
+              <h2 className="text-2xl font-black mb-2 italic">הי זאת נועה מה אפשר לעשות היום?</h2>
               <p className="text-sm font-bold text-gray-400 mb-8 max-w-[250px] mx-auto">"תפתחי הזמנה חדשה לחכמת לשעה 9 ליעד ברקאי"</p>
               
               <div className="grid grid-cols-1 gap-3 max-w-xs mx-auto">
-                 {['תכיני לי דוח בוקר 📋', 'צפי הגעה להזמנה ⏱️', 'מה המצב במחסן? 🏗️'].map(suggestion => (
+                 {['תכיני לי דוח בוקר 📋', 'צפי הגעה להזמנה ⏱️', 'מה המצב נהגים? 🏗️'].map(suggestion => (
                    <button 
                      key={suggestion}
                      onClick={() => onAction(suggestion)}
