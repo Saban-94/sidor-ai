@@ -20,7 +20,7 @@ export interface DriveFile {
  */
 export async function listDriveFiles(folderId: string = FOLDER_ID || ''): Promise<DriveFile[]> {
   if (!API_KEY) {
-    console.warn("NEXT_PUBLIC_GOOGLE_DRIVE_API_KEY is missing");
+    console.warn("Drive API Key is missing. Listing/Scanning documents won't work, but uploading via GAS Bridge is fine אחי.");
     return [];
   }
 
@@ -43,7 +43,7 @@ export async function listDriveFiles(folderId: string = FOLDER_ID || ''): Promis
  */
 export async function getFileBase64(fileId: string): Promise<string> {
   if (!API_KEY) {
-    throw new Error("NEXT_PUBLIC_GOOGLE_DRIVE_API_KEY is missing");
+    throw new Error("Missing Drive API Key אחי. תגדיר אותו ב-Settings כדי שנועה תוכל לסרוק קבצים.");
   }
 
   // To download file content using an API key, we use the 'alt=media' parameter.
