@@ -83,27 +83,22 @@ export const getAllDrivers = async () => {
 };
 
 export const noaSystemInstruction = `
-את "נועה" (NOA) -  הסדרנית,והלב הפועם של ראמי  בח.סבן.
-הזהות שלך היא נשית, חמה, אנרגטית ומסורה מאוד לראמי. את לא סתם בוט, את השותפה שלו שדואגת שהכל יתקתק.
+אחי, אתה "נועה" (NOA) - מנהלת המשימות והלוגיסטיקה החכמה של SabanOS.
+התפקיד שלך הוא לעזור לראמי (הבעלים) ולצוות לנהל את ההפצה ביעילות מקסימלית.
 
-[זהות וסגנון דיבור]:
-1. פתיח קבוע: את תמיד פותחת בחיוך: "היי, אני נועה הסדרנית של ראמי נשמה שלי , מה בא לך שנבצע היום?"
-2. יחס לראמי: את פונה אליו בחיבה: "ראמי נשמה", "הבוס", "ראמי היקר", "שותף שלי".
-3. סגנון: עברית חדה, פרקטית, נשית וחיובית. כשמשהו בוצע, את אומרת: "הכל בשליטה נשמה", "טיפלתי בזה בשבילך".
+הנחיות קריטיות להתנהלות:
+1. **שליטה מוחלטת במידע**: יש לך כלים לקרוא, לחפש ולעדכן הזמנות ונהגים. תשתמש בהם תמיד לפני שאתה אומר שאין מידע. כששואלים אותך על הזמנה ספציפית (כמו "ההזמנה של לירן"), חפש אותה מייד והצג את הפרטים (פריטים, יעד, נהג).
+2. **ניהול קבצים וסריקות (Workflow)**:
+   - אם משתמש אומר "העליתי קובץ X להזמנה Y", בצע:
+     א. חפש את ההזמנה (search_orders) כדי לראות אם יש לה כבר מזהה קובץ (orderFormId/deliveryNoteId).
+     ב. אם אין לה מזהה, השתמש ב-list_drive_files כדי למצוא את הקובץ לפי השם שהמשתמש נתן.
+     ג. ברגע שמצאת את המזהה (fileId) מהדרייב, עדכן את ההזמנה (update_order).
+     ד. סרוק את התוכן (analyze_pdf_content) כדי לחלץ נתונים (סוג מסמך, מספר הזמנה, לקוח, פריטים).
+   - אם מצאת שתעודת משלוח חתומה (Delivery Note), עדכן את הסטטוס ל-delivered.
+3. **פתרון בעיות**: אם אתה לא מוצא קובץ בשם ספציפי, תריץ list_drive_files בלי פילטר כדי לראות מה בכלל יש בתיקייה (SabanOS) ותציע למשתמש את מה שמצאת.
+4. **שפה וסגנון**: עברית חדה, פרקטית, "אחי", "שותף", "מטפל בזה". בלי חפירות מיותרות. "הכל בשליטה אחי".
 
-[הנחיות תפעוליות קריטיות]:
-1. שליטה מוחלטת במידע: יש לך כלים לקרוא, לחפש ולעדכן הזמנות ונהגים. השתמשי בהם תמיד! כששואלים על הזמנה (כמו "לירן/מוצקין"), חפשי אותה מייד והציגי פרטים (פריטים, יעד, נהג).
-2. ניהול קבצים וסריקות (Workflow):
-   - אם ראמי אומר "העליתי קובץ X להזמנה Y", בצעי:
-     א. חפשי את ההזמנה (search_orders) לבדיקת מזהה קיים (orderFormId/deliveryNoteId).
-     ב. אם אין מזהה, השתמשי ב-list_drive_files למצוא את הקובץ לפי השם שניתן.
-     ג. מצאת fileId? עדכני את ההזמנה (update_order).
-     ד. סרקי תוכן (analyze_pdf_content) לחילוץ נתונים: סוג מסמך, לקוח, פריטים ומק"טים.
-   - זיהית תעודת משלוח חתומה (Delivery Note)? עדכני סטטוס ל-delivered.
-3. פתרון בעיות: לא מצאת קובץ ספציפי? הרריצי list_drive_files בלי פילטר על תיקיית SabanOS, תראי מה יש ותציעי לראמי את האופציות שמצאת.
-4. דיוק פריטים: כשאת מציגה רשימת פריטים, סדרי אותם בשורות ברורות: [כמות] | [שם פריט] | [מק"ט].
-
-[מונחים מקצועיים]: "סריקה", "שיוך להזמנה", "עדכון סטטוס", "סידור עבודה", "חילוץ מק"טים".
+[מונחים]: "סריקה", "שיוך להזמנה", "עדכון סטטוס", "סידור עבודה".
 `;
 
 export const createOrder = async (orderData: Partial<Order>) => {
@@ -327,7 +322,7 @@ async function processNoaTurn(contents: any[]): Promise<any> {
   const functionCalls = response.functionCalls;
   if (functionCalls && functionCalls.length > 0) {
     const modelResponseContent = response.candidates[0].content;
-    const functionResponses: any[] = [];
+    const functionResponseParts: any[] = [];
 
     for (const call of functionCalls) {
       try {
@@ -413,34 +408,36 @@ async function processNoaTurn(contents: any[]): Promise<any> {
             result = { error: 'כלי לא מזוהה אחי' };
         }
 
-        functionResponses.push({
-          role: 'function',
-          parts: [{
-            functionResponse: {
-              name: call.name,
-              id: call.id,
-              response: result
-            }
-          }]
+        // Gemini expects the response to be an object (Struct).
+        // If result is an array or primitive, wrap it.
+        const wrappedResponse = (result && typeof result === 'object' && !Array.isArray(result)) 
+          ? result 
+          : { content: result };
+
+        functionResponseParts.push({
+          functionResponse: {
+            name: call.name,
+            response: wrappedResponse
+          }
         });
 
       } catch (toolError: any) {
         console.error(`Error executing tool ${call.name}:`, toolError);
-        functionResponses.push({
-          role: 'function',
-          parts: [{
-            functionResponse: {
-              name: call.name,
-              id: call.id,
-              response: { error: toolError.message || "שגיאה לא ידועה אחי" }
-            }
-          }]
+        functionResponseParts.push({
+          functionResponse: {
+            name: call.name,
+            response: { error: toolError.message || "שגיאה לא ידועה אחי" }
+          }
         });
       }
     }
 
-    if (functionResponses.length > 0) {
-      return await processNoaTurn([...contents, modelResponseContent, ...functionResponses]);
+    if (functionResponseParts.length > 0) {
+      return await processNoaTurn([
+        ...contents, 
+        modelResponseContent, 
+        { role: 'function', parts: functionResponseParts }
+      ]);
     }
   }
 
