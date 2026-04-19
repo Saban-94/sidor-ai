@@ -65,6 +65,7 @@ import { DriverList } from './components/DriverList';
 import { DriverCard } from './components/DriverCard';
 import { SearchSuggestions } from './components/SearchSuggestions';
 import { NoaChat } from './components/NoaChat';
+import { initOneSignal, sendOrderNotification } from './services/notificationService';
 import { 
   Order, 
   Driver,
@@ -358,6 +359,21 @@ export default function App() {
     try {
       await updateOrder(id, { status: newStatus });
       
+      const order = orders.find(o => o.id === id);
+      if (order) {
+        const statusLabels: Record<string, string> = {
+          pending: 'ממתין',
+          preparing: 'בהכנה',
+          ready: 'מוכן',
+          delivered: 'סופק',
+          cancelled: 'בוטל'
+        };
+        sendOrderNotification(
+          'עדכון סטטוס אחי! 🔄', 
+          `ההזמנה של ${order.customerName} עודכנה ל-${statusLabels[newStatus] || newStatus}`
+        );
+      }
+
       // Auto-predict ETA when status changes to 'preparing'
       if (newStatus === 'preparing') {
         const order = orders.find(o => o.id === id);
@@ -399,6 +415,7 @@ export default function App() {
 
   // --- Auth & Init ---
   useEffect(() => {
+    initOneSignal();
     return onAuthStateChanged(auth, (u) => {
       setUser(u);
       setLoading(false);
@@ -608,7 +625,9 @@ export default function App() {
       if (functionCalls) {
         for (const call of functionCalls) {
           if (call.name === 'create_order') {
-            await createOrder(call.args as any);
+            const args = call.args as any;
+            await createOrder(args);
+            sendOrderNotification('הזמנה חדשה אחי! 🚛', `${args.customerName} - ${args.items}`);
           } else if (call.name === 'update_order') {
             const { orderId, ...rest } = call.args as any;
             await updateOrder(orderId, rest);
