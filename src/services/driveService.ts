@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-const API_KEY = process.env.GOOGLE_DRIVE_API_KEY;
-const FOLDER_ID = process.env.DRIVE_FOLDER_ID;
+const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_DRIVE_API_KEY;
+const FOLDER_ID = process.env.NEXT_PUBLIC_DRIVE_FOLDER_ID;
 
 export interface DriveFile {
   id: string;
