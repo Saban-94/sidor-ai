@@ -13,6 +13,8 @@ import {
 } from 'firebase/firestore';
 import { db, auth } from '../lib/firebase';
 
+import { listDriveFiles, getFileBase64 } from './driveService';
+
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 export interface Order {
@@ -79,26 +81,24 @@ export const getAllDrivers = async () => {
 };
 
 export const noaSystemInstruction = `
-אתה נועה, מנהלת התפעול של "ח. סבן חומרי בניין". המטרה: ניהול סידור עבודה בשיטת פינג-פונג (קצר, פרקטי, חד).
-פנה לראמי כ"אחי" או "שותף". עברית חדה, RTL מלא, בלי חפירות.
+אתה "נועה" - מנהלת תפעול ולוגיסטיקה חכמה עבור חברת סבן (SabanOS).
+תפקידך לנהל, לעבד ולבצע אוטומציה מלאה על כל הקבצים ותהליכי ההפצה.
 
-מונחים מקצועיים לשימוש:
-- "סטטוס הפצה": מצב ההזמנות הנוכחי בלוח.
-- "סיכום עמוסים": דוח ריכוז הזמנות פעילות.
-- "תיעוד מסירה": סטטוס delivered.
-- "חריגות בטון/ריצופית": בדיקת תקינות הזמנות לפי חוקי המלאי (למשל: בטון דורש תזמון מדויק, ריצופית דורשת מנוף).
+הנחיות לביצוע (Workflow):
+1. גישה לתיקייה: השתמש בכלי Drive כדי לנטר ולגשת לתיקייה 1BZebeE8mpX-su-8wA6zKEvhDuS-4vU1y. 
+2. סיווג מסמכים (Classification):
+   - אם הכותרת או התוכן מכילים "הזמנה" או רשימת מוצרים ללא חתימה -> סווג כ-ORDER_FORM.
+   - אם הכותרת מכילה "תעודת משלוח" או שיש חתימה ידנית/דיגיטלית בסוף הדף -> סווג כ-DELIVERY_NOTE.
+3. חילוץ נתונים (Data Extraction):
+   חלץ מה-PDF את השדות: document_type, order_number, customer_name, items (רשימה), address, status.
+   - DELIVERY_NOTE -> סטטוס COMPLETED.
+   - ORDER_FORM -> סטטוס PENDING.
+   - אם חסר נתון קריטי, סמן בשדה הערות: MISSING_DATA.
+4. נהגים: שייך את המשימה להיקמט או עלי אם שמם מופיע על המסמך.
 
-חוקי פינג-פונג ליצירת הזמנה:
-...
-100: 
-101: הנחיות ל-Quick Actions (אתה מציע אותם בטקסט בסוף התשובה בפורמט [ACTION: תיאור]):
-102: עודד את המשתמש להשתמש בקיצורי דרך למצבים נפוצים: עדכוני סטטוס, סינון נהגים, דוח בוקר וצפי הגעה.
-103: 
+פנה לראמי כ"אחי" או "שותף". עברית חדה, פרקטית, בלי חפירות.
 
-חוקים מיוחדים לבקשות משתמש:
-- "דוח בוקר 📋": סכם בקצרה רק את ההזמנות שאינן בסטטוס "delivered".
-- "סטטוס נהגים 🚛": הצג תמצית איפה כל נהג נמצא כרגע (לפי היעד של ההזמנה האחרונה שלו שאינה delivered).
-- "חריגות בטון/ריצופית ⚠️": סרוק את ההזמנות וציין אם יש הזמנות "ריצופית" שמשויכות למשאית ללא מנוף, או הזמנות בטון ללא שעה מדויקת.
+[מונחים מקצועיים]: "סטטוס הפצה", "סיכום עמוסים", "תיעוד מסירה", "חריגות בטון/ריצופית".
 `;
 
 export const createOrder = async (orderData: Partial<Order>) => {
@@ -250,6 +250,27 @@ export const tools = [
           },
           required: ["query"]
         }
+      },
+      {
+        name: "list_drive_files",
+        description: "קבל רשימת קבצים מתיקיית הדרייב המוגדרת (למציאת הזמנות/תעודות חדשות)",
+        parameters: {
+          type: Type.OBJECT,
+          properties: {
+            folderId: { type: Type.STRING, description: "מזהה התיקייה (אופציונלי, ברירת מחדל לתיקיית SabanOS)" }
+          }
+        }
+      },
+      {
+        name: "analyze_pdf_content",
+        description: "נתח קובץ PDF מהדרייב כדי לחלץ נתוני הזמנה או תעודת משלוח",
+        parameters: {
+          type: Type.OBJECT,
+          properties: {
+            fileId: { type: Type.STRING, description: "מזהה הקובץ בדרייב" }
+          },
+          required: ["fileId"]
+        }
       }
     ]
   }
@@ -257,8 +278,64 @@ export const tools = [
 
 export async function askNoa(message: string, history: any[] = []) {
   const response = await ai.models.generateContent({
-    model: "gemini-3-flash-preview",
+    model: "gemini-3.1-pro-preview", // Use Pro for complex document analysis if needed, or stick to Flash for speed
     contents: [...history, { role: 'user', parts: [{ text: message }] }],
+    config: {
+      systemInstruction: noaSystemInstruction,
+      tools: tools
+    }
+  });
+
+  const functionCalls = response.functionCalls;
+  if (functionCalls) {
+    for (const call of functionCalls) {
+      if (call.name === 'list_drive_files') {
+        const files = await listDriveFiles(call.args?.folderId as string);
+        const resultPart = {
+          functionResponse: {
+            name: call.name,
+            id: call.id,
+            response: { files }
+          }
+        };
+        return await askNoaResponse([...history, { role: 'user', parts: [{ text: message }] }, response.candidates[0].content, resultPart]);
+      } else if (call.name === 'analyze_pdf_content') {
+        const base64 = await getFileBase64(call.args.fileId as string);
+        const analysisPrompt = `נתח את קובץ ה-PDF הזה לפי הוראות SabanOS. חלץ document_type, order_number, customer_name, items, address, status. החזר JSON בלבד.`;
+        
+        const analysisResponse = await ai.models.generateContent({
+          model: "gemini-3.1-pro-preview",
+          contents: {
+            parts: [
+              { text: analysisPrompt },
+              { inlineData: { data: base64, mimeType: 'application/pdf' } }
+            ]
+          },
+          config: {
+            responseMimeType: "application/json"
+          }
+        });
+
+        const resultPart = {
+          functionResponse: {
+            name: call.name,
+            id: call.id,
+            response: { analysis: analysisResponse.text }
+          }
+        };
+        return await askNoaResponse([...history, { role: 'user', parts: [{ text: message }] }, response.candidates[0].content, resultPart]);
+      }
+    }
+  }
+
+  return response;
+}
+
+/** Helper to continue chat after function result */
+async function askNoaResponse(contents: any[]) {
+  const response = await ai.models.generateContent({
+    model: "gemini-3.1-pro-preview",
+    contents: contents,
     config: {
       systemInstruction: noaSystemInstruction,
       tools: tools

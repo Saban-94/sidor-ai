@@ -23,6 +23,7 @@ export const NoaChat = ({
   orders 
 }: NoaChatProps) => {
   const dynamicSuggestions = [
+    { label: 'סנכרון דרייב 📂', action: 'סרוק את תיקיית SabanOS ותחלץ נתונים מהקובץ האחרון' },
     { label: 'הזמנה חדשה ✍️', action: 'הזמנה חדשה אחי' },
     { label: 'סטטוס הפצה 📊', action: 'מה סטטוס ההפצה כרגע?' },
     { label: 'דוח בוקר 📋', action: 'תכיני לי דוח בוקר 📋' },
@@ -44,7 +45,7 @@ export const NoaChat = ({
           <button onClick={onBack} className="p-2 hover:bg-gray-200 rounded-xl transition-colors">
             <ChevronRight size={20} />
           </button>
-          <h1 className="text-xl font-bold">נועה AI</h1>
+          <h1 className="text-xl font-bold">נועה (SabanOS)</h1>
         </div>
         
         <div className="space-y-6">
@@ -83,8 +84,8 @@ export const NoaChat = ({
               <div className="bg-sky-50 w-24 h-24 rounded-[3rem] flex items-center justify-center mx-auto mb-6 shadow-inner">
                  <MessageSquare className="text-sky-600" size={48} />
               </div>
-              <h2 className="text-2xl font-black mb-2 italic">סדרנית בח.סבן נעים מאוד 👋🏻  👩🏼 היי אני נועה </h2>
-              <p className="text-sm font-bold text-gray-400 mb-8 max-w-[250px] mx-auto">"ניתן דרכי לבצע פעולות ולברר מה על הכול תבחר מקיצורי דרך או שאל כל שאלה אני פה להקשיב ולשרת אותך"</p>
+              <h2 className="text-2xl font-black mb-2 italic">אהלן ראמי, אחי</h2>
+              <p className="text-sm font-bold text-gray-400 mb-8 max-w-[250px] mx-auto">"תפתחי הזמנה חדשה לחכמת לשעה 9 ליעד ברקאי"</p>
               
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-md mx-auto">
                  {dynamicSuggestions.slice(0, 6).map(suggestion => (
