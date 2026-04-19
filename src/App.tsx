@@ -1014,8 +1014,14 @@ export default function App() {
                 <div className="pt-4 flex items-center gap-3">
                   {editingOrder && (
                     <label className="flex items-center justify-center gap-2 px-4 py-4 bg-gray-100 text-gray-600 rounded-2xl font-bold cursor-pointer hover:bg-gray-200 transition-colors h-[60px] min-w-[130px]" title="צרף מסמך PDF">
-                      {isUploadingDoc ? <Loader2 size={20} className="animate-spin" /> : <Paperclip size={20} />}
-                      <span className="text-sm">צרף PDF</span>
+                      {isUploadingDoc ? (
+                        <Loader2 size={24} className="animate-spin text-sky-600" />
+                      ) : (
+                        <>
+                          <Paperclip size={20} />
+                          <span className="text-sm">צרף PDF</span>
+                        </>
+                      )}
                       <input 
                         type="file" 
                         accept="application/pdf" 

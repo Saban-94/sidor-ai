@@ -193,10 +193,7 @@ const DocumentSheet = ({
                         'bg-white border-gray-100 hover:border-sky-300 hover:bg-sky-50 text-sky-600'
                       }`}>
                         {isUploading === doc.type ? (
-                          <>
-                            <Loader2 size={14} className="animate-spin" />
-                            <span className="text-[10px] font-black">מעלה...</span>
-                          </>
+                          <Loader2 size={16} className="animate-spin" />
                         ) : (
                           <>
                             <FileUp size={14} />
