@@ -38,7 +38,8 @@ import {
   AlertTriangle,
   Sparkles,
   Package,
-  Menu
+  Menu,
+  FileUp
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
@@ -78,6 +79,7 @@ import {
   createDriver
 } from './services/auraService';
 import { useUserMemory } from './hooks/useUserMemory';
+import { uploadFileToDrive } from './services/driveService';
 
 // --- Components ---
 
@@ -91,13 +93,15 @@ const Header = ({
   notificationsEnabled, 
   onToggleNotifications,
   onOpenDrawer,
-  onInstallApp
+  onInstallApp,
+  onFileUpload
 }: { 
   user: FirebaseUser, 
   notificationsEnabled: boolean, 
   onToggleNotifications: () => void,
   onOpenDrawer: () => void,
-  onInstallApp: () => void | null
+  onInstallApp: () => void | null,
+  onFileUpload: (file: File) => void
 }) => (
   <header className="flex items-center justify-between px-6 py-4 bg-white/80 backdrop-blur-md border-b border-sky-100 sticky top-0 z-30">
     <div className="flex items-center gap-3">
@@ -119,6 +123,21 @@ const Header = ({
     </div>
     
     <div className="flex items-center gap-2">
+      <label className="p-2.5 rounded-xl transition-all border bg-white text-sky-600 border-sky-100 hover:bg-sky-50 cursor-pointer shadow-sm flex items-center gap-2" title="העלאת מסמך לדרייב">
+        <FileUp size={20} />
+        <span className="hidden lg:block text-xs font-bold">העלאת מסמך</span>
+        <input 
+          type="file" 
+          accept="application/pdf" 
+          className="hidden" 
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) onFileUpload(file);
+            e.target.value = '';
+          }}
+        />
+      </label>
+
       {onInstallApp && (
         <button 
           onClick={onInstallApp}
@@ -352,6 +371,19 @@ export default function App() {
     const { outcome } = await installPrompt.userChoice;
     if (outcome === 'accepted') {
       setInstallPrompt(null);
+    }
+  };
+
+  const handleDriveFileUpload = async (file: File) => {
+    addToast('העלאת קובץ', `מעלה את ${file.name} לדרייב...`, 'info');
+    try {
+      await uploadFileToDrive(file);
+      addToast('העלאה הצליחה', 'הקובץ נשמר בתיקיית SabanOS אחי ✅', 'success');
+      // Suggest to Noa to analyze the new file
+      handleAuraAction(`העליתי עכשיו את הקובץ ${file.name} לדרייב. סרקי אותו ותגידי לי מה נסגר.`);
+    } catch (error: any) {
+      console.error("Upload error:", error);
+      addToast('שגיאת העלאה', `לא הצלחתי להעלות: ${error.message}`, 'warning');
     }
   };
 
@@ -807,6 +839,7 @@ export default function App() {
         onToggleNotifications={toggleNotifications} 
         onOpenDrawer={() => setIsDrawerOpen(true)}
         onInstallApp={installPrompt ? handleInstallClick : null}
+        onFileUpload={handleDriveFileUpload}
       />
 
       <Drawer 

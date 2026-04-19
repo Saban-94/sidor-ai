@@ -65,3 +65,42 @@ export async function getFileBase64(fileId: string): Promise<string> {
     throw error;
   }
 }
+
+/**
+ * Upload a file to the specified Drive folder.
+ * Note: Drive API file uploads generally require OAuth 2.0 access tokens.
+ * This implementation uses the API Key if provided, but may fail if the folder is not publicly writable.
+ */
+export async function uploadFileToDrive(file: File, folderId: string = FOLDER_ID || ''): Promise<any> {
+  if (!API_KEY) {
+    throw new Error("GOOGLE_DRIVE_API_KEY is missing");
+  }
+
+  const metadata = {
+    name: file.name,
+    parents: [folderId],
+  };
+
+  const formData = new FormData();
+  formData.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+  formData.append('file', file);
+
+  const url = `https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&key=${API_KEY}`;
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      body: formData,
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error?.message || "Upload failed");
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Error uploading file to Drive:", error);
+    throw error;
+  }
+}
