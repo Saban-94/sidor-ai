@@ -40,6 +40,22 @@
     @apply w-full overflow-x-auto;
     -webkit-overflow-scrolling: touch;
   }
+
+  .shimmer-anim {
+    background: linear-gradient(
+      90deg,
+      rgba(14, 165, 233, 0) 0%,
+      rgba(14, 165, 233, 0.1) 50%,
+      rgba(14, 165, 233, 0) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer-effect 2s infinite linear;
+  }
+
+  @keyframes shimmer-effect {
+    from { background-position: 200% 0; }
+    to { background-position: -200% 0; }
+  }
 }
 
 /* Custom RTL scrollbar or other tweaks if needed */

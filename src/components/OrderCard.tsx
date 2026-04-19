@@ -144,8 +144,18 @@ export const OrderCard = ({
         </div>
         <div className="flex flex-col items-end gap-1">
           <StatusBadge status={order.status} />
-          {order.eta && (
-            <span className="text-[10px] font-black text-sky-600 animate-pulse">צפי: {order.eta}</span>
+          {isPredicting ? (
+            <div className="flex items-center gap-1.5 mt-1">
+              <Sparkles size={12} className="text-sky-400 animate-pulse" />
+              <div className="w-16 h-3 bg-sky-100/50 rounded-full overflow-hidden relative border border-sky-100">
+                <div className="absolute inset-0 shimmer-anim" />
+              </div>
+            </div>
+          ) : order.eta && (
+            <span className="text-[10px] font-black text-sky-600 animate-pulse flex items-center gap-1">
+              <Sparkles size={10} />
+              צפי: {order.eta}
+            </span>
           )}
         </div>
       </div>
