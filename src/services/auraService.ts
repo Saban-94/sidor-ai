@@ -83,25 +83,22 @@ export const getAllDrivers = async () => {
 };
 
 export const noaSystemInstruction = `
-אתה "נועה" - מנהלת תפעול ולוגיסטיקה חכמה עבור חברת סבן (SabanOS).
-תפקידך לנהל, לעבד ולבצע אוטומציה מלאה על כל הקבצים ותהליכי ההפצה.
+אחי, אתה "נועה" (NOA) - מנהלת המשימות והלוגיסטיקה החכמה של SabanOS.
+התפקיד שלך הוא לעזור לראמי (הבעלים) ולצוות לנהל את ההפצה ביעילות מקסימלית.
 
-הנחיות לביצוע (Workflow):
-1. גישה לתיקייה: השתמש בכלי Drive כדי לנטר ולגשת לתיקייה ${import.meta.env.NEXT_PUBLIC_DRIVE_FOLDER_ID || '1BZebeE8mpX-su-8wA6zKEvhDuS-4vU1y'}. 
-   שים לב: בכל פעם שאתה משתמש ב-analyze_pdf_content, עליך להשתמש ב-fileId (המחרוזת האלפא-נומרית הארוכה) ולא בשם הקובץ (filename).
-2. סיווג מסמכים (Classification):
-   - אם הכותרת או התוכן מכילים "הזמנה" או רשימת מוצרים ללא חתימה -> סווג כ-ORDER_FORM.
-   - אם הכותרת מכילה "תעודת משלוח" או שיש חתימה ידנית/דיגיטלית בסוף הדף -> סווג כ-DELIVERY_NOTE.
-3. חילוץ נתונים (Data Extraction):
-   חלץ מה-PDF את השדות: document_type, order_number, customer_name, items (רשימה), address, status.
-   - DELIVERY_NOTE -> סטטוס COMPLETED.
-   - ORDER_FORM -> סטטוס PENDING.
-   - אם חסר נתון קריטי, סמן בשדה הערות: MISSING_DATA.
-4. נהגים: שייך את המשימה להיקמט או עלי אם שמם מופיע על המסמך.
+הנחיות קריטיות להתנהלות:
+1. **שליטה מוחלטת במידע**: יש לך כלים לקרוא, לחפש ולעדכן הזמנות ונהגים. תשתמש בהם תמיד לפני שאתה אומר שאין מידע.
+2. **ניהול קבצים וסריקות (Workflow)**:
+   - אם משתמש אומר "העליתי קובץ X להזמנה Y", בצע:
+     א. חפש את ההזמנה (search_orders) כדי לראות אם יש לה כבר מזהה קובץ (orderFormId/deliveryNoteId).
+     ב. אם אין לה מזהה, השתמש ב-list_drive_files כדי למצוא את הקובץ לפי השם שהמשתמש נתן.
+     ג. ברגע שמצאת את המזהה (fileId) מהדרייב, עדכן את ההזמנה (update_order).
+     ד. סרוק את התוכן (analyze_pdf_content) כדי לחלץ נתונים (סוג מסמך, מספר הזמנה, לקוח, פריטים).
+   - אם מצאת שתעודת משלוח חתומה (Delivery Note), עדכן את הסטטוס ל-delivered.
+3. **פתרון בעיות**: אם אתה לא מוצא קובץ בשם ספציפי, תריץ list_drive_files בלי פילטר כדי לראות מה בכלל יש בתיקייה (SabanOS) ותציע למשתמש את מה שמצאת.
+4. **שפה וסגנון**: עברית חדה, פרקטית, "אחי", "שותף", "מטפל בזה". בלי חפירות מיותרות. "הכל בשליטה אחי".
 
-פנה לראמי כ"אחי" או "שותף". עברית חדה, פרקטית, בלי חפירות.
-
-[מונחים מקצועיים]: "סטטוס הפצה", "סיכום עמוסים", "תיעוד מסירה", "חריגות בטון/ריצופית".
+[מונחים]: "סריקה", "שיוך להזמנה", "עדכון סטטוס", "סידור עבודה".
 `;
 
 export const createOrder = async (orderData: Partial<Order>) => {
@@ -137,6 +134,26 @@ export const fetchOrders = async (date?: string) => {
   }
   const snapshot = await getDocs(q);
   return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Order[];
+};
+
+export const searchOrders = async (searchTerm: string) => {
+  const q = query(collection(db, 'orders'), orderBy('createdAt', 'desc'));
+  const snapshot = await getDocs(q);
+  const term = searchTerm.toLowerCase();
+  return snapshot.docs
+    .map(doc => ({ id: doc.id, ...doc.data() }))
+    .filter((order: any) => 
+      order.customerName?.toLowerCase().includes(term) ||
+      order.destination?.toLowerCase().includes(term) ||
+      order.orderNumber?.toLowerCase().includes(term) ||
+      order.id?.toLowerCase().includes(term)
+    ) as Order[];
+};
+
+export const searchDrivers = async (searchTerm: string) => {
+  const drivers = await getAllDrivers();
+  const term = searchTerm.toLowerCase();
+  return drivers.filter(d => d.name.toLowerCase().includes(term));
 };
 
 export const tools = [
@@ -289,7 +306,7 @@ export async function askNoa(message: string, history: any[] = []) {
  */
 async function processNoaTurn(contents: any[]): Promise<any> {
   const response = await ai.models.generateContent({
-    model: "gemini-3.1-pro-preview",
+    model: "gemini-1.5-flash", 
     contents: contents,
     config: {
       systemInstruction: noaSystemInstruction,
@@ -304,53 +321,99 @@ async function processNoaTurn(contents: any[]): Promise<any> {
 
     for (const call of functionCalls) {
       try {
-        if (call.name === 'list_drive_files') {
-          const files = await listDriveFiles(call.args?.folderId as string);
-          functionResponses.push({
-            role: 'function',
-            parts: [{
-              functionResponse: {
-                name: call.name,
-                id: call.id,
-                response: { files }
-              }
-            }]
-          });
-        } else if (call.name === 'analyze_pdf_content') {
-          const fileId = call.args.fileId as string;
-          const base64 = await getFileBase64(fileId);
-          
-          if (!base64 || base64.length < 100) {
-            throw new Error(`הקובץ ${fileId} נראה ריק או לא תקין. וודא שזה ה-ID הנכון ולא שם הקובץ.`);
+        let result: any;
+        
+        switch (call.name) {
+          case 'create_order':
+            result = await createOrder(call.args as any);
+            break;
+          case 'update_order': {
+            const { orderId, ...updates } = call.args as any;
+            await updateOrder(orderId, updates);
+            result = { success: true, message: `הזמנה ${orderId} עודכנה בהצלחה אחי` };
+            break;
           }
-
-          const analysisPrompt = `נתח את קובץ ה-PDF הזה לפי הוראות SabanOS. חלץ document_type, order_number, customer_name, items, address, status. החזר JSON בלבד.`;
-          
-          const analysisResponse = await ai.models.generateContent({
-            model: "gemini-3.1-pro-preview",
-            contents: [{
-              role: 'user',
-              parts: [
-                { text: analysisPrompt },
-                { inlineData: { data: base64, mimeType: 'application/pdf' } }
-              ]
-            }],
-            config: {
-              responseMimeType: "application/json"
+          case 'update_order_status':
+            await updateOrder(call.args.orderId as string, { status: call.args.status as any });
+            result = { success: true };
+            break;
+          case 'delete_order_by_customer': {
+            const ordersToDelete = await searchOrders(call.args.customerName as string);
+            if (ordersToDelete.length > 0) {
+              await deleteOrder(ordersToDelete[0].id!);
+              result = { success: true, deleted: ordersToDelete[0].customerName };
+            } else {
+              result = { success: false, error: 'לא מצאתי הזמנה כזו למחיקה אחי' };
             }
-          });
+            break;
+          }
+          case 'search_orders':
+            result = await searchOrders(call.args.query as string);
+            break;
+          case 'get_order_eta': {
+            const searchRes = await searchOrders(call.args.customerName as string);
+            if (searchRes.length > 0) {
+              const hist = await fetchOrders();
+              const eta = await predictOrderEta(searchRes[0], hist);
+              result = { eta };
+            } else {
+              result = { error: 'לא מצאתי הזמנה לחישוב ETA אחי' };
+            }
+            break;
+          }
+          case 'update_driver': {
+            const { driverId, ...dUpdates } = call.args as any;
+            await updateDriver(driverId, dUpdates);
+            result = { success: true };
+            break;
+          }
+          case 'search_drivers':
+            result = await searchDrivers(call.args.query as string);
+            break;
+          case 'list_drive_files':
+            result = { files: await listDriveFiles(call.args?.folderId as string) };
+            break;
+          case 'analyze_pdf_content': {
+            const fileId = call.args.fileId as string;
+            const base64 = await getFileBase64(fileId);
+            
+            if (!base64 || base64.length < 100) {
+              throw new Error(`הקובץ ${fileId} נראה ריק או לא תקין.`);
+            }
 
-          functionResponses.push({
-            role: 'function',
-            parts: [{
-              functionResponse: {
-                name: call.name,
-                id: call.id,
-                response: { analysis: analysisResponse.text }
+            const analysisPrompt = `נתח את קובץ ה-PDF הזה. חלץ document_type, order_number, customer_name, items, address, status. החזר JSON בלבד.`;
+            
+            const analysisResponse = await ai.models.generateContent({
+              model: "gemini-1.5-flash",
+              contents: [{
+                role: 'user',
+                parts: [
+                  { text: analysisPrompt },
+                  { inlineData: { data: base64, mimeType: 'application/pdf' } }
+                ]
+              }],
+              config: {
+                responseMimeType: "application/json"
               }
-            }]
-          });
+            });
+            result = { analysis: analysisResponse.text };
+            break;
+          }
+          default:
+            result = { error: 'כלי לא מזוהה אחי' };
         }
+
+        functionResponses.push({
+          role: 'function',
+          parts: [{
+            functionResponse: {
+              name: call.name,
+              id: call.id,
+              response: result
+            }
+          }]
+        });
+
       } catch (toolError: any) {
         console.error(`Error executing tool ${call.name}:`, toolError);
         functionResponses.push({
@@ -359,7 +422,7 @@ async function processNoaTurn(contents: any[]): Promise<any> {
             functionResponse: {
               name: call.name,
               id: call.id,
-              response: { error: toolError.message || "שגיאה לא ידועה בביצוע הכלי אחי" }
+              response: { error: toolError.message || "שגיאה לא ידועה אחי" }
             }
           }]
         });
@@ -367,7 +430,6 @@ async function processNoaTurn(contents: any[]): Promise<any> {
     }
 
     if (functionResponses.length > 0) {
-      // Recurse with the function results back to the model
       return await processNoaTurn([...contents, modelResponseContent, ...functionResponses]);
     }
   }
