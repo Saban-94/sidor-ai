@@ -88,6 +88,7 @@ export const noaSystemInstruction = `
 
 הנחיות לביצוע (Workflow):
 1. גישה לתיקייה: השתמש בכלי Drive כדי לנטר ולגשת לתיקייה ${import.meta.env.NEXT_PUBLIC_DRIVE_FOLDER_ID || '1BZebeE8mpX-su-8wA6zKEvhDuS-4vU1y'}. 
+   שים לב: בכל פעם שאתה משתמש ב-analyze_pdf_content, עליך להשתמש ב-fileId (המחרוזת האלפא-נומרית הארוכה) ולא בשם הקובץ (filename).
 2. סיווג מסמכים (Classification):
    - אם הכותרת או התוכן מכילים "הזמנה" או רשימת מוצרים ללא חתימה -> סווג כ-ORDER_FORM.
    - אם הכותרת מכילה "תעודת משלוח" או שיש חתימה ידנית/דיגיטלית בסוף הדף -> סווג כ-DELIVERY_NOTE.
@@ -302,43 +303,63 @@ async function processNoaTurn(contents: any[]): Promise<any> {
     const functionResponses: any[] = [];
 
     for (const call of functionCalls) {
-      if (call.name === 'list_drive_files') {
-        const files = await listDriveFiles(call.args?.folderId as string);
-        functionResponses.push({
-          role: 'function',
-          parts: [{
-            functionResponse: {
-              name: call.name,
-              id: call.id,
-              response: { files }
-            }
-          }]
-        });
-      } else if (call.name === 'analyze_pdf_content') {
-        const base64 = await getFileBase64(call.args.fileId as string);
-        const analysisPrompt = `נתח את קובץ ה-PDF הזה לפי הוראות SabanOS. חלץ document_type, order_number, customer_name, items, address, status. החזר JSON בלבד.`;
-        
-        const analysisResponse = await ai.models.generateContent({
-          model: "gemini-3.1-pro-preview",
-          contents: [{
-            role: 'user',
-            parts: [
-              { text: analysisPrompt },
-              { inlineData: { data: base64, mimeType: 'application/pdf' } }
-            ]
-          }],
-          config: {
-            responseMimeType: "application/json"
+      try {
+        if (call.name === 'list_drive_files') {
+          const files = await listDriveFiles(call.args?.folderId as string);
+          functionResponses.push({
+            role: 'function',
+            parts: [{
+              functionResponse: {
+                name: call.name,
+                id: call.id,
+                response: { files }
+              }
+            }]
+          });
+        } else if (call.name === 'analyze_pdf_content') {
+          const fileId = call.args.fileId as string;
+          const base64 = await getFileBase64(fileId);
+          
+          if (!base64 || base64.length < 100) {
+            throw new Error(`הקובץ ${fileId} נראה ריק או לא תקין. וודא שזה ה-ID הנכון ולא שם הקובץ.`);
           }
-        });
 
+          const analysisPrompt = `נתח את קובץ ה-PDF הזה לפי הוראות SabanOS. חלץ document_type, order_number, customer_name, items, address, status. החזר JSON בלבד.`;
+          
+          const analysisResponse = await ai.models.generateContent({
+            model: "gemini-3.1-pro-preview",
+            contents: [{
+              role: 'user',
+              parts: [
+                { text: analysisPrompt },
+                { inlineData: { data: base64, mimeType: 'application/pdf' } }
+              ]
+            }],
+            config: {
+              responseMimeType: "application/json"
+            }
+          });
+
+          functionResponses.push({
+            role: 'function',
+            parts: [{
+              functionResponse: {
+                name: call.name,
+                id: call.id,
+                response: { analysis: analysisResponse.text }
+              }
+            }]
+          });
+        }
+      } catch (toolError: any) {
+        console.error(`Error executing tool ${call.name}:`, toolError);
         functionResponses.push({
           role: 'function',
           parts: [{
             functionResponse: {
               name: call.name,
               id: call.id,
-              response: { analysis: analysisResponse.text }
+              response: { error: toolError.message || "שגיאה לא ידועה בביצוע הכלי אחי" }
             }
           }]
         });

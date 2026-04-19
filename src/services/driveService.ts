@@ -52,6 +52,12 @@ export async function getFileBase64(fileId: string): Promise<string> {
 
   try {
     const response = await fetch(url);
+    if (!response.ok) {
+      if (response.status === 404) {
+        throw new Error(`קובץ עם מזהה ${fileId} לא נמצא בדרייב. וודא שזה ה-ID הנכון אחי.`);
+      }
+      throw new Error(`שגיאה בהורדת הקובץ: ${response.statusText} (${response.status})`);
+    }
     const blob = await response.blob();
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
