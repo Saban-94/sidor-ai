@@ -13,6 +13,7 @@ interface DriverCardProps {
   onOrderUpdateStatus: (id: string, s: any) => void;
   onOrderUpdateEta: (id: string, eta: string) => void;
   onOrderDelete: (id: string) => void;
+  onOrderRepeat: (o: Order) => void;
   onAddToast: (title: string, msg: string, type?: any) => void;
   isExpanded?: boolean;
   key?: React.Key;
@@ -27,6 +28,7 @@ export const DriverCard = ({
   onOrderUpdateStatus,
   onOrderUpdateEta,
   onOrderDelete,
+  onOrderRepeat,
   onAddToast,
   isExpanded = true
 }: DriverCardProps) => {
@@ -141,6 +143,7 @@ export const DriverCard = ({
                 onUpdateStatus={onOrderUpdateStatus}
                 onUpdateEta={onOrderUpdateEta}
                 onDelete={onOrderDelete}
+                onRepeat={onOrderRepeat}
                 onAddToast={onAddToast}
               />
             ))}

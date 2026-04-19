@@ -12,6 +12,7 @@ interface DriverListProps {
   onOrderUpdateStatus: (id: string, s: any) => void;
   onOrderUpdateEta: (id: string, eta: string) => void;
   onOrderDelete: (id: string) => void;
+  onOrderRepeat: (o: Order) => void;
   onAddToast: (title: string, msg: string, type?: any) => void;
   onDriverSelect?: (driverId: string) => void;
   selectedDriverId?: string | null;
@@ -25,6 +26,7 @@ export const DriverList = ({
   onOrderUpdateStatus, 
   onOrderUpdateEta, 
   onOrderDelete, 
+  onOrderRepeat,
   onAddToast,
   onDriverSelect,
   selectedDriverId,
@@ -156,6 +158,7 @@ export const DriverList = ({
                   onOrderUpdateStatus={onOrderUpdateStatus}
                   onOrderUpdateEta={onOrderUpdateEta}
                   onOrderDelete={onOrderDelete}
+                  onOrderRepeat={onOrderRepeat}
                   onAddToast={onAddToast}
                 />
               ))}

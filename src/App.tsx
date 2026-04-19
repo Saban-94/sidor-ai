@@ -437,6 +437,29 @@ export default function App() {
     }
   };
 
+  const handleRepeatOrder = async (order: Order) => {
+    try {
+      const newOrder: Partial<Order> = {
+        customerName: order.customerName,
+        destination: order.destination,
+        items: order.items,
+        warehouse: order.warehouse,
+        driverId: order.driverId,
+        date: format(new Date(), 'yyyy-MM-dd'),
+        time: order.time,
+        status: 'pending',
+        orderNumber: order.orderNumber ? `${order.orderNumber}-RE` : '',
+      };
+      
+      await createOrder(newOrder);
+      addToast('הזמנה שוכפלה', `ההזמנה של ${order.customerName} שוכפלה להיום אחי`, 'success');
+      sendOrderNotification('הזמנה חוזרת אחי! 🔄', `שוכפלה הזמנה עבור ${order.customerName}`);
+    } catch (error) {
+      console.error(error);
+      addToast('שגיאה', 'לא הצלחתי לשכפל את ההזמנה אחי', 'warning');
+    }
+  };
+
   const addToast = (title: string, message: string, type: 'info' | 'success' | 'warning' = 'info') => {
     const id = Math.random().toString(36).substr(2, 9);
     setToasts(prev => [...prev, { id, title, message, type }]);
@@ -1315,6 +1338,7 @@ export default function App() {
               onOrderUpdateStatus={handleStatusUpdate}
               onOrderUpdateEta={(id, eta) => updateOrder(id, { eta })}
               onOrderDelete={deleteOrder}
+              onOrderRepeat={handleRepeatOrder}
               onAddToast={addToast}
               onDriverSelect={id => setSelectedDriverId(id === selectedDriverId ? null : id)}
               selectedDriverId={selectedDriverId}
@@ -1332,6 +1356,7 @@ export default function App() {
                   onOrderUpdateStatus={handleStatusUpdate}
                   onOrderUpdateEta={(id, eta) => updateOrder(id, { eta })}
                   onOrderDelete={deleteOrder}
+                  onOrderRepeat={handleRepeatOrder}
                   onAddToast={addToast}
                 />
               ))}
@@ -1349,6 +1374,7 @@ export default function App() {
                   onUpdateStatus={handleStatusUpdate}
                   onUpdateEta={(id, eta) => updateOrder(id, { eta })}
                   onDelete={deleteOrder}
+                  onRepeat={handleRepeatOrder}
                   onAddToast={addToast}
                 />
               ))}

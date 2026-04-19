@@ -13,7 +13,8 @@ import {
   Pencil,
   AlertCircle,
   Trash2,
-  Share2
+  Share2,
+  RotateCcw
 } from 'lucide-react';
 import { Order, Driver, predictOrderEta } from '../services/auraService';
 import { highlightText } from '../lib/utils';
@@ -45,6 +46,7 @@ interface OrderCardProps {
   onUpdateStatus: (id: string, s: any) => void;
   onUpdateEta: (id: string, eta: string) => void;
   onDelete: (id: string) => void;
+  onRepeat: (o: Order) => void;
   onAddToast: (title: string, msg: string, type?: any) => void;
   allOrders: Order[];
   searchQuery?: string;
@@ -58,6 +60,7 @@ export const OrderCard = ({
   onUpdateStatus, 
   onUpdateEta,
   onDelete,
+  onRepeat,
   onAddToast,
   allOrders,
   searchQuery = ''
@@ -233,9 +236,18 @@ export const OrderCard = ({
 
           <button 
             onClick={() => onEdit(order)}
+            title="ערוך הזמנה"
             className="p-3.5 text-gray-400 hover:text-sky-600 hover:bg-sky-50 rounded-2xl transition-all"
           >
             <Pencil size={18} />
+          </button>
+
+          <button 
+            onClick={() => onRepeat(order)}
+            title="הזמנה חוזרת (שכפול)"
+            className="p-3.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-2xl transition-all"
+          >
+            <RotateCcw size={18} />
           </button>
 
           <button 
