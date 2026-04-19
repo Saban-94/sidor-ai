@@ -90,12 +90,12 @@ export async function uploadFileToDrive(file: File, folderId: string = FOLDER_ID
       reader.readAsDataURL(file);
     });
 
-    const payload = {
-      filename: file.name,
-      mimeType: file.type,
-      data: base64Content,
-      folderId: folderId
-    };
+  const payload = {
+  fileName: file.name,      // שים לב: N גדולה (fileName)
+  contentType: file.type,   // שים לב: T גדולה (contentType)
+  base64Data: base64Content, // זה המפתח הקריטי! (במקום data)
+  folderId: folderId
+};
 
     // Using mode: 'cors' so we can read the response body. 
     // GAS bridge must return a JSON response with the fileId.
