@@ -140,7 +140,7 @@ export default function MorningReportSystem({ onBack, drivers }: { onBack: () =>
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col p-4 md:p-8" dir="rtl">
+    <div className="min-h-screen bg-gray-50 flex flex-col p-4 md:p-8 pb-[calc(2rem+env(safe-area-inset-bottom))]" dir="rtl">
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div className="flex items-center gap-4">
@@ -178,7 +178,7 @@ export default function MorningReportSystem({ onBack, drivers }: { onBack: () =>
               <span className="text-xs font-bold text-gray-400">בחר הזמנות לסידור</span>
             </div>
             
-            <div className="overflow-x-auto">
+            <div className="responsive-container">
               <table className="w-full text-right">
                 <thead>
                   <tr className="bg-gray-50/30 text-gray-400 text-[10px] uppercase font-bold tracking-widest">

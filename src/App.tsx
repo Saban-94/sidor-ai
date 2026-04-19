@@ -1041,9 +1041,8 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      <main className="flex-1 max-w-5xl w-full mx-auto p-4 md:p-8">
-        
-        {/* Date Selector */}
+      <main className="flex-1 max-w-5xl w-full mx-auto p-4 md:p-8 pb-32 sm:pb-8">
+        <div className="pb-[env(safe-area-inset-bottom)]">
         {viewMode === 'list' ? (
           <div className="bg-white/80 backdrop-blur-md p-4 rounded-3xl shadow-sm border border-sky-100 mb-8">
             <div className="flex items-center justify-between mb-4">
@@ -1424,37 +1423,37 @@ export default function App() {
             </div>
           )}
         </div>
-
+      </div>
       </main>
 
       {/* Toasts */}
 
       {/* Mobile Nav Overlay */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-lg border-t border-sky-100 px-8 py-3 flex justify-between items-center z-30 shadow-[0_-5px_20px_rgba(0,0,0,0.05)]">
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-lg border-t border-sky-100 px-8 pt-3 pb-[calc(12px+env(safe-area-inset-bottom))] flex justify-between items-center z-30 shadow-[0_-5px_20px_rgba(0,0,0,0.05)]">
         <button 
           onClick={() => setViewMode('list')}
-          className={`flex flex-col items-center gap-1 ${viewMode === 'list' ? 'text-sky-600' : 'text-gray-300'}`}
+          className={`flex flex-col items-center gap-1 min-h-[44px] min-w-[44px] justify-center ${viewMode === 'list' ? 'text-sky-600' : 'text-gray-300'}`}
         >
           <Truck size={20} />
           <span className="text-[10px] font-bold">סידור</span>
         </button>
         <button 
           onClick={() => setViewMode('chat')}
-          className={`flex flex-col items-center gap-1 ${viewMode === 'chat' ? 'text-sky-600' : 'text-gray-300'}`}
+          className={`flex flex-col items-center gap-1 min-h-[44px] min-w-[44px] justify-center ${viewMode === 'chat' ? 'text-sky-600' : 'text-gray-300'}`}
         >
           <MessageSquare size={20} />
           <span className="text-[10px] font-bold">נועה</span>
         </button>
         <button 
           onClick={() => setViewMode('drivers')}
-          className={`flex flex-col items-center gap-1 ${viewMode === 'drivers' ? 'text-sky-600' : 'text-gray-300'}`}
+          className={`flex flex-col items-center gap-1 min-h-[44px] min-w-[44px] justify-center ${viewMode === 'drivers' ? 'text-sky-600' : 'text-gray-300'}`}
         >
           <Users size={20} />
           <span className="text-[10px] font-bold">נהגים</span>
         </button>
         <button 
           onClick={() => setViewMode('reports')}
-          className={`flex flex-col items-center gap-1 ${viewMode === 'reports' ? 'text-sky-600' : 'text-gray-300'}`}
+          className={`flex flex-col items-center gap-1 min-h-[44px] min-w-[44px] justify-center ${viewMode === 'reports' ? 'text-sky-600' : 'text-gray-300'}`}
         >
           <FileText size={20} />
           <span className="text-[10px] font-bold">דוחות</span>

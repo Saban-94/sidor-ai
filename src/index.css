@@ -6,6 +6,11 @@
 }
 
 @layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    scroll-behavior: smooth;
+  }
+
   body {
     @apply font-sans bg-gray-50 text-gray-900;
     background-image: 
@@ -13,6 +18,27 @@
       radial-gradient(at 100% 100%, rgba(14, 165, 233, 0.05) 0px, transparent 50%);
     background-attachment: fixed;
     -webkit-tap-highlight-color: transparent;
+    overflow-x: hidden;
+    width: 100%;
+    position: relative;
+    min-height: 100vh;
+  }
+
+  /* Support for smooth scrolling on iOS */
+  * {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Ensure scroll-only-vertical for containers that need it */
+  .scroll-v {
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+
+  /* Responsive containers for tables or wide items */
+  .responsive-container {
+    @apply w-full overflow-x-auto;
+    -webkit-overflow-scrolling: touch;
   }
 }
 

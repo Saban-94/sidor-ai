@@ -10,7 +10,8 @@ import {
   Send, 
   Pencil,
   AlertCircle,
-  Trash2
+  Trash2,
+  Share2
 } from 'lucide-react';
 import { Order, Driver, predictOrderEta } from '../services/auraService';
 import { highlightText } from '../lib/utils';
@@ -86,7 +87,14 @@ export const OrderCard = ({
   const handleShare = () => {
     const driver = drivers.find(d => d.id === order.driverId);
     const driverName = driver?.name || order.driverId;
-    const text = `📦 הזמנה #${order.orderNumber || order.id?.slice(-4)} ל${order.customerName}\n📍 יעד: ${order.destination}\n🚚 נהג: ${driverName} (${driver?.phone || ''})\n⏰ שעה: ${order.time}\n📊 סטטוס: ${order.status}`;
+    const statusHebrew: Record<string, string> = {
+      pending: 'ממתין',
+      preparing: 'בהכנה',
+      ready: 'מוכן',
+      delivered: 'סופק',
+      cancelled: 'בוטל'
+    };
+    const text = `📦 *הזמנה #${order.orderNumber || order.id?.slice(-4).toUpperCase()}*\n👤 לקוח: ${order.customerName}\n📍 יעד: ${order.destination}\n🚛 נהג: ${driverName}\n⏰ שעה: ${order.time}\n📊 סטטוס: ${statusHebrew[order.status] || order.status}`;
     
     if (navigator.share) {
       navigator.share({ title: 'שיתוף הזמנה', text }).catch(console.error);
@@ -180,9 +188,10 @@ export const OrderCard = ({
 
           <button 
             onClick={handleShare}
-            className="bg-white border-2 border-gray-100 text-gray-600 p-3.5 rounded-2xl hover:bg-gray-50 transition-all active:scale-95"
+            title="שתף הזמנה"
+            className="bg-white border-2 border-gray-100 text-gray-600 p-3.5 rounded-2xl hover:bg-sky-50 hover:text-sky-600 hover:border-sky-100 transition-all active:scale-95 shadow-sm"
           >
-            <Send size={18} className="translate-x-0.5" />
+            <Share2 size={18} />
           </button>
 
           <button 
