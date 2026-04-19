@@ -22,6 +22,20 @@ export const NoaChat = ({
   onAction,
   orders 
 }: NoaChatProps) => {
+  const dynamicSuggestions = [
+    { label: 'הזמנה חדשה ✍️', action: 'הזמנה חדשה אחי' },
+    { label: 'סטטוס הפצה 📊', action: 'מה סטטוס ההפצה כרגע?' },
+    { label: 'דוח בוקר 📋', action: 'תכיני לי דוח בוקר 📋' },
+    { label: 'סטטוס נהגים 🚛', action: 'סטטוס נהגים 🚛' },
+    { label: 'חריגות בטון/ריצופית ⚠️', action: 'חריגות בטון/ריצופית ⚠️' },
+    { label: 'סיכום עמוסים 📈', action: 'סיכום עמוסים' },
+    { label: 'תיעוד מסירה 📜', action: 'תיעוד מסירה' },
+    ...orders.filter(o => o.status === 'preparing').slice(0, 2).map(o => ({
+      label: `צפי ל${o.customerName.split(' ')[0]} ⏱️`,
+      action: `מה ה-ETA של ${o.customerName}?`
+    }))
+  ];
+
   return (
     <div className="h-[100dvh] bg-white flex flex-col md:flex-row overflow-hidden" dir="rtl">
       {/* Left Sidebar for Desktop (Quick Info) */}
@@ -30,7 +44,7 @@ export const NoaChat = ({
           <button onClick={onBack} className="p-2 hover:bg-gray-200 rounded-xl transition-colors">
             <ChevronRight size={20} />
           </button>
-          <h1 className="text-xl font-bold">נועה מנהלת סידור ראמי</h1>
+          <h1 className="text-xl font-bold">נועה AI</h1>
         </div>
         
         <div className="space-y-6">
@@ -72,14 +86,15 @@ export const NoaChat = ({
               <h2 className="text-2xl font-black mb-2 italic">אהלן ראמי, אחי</h2>
               <p className="text-sm font-bold text-gray-400 mb-8 max-w-[250px] mx-auto">"תפתחי הזמנה חדשה לחכמת לשעה 9 ליעד ברקאי"</p>
               
-              <div className="grid grid-cols-1 gap-3 max-w-xs mx-auto">
-                 {['תכיני לי דוח בוקר 📋', 'צפי הגעה להזמנה ⏱️', 'מה המצב במחסן? 🏗️'].map(suggestion => (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-md mx-auto">
+                 {dynamicSuggestions.slice(0, 6).map(suggestion => (
                    <button 
-                     key={suggestion}
-                     onClick={() => onAction(suggestion)}
-                     className="p-4 bg-gray-50 rounded-2xl border border-gray-100 text-xs font-bold text-gray-600 hover:bg-sky-50 hover:border-sky-100 transition-all text-right shadow-sm"
+                     key={suggestion.label}
+                     onClick={() => onAction(suggestion.action)}
+                     className="p-4 bg-gray-50 rounded-2xl border border-gray-100 text-xs font-bold text-gray-600 hover:bg-sky-50 hover:border-sky-100 transition-all text-right shadow-sm flex items-center justify-between group"
                    >
-                     {suggestion}
+                     <span>{suggestion.label}</span>
+                     <ChevronRight size={14} className="opacity-0 group-hover:opacity-100 transition-opacity" />
                    </button>
                  ))}
               </div>
@@ -109,16 +124,11 @@ export const NoaChat = ({
           <div className="max-w-full md:max-w-4xl mx-auto space-y-4">
             {/* Quick Actions Scrollable */}
             <div className="flex gap-2 overflow-x-auto no-scrollbar py-2 scroll-smooth">
-              {[
-                { label: 'הזמנה חדשה ✍️', action: 'הזמנה חדשה אחי' },
-                { label: 'עדכון סטטוס ✅', action: 'אני רוצה לעדכן סטטוס להזמנה' },
-                { label: 'דוח בוקר 📋', action: 'תכיני לי דוח בוקר' },
-                ...(orders.length > 0 ? [{ label: `צפי ל${orders[0].customerName.split(' ')[0]} ⏱️`, action: `מה צפי ההגעה של ההזמנה של ${orders[0].customerName}` }] : [])
-              ].map((btn, i) => (
+              {dynamicSuggestions.map((btn, i) => (
                 <button 
                   key={i}
                   onClick={() => onAction(btn.action)}
-                  className="whitespace-nowrap bg-white/90 backdrop-blur-md hover:bg-sky-600 hover:text-white text-sky-900 text-[11px] font-black px-4 py-2.5 rounded-2xl transition-all border border-sky-100 shadow-md hover:shadow-sky-200 active:scale-95"
+                  className="whitespace-nowrap bg-white/95 backdrop-blur-md hover:bg-sky-600 hover:text-white text-sky-950 text-[11px] font-black px-4 py-3 rounded-full transition-all border border-sky-100 shadow-md hover:shadow-sky-200 active:scale-95 flex items-center gap-2"
                 >
                   {btn.label}
                 </button>
