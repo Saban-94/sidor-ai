@@ -1,12 +1,12 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
-
-// שימוש ב-process.env כפי שמוגדר ב-vite.config.ts שלך
-const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_DRIVE_API_KEY;
-const FOLDER_ID = process.env.NEXT_PUBLIC_DRIVE_FOLDER_ID;
-const GAS_URL = process.env.VITE_GAS_URL;
+export default defineConfig(({mode}) => {
+  const env = loadEnv(mode, '.', '');
+  return {
+    define: {
+      // חובה להוסיף את השורה הזו כדי ש-process.env יעבוד בדפדפן
+      'process.env.VITE_GAS_URL': JSON.stringify(env.VITE_GAS_URL),
+      'process.env.NEXT_PUBLIC_GOOGLE_DRIVE_API_KEY': JSON.stringify(env.NEXT_PUBLIC_GOOGLE_DRIVE_API_KEY),
+      'process.env.NEXT_PUBLIC_DRIVE_FOLDER_ID': JSON.stringify(env.NEXT_PUBLIC_DRIVE_FOLDER_ID),
+    },
 
 export interface DriveFile {
   id: string;
