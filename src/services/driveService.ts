@@ -1,6 +1,6 @@
 // src/services/driveService.ts
 
-const GAS_URL = "הכתובת_שקיבלת_בשלב_הקודם";
+const GAS_URL = "https://script.google.com/macros/s/AKfycbwMBz1tnnL-twFuUm87hOkPO-BKU_Bq8DL3mRh0OPyQv094NI87uLAdQl62X0VBcf7D/exec";
 
 export async function uploadFileToDrive(file: File): Promise<any> {
   // המרת הקובץ ל-Base64 כדי שנוכל לשלוח אותו ב-JSON
