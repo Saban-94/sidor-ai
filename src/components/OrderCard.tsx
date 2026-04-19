@@ -62,6 +62,7 @@ interface OrderCardProps {
   allOrders: Order[];
   searchQuery?: string;
   onUploadDoc?: (file: File, orderId?: string, docType?: any) => Promise<void>;
+  isCompact?: boolean;
   key?: React.Key;
 }
 
@@ -348,7 +349,8 @@ export const OrderCard = ({
   onAddToast,
   allOrders,
   searchQuery = '',
-  onUploadDoc
+  onUploadDoc,
+  isCompact = false
 }: OrderCardProps) => {
   const [isPredicting, setIsPredicting] = useState(false);
   const [showDocs, setShowDocs] = useState(false);
@@ -418,115 +420,130 @@ export const OrderCard = ({
       layout
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-white/95 backdrop-blur-sm p-5 rounded-[2rem] border border-sky-100 shadow-lg hover:shadow-xl transition-all relative group"
+      className={cn(
+        "bg-white/95 backdrop-blur-sm rounded-[2rem] border border-sky-100 shadow-lg hover:shadow-xl transition-all relative group",
+        isCompact ? "p-4" : "p-5"
+      )}
     >
-      <div className="absolute top-4 left-4 bg-gray-900 text-white px-3 py-1 rounded-full text-[10px] font-black z-10 shadow-lg">
+      <div className={cn(
+        "absolute bg-gray-900 text-white px-3 py-1 rounded-full text-[10px] font-black z-10 shadow-lg",
+        isCompact ? "top-2 left-2" : "top-4 left-4"
+      )}>
         #{order.orderNumber || order.id?.slice(-4).toUpperCase()}
       </div>
 
-      <div className="absolute top-4 left-24 z-10 flex gap-2">
-        {onUploadDoc && (
-          <div className="flex items-center gap-2">
-            {(order.orderFormId || order.deliveryNoteId) ? (
-              <button 
-                onClick={() => setShowDocs(!showDocs)}
-                disabled={order.orderFormId === 'PENDING_SCAN' || order.deliveryNoteId === 'PENDING_SCAN'}
-                className={`p-1.5 rounded-full shadow-lg border transition-all ${
-                  showDocs ? 'bg-sky-600 text-white border-sky-600' : 
-                  (order.orderFormId === 'PENDING_SCAN' || order.deliveryNoteId === 'PENDING_SCAN') ? 'bg-gray-100 text-gray-400 border-gray-100 cursor-not-allowed' :
-                  'bg-white text-sky-600 border-sky-100 hover:bg-sky-50'
-                }`}
-                title={order.orderFormId === 'PENDING_SCAN' || order.deliveryNoteId === 'PENDING_SCAN' ? "מעבד מסמכים..." : "צפה במסמכים"}
-              >
-                {order.orderFormId === 'PENDING_SCAN' || order.deliveryNoteId === 'PENDING_SCAN' ? (
-                  <Loader2 size={14} className="animate-spin" />
-                ) : (
-                  <Eye size={14} strokeWidth={3} />
-                )}
-              </button>
-            ) : (
-              <label 
-                className={`p-1.5 rounded-full shadow-lg border transition-all cursor-pointer ${
-                  isLocalUploading ? 'bg-sky-50 border-sky-200 text-sky-400' : 'bg-white text-sky-600 border-sky-100 hover:bg-sky-50'
-                }`}
-                title="העלאת מסמך מהיר"
-              >
-                {isLocalUploading ? (
-                  <Loader2 size={14} className="animate-spin" />
-                ) : (
-                  <FileUp size={14} strokeWidth={3} />
-                )}
-                <input 
-                  type="file" 
-                  accept="application/pdf" 
-                  className="hidden" 
-                  disabled={isLocalUploading}
-                  onChange={handleQuickUpload}
-                />
-              </label>
-            )}
-          </div>
-        )}
-
-        <AnimatePresence>
-          {showDocs && (
-            <DocumentSheet 
-              order={order} 
-              onClose={() => setShowDocs(false)} 
-              onUpload={(file, type) => onUploadDoc ? onUploadDoc(file, order.id, type) : Promise.resolve()}
-            />
+      {!isCompact && (
+        <div className="absolute top-4 left-24 z-10 flex gap-2">
+          {onUploadDoc && (
+            <div className="flex items-center gap-2">
+              {(order.orderFormId || order.deliveryNoteId) ? (
+                <button 
+                  onClick={() => setShowDocs(!showDocs)}
+                  disabled={order.orderFormId === 'PENDING_SCAN' || order.deliveryNoteId === 'PENDING_SCAN'}
+                  className={`p-1.5 rounded-full shadow-lg border transition-all ${
+                    showDocs ? 'bg-sky-600 text-white border-sky-600' : 
+                    (order.orderFormId === 'PENDING_SCAN' || order.deliveryNoteId === 'PENDING_SCAN') ? 'bg-gray-100 text-gray-400 border-gray-100 cursor-not-allowed' :
+                    'bg-white text-sky-600 border-sky-100 hover:bg-sky-50'
+                  }`}
+                  title={order.orderFormId === 'PENDING_SCAN' || order.deliveryNoteId === 'PENDING_SCAN' ? "מעבד מסמכים..." : "צפה במסמכים"}
+                >
+                  {order.orderFormId === 'PENDING_SCAN' || order.deliveryNoteId === 'PENDING_SCAN' ? (
+                    <Loader2 size={14} className="animate-spin" />
+                  ) : (
+                    <Eye size={14} strokeWidth={3} />
+                  )}
+                </button>
+              ) : (
+                <label 
+                  className={`p-1.5 rounded-full shadow-lg border transition-all cursor-pointer ${
+                    isLocalUploading ? 'bg-sky-50 border-sky-200 text-sky-400' : 'bg-white text-sky-600 border-sky-100 hover:bg-sky-50'
+                  }`}
+                  title="העלאת מסמך מהיר"
+                >
+                  {isLocalUploading ? (
+                    <Loader2 size={14} className="animate-spin" />
+                  ) : (
+                    <FileUp size={14} strokeWidth={3} />
+                  )}
+                  <input 
+                    type="file" 
+                    accept="application/pdf" 
+                    className="hidden" 
+                    disabled={isLocalUploading}
+                    onChange={handleQuickUpload}
+                  />
+                </label>
+              )}
+            </div>
           )}
-        </AnimatePresence>
-      </div>
 
-      <div className="flex gap-4 mb-6 pt-2">
-        <div className={`p-4 rounded-3xl h-fit border shadow-sm ${driver?.vehicleType === 'crane' ? 'bg-sky-50 text-sky-600 border-sky-100' : 'bg-blue-50 text-blue-600 border-blue-100'}`}>
-          <Truck size={28} strokeWidth={2.5} />
+          <AnimatePresence>
+            {showDocs && (
+              <DocumentSheet 
+                order={order} 
+                onClose={() => setShowDocs(false)} 
+                onUpload={(file, type) => onUploadDoc ? onUploadDoc(file, order.id, type) : Promise.resolve()}
+              />
+            )}
+          </AnimatePresence>
+        </div>
+      )}
+
+      <div className={cn(
+        "flex gap-4 pt-2",
+        isCompact ? "mb-4" : "mb-6"
+      )}>
+        <div className={cn(
+          "rounded-3xl h-fit border shadow-sm flex items-center justify-center",
+          driver?.vehicleType === 'crane' ? 'bg-sky-50 text-sky-600 border-sky-100' : 'bg-blue-50 text-blue-600 border-blue-100',
+          isCompact ? "p-2.5" : "p-4"
+        )}>
+          <Truck size={isCompact ? 20 : 28} strokeWidth={2.5} />
         </div>
         <div className="flex-1 min-w-0 text-right">
-          <h3 className="font-black text-gray-900 text-xl leading-tight mb-1 truncate">
+          <h3 className={cn(
+            "font-black text-gray-900 leading-tight mb-1 truncate",
+            isCompact ? "text-base" : "text-xl"
+          )}>
             {highlightText(order.customerName, searchQuery)}
           </h3>
           <div className="flex flex-wrap items-center gap-2">
-            <p className="text-xs text-gray-400 font-bold flex items-center gap-1">
-               <Info size={12} /> {highlightText(order.destination, searchQuery)}
+            <p className="text-[10px] text-gray-400 font-bold flex items-center gap-1">
+               <Info size={10} /> {highlightText(order.destination, searchQuery)}
             </p>
-            <span className="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-lg font-black border border-gray-200 uppercase">{order.warehouse}</span>
           </div>
         </div>
       </div>
 
-      <div className="flex items-center justify-between p-4 bg-sky-50/50 rounded-2xl mb-6 border border-sky-50/50">
+      <div className={cn(
+        "flex items-center justify-between bg-sky-50/50 rounded-2xl border border-sky-50/50",
+        isCompact ? "p-3 mb-4" : "p-4 mb-6"
+      )}>
         <div className="flex flex-col gap-1 text-right">
-          <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">נהג וזמן</span>
+          {!isCompact && <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">נהג וזמן</span>}
           <div className="flex items-center gap-2">
             {order.driverId === 'self' ? (
-              <span className="text-sm font-black text-gray-900">איסוף עצמי</span>
+              <span className={cn("font-black text-gray-900", isCompact ? "text-xs" : "text-sm")}>איסוף עצמי</span>
             ) : (
               <div className="flex items-center gap-2">
                 {driver?.avatar ? (
                   <img 
                     src={driver.avatar} 
                     alt={driver.name} 
-                    className="w-7 h-7 rounded-full object-cover border-2 border-white shadow-sm"
+                    className={cn("rounded-full object-cover border-2 border-white shadow-sm", isCompact ? "w-5 h-5" : "w-7 h-7")}
                     referrerPolicy="no-referrer"
                   />
                 ) : (
-                  <div className="w-7 h-7 rounded-full bg-sky-100 flex items-center justify-center border-2 border-white shadow-sm">
-                    <User size={14} className="text-sky-600" />
+                  <div className={cn("rounded-full bg-sky-100 flex items-center justify-center border-2 border-white shadow-sm text-sky-600", isCompact ? "w-5 h-5" : "w-7 h-7")}>
+                    <User size={isCompact ? 10 : 14} />
                   </div>
                 )}
-                <div className="flex flex-col -gap-0.5">
-                  <span className="text-sm font-black text-gray-900 leading-tight">
-                    {driver?.name.split(' ')[0]}
-                  </span>
-                  <span className="text-[9px] font-bold text-sky-600/80 uppercase">
-                    {driver?.vehicleType === 'crane' ? 'מנוף 🏗️' : 'משאית 🚛'}
-                  </span>
-                </div>
+                <span className={cn("font-black text-gray-900 leading-tight", isCompact ? "text-xs" : "text-sm")}>
+                  {driver?.name.split(' ')[0]}
+                </span>
               </div>
             )}
-            <span className="text-sm font-black text-sky-600 self-center mr-1">| {order.time}</span>
+            <span className={cn("font-black text-sky-600 self-center mr-1", isCompact ? "text-xs" : "text-sm")}>| {order.time}</span>
           </div>
         </div>
         <div className="flex flex-col items-end gap-1">
@@ -548,26 +565,39 @@ export const OrderCard = ({
       </div>
 
       <div className="space-y-4">
-        <div className="bg-sky-50/30 p-4 rounded-[1.5rem] border border-sky-100/50 flex items-center justify-between group/items">
-           <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm border border-sky-100 transition-transform group-hover/items:scale-110">
-                <Package size={20} className="text-sky-600" />
-              </div>
-              <div>
-                <span className="text-[10px] font-black text-sky-700/60 uppercase tracking-widest block leading-none mb-1">תכולת משלוח</span>
-                <p className="text-xs font-black text-gray-700 leading-none">
-                  {parsedItemsCount} פריטים רשומים
-                </p>
-              </div>
-           </div>
-           
-           <button 
-             onClick={() => setShowItems(true)}
-             className="px-4 py-2 bg-white text-sky-600 border border-sky-200 rounded-xl font-black text-[11px] shadow-sm hover:bg-sky-600 hover:text-white hover:border-sky-600 transition-all active:scale-95"
-           >
-             צפייה בפריטים
-           </button>
-        </div>
+        {!isCompact ? (
+          <div className="bg-sky-50/30 p-4 rounded-[1.5rem] border border-sky-100/50 flex items-center justify-between group/items">
+            <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm border border-sky-100 transition-transform group-hover/items:scale-110">
+                  <Package size={20} className="text-sky-600" />
+                </div>
+                <div>
+                  <span className="text-[10px] font-black text-sky-700/60 uppercase tracking-widest block leading-none mb-1">תכולת משלוח</span>
+                  <p className="text-xs font-black text-gray-700 leading-none">
+                    {parsedItemsCount} פריטים רשומים
+                  </p>
+                </div>
+            </div>
+            
+            <button 
+              onClick={() => setShowItems(true)}
+              className="px-4 py-2 bg-white text-sky-600 border border-sky-200 rounded-xl font-black text-[11px] shadow-sm hover:bg-sky-600 hover:text-white hover:border-sky-600 transition-all active:scale-95"
+            >
+              צפייה בפריטים
+            </button>
+          </div>
+        ) : (
+          <button 
+            onClick={() => setShowItems(true)}
+            className="w-full flex items-center justify-between p-3 bg-sky-50/30 hover:bg-sky-100/50 rounded-xl border border-sky-100/50 transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              <Package size={14} className="text-sky-600" />
+              <span className="text-[11px] font-black text-gray-700">{parsedItemsCount} פריטים</span>
+            </div>
+            <ChevronLeft size={14} className="text-sky-400" />
+          </button>
+        )}
 
         <AnimatePresence>
           {showItems && (
@@ -575,7 +605,10 @@ export const OrderCard = ({
           )}
         </AnimatePresence>
 
-        <div className="flex items-center gap-2 pt-2 border-t border-gray-100">
+        <div className={cn(
+          "flex items-center gap-2 pt-2 border-t border-gray-100",
+          isCompact ? "flex-wrap justify-end" : ""
+        )}>
           <button 
             onClick={() => {
               const nextStatusMap: Record<string, string> = {
@@ -585,58 +618,83 @@ export const OrderCard = ({
               };
               onUpdateStatus(order.id!, nextStatusMap[order.status] || order.status);
             }}
-            className="flex-1 bg-sky-600 text-white py-3.5 rounded-2xl font-black text-xs flex items-center justify-center gap-2 shadow-lg shadow-sky-600/20 active:scale-95 transition-all"
+            className={cn(
+              "bg-sky-600 text-white rounded-2xl font-black text-xs flex items-center justify-center gap-2 shadow-lg shadow-sky-600/20 active:scale-95 transition-all",
+              isCompact ? "px-3 py-2" : "flex-1 py-3.5"
+            )}
           >
-            <CheckCircle2 size={16} /> עדכן סטטוס
+            <CheckCircle2 size={isCompact ? 14 : 16} /> 
+            {isCompact ? "קדם" : "עדכן סטטוס"}
           </button>
           
-          <button 
-            onClick={handleSmartPredict}
-            disabled={isPredicting}
-            className="bg-gray-900 text-white p-3.5 rounded-2xl hover:bg-sky-700 transition-all flex items-center justify-center gap-2 shadow-lg shadow-gray-900/10 active:scale-95 disabled:opacity-50"
-          >
-            {isPredicting ? (
-              <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full" />
-            ) : (
-              <Sparkles size={18} />
-            )}
-            <span className="hidden sm:inline text-xs font-bold">AI ETA</span>
-          </button>
+          {isCompact ? (
+             <div className="flex items-center gap-1">
+               <button onClick={() => onEdit(order)} className="p-2 text-gray-400 hover:text-sky-600 hover:bg-sky-50 rounded-xl">
+                 <Pencil size={14} />
+               </button>
+               <button onClick={handleShare} className="p-2 text-gray-400 hover:text-sky-600 hover:bg-sky-50 rounded-xl">
+                 <Share2 size={14} />
+               </button>
+               <button 
+                onClick={() => {
+                  if (window.confirm('למחוק אחי?')) onDelete(order.id!);
+                }}
+                className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl"
+               >
+                 <Trash2 size={14} />
+               </button>
+             </div>
+          ) : (
+            <>
+              <button 
+                onClick={handleSmartPredict}
+                disabled={isPredicting}
+                className="bg-gray-900 text-white p-3.5 rounded-2xl hover:bg-sky-700 transition-all flex items-center justify-center gap-2 shadow-lg shadow-gray-900/10 active:scale-95 disabled:opacity-50"
+              >
+                {isPredicting ? (
+                  <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full" />
+                ) : (
+                  <Sparkles size={18} />
+                )}
+                <span className="hidden sm:inline text-xs font-bold">AI ETA</span>
+              </button>
 
-          <button 
-            onClick={handleShare}
-            title="שתף הזמנה"
-            className="bg-white border-2 border-gray-100 text-gray-600 p-3.5 rounded-2xl hover:bg-sky-50 hover:text-sky-600 hover:border-sky-100 transition-all active:scale-95 shadow-sm"
-          >
-            <Share2 size={18} />
-          </button>
+              <button 
+                onClick={handleShare}
+                title="שתף הזמנה"
+                className="bg-white border-2 border-gray-100 text-gray-600 p-3.5 rounded-2xl hover:bg-sky-50 hover:text-sky-600 hover:border-sky-100 transition-all active:scale-95 shadow-sm"
+              >
+                <Share2 size={18} />
+              </button>
 
-          <button 
-            onClick={() => onEdit(order)}
-            title="ערוך הזמנה"
-            className="p-3.5 text-gray-400 hover:text-sky-600 hover:bg-sky-50 rounded-2xl transition-all"
-          >
-            <Pencil size={18} />
-          </button>
+              <button 
+                onClick={() => onEdit(order)}
+                title="ערוך הזמנה"
+                className="p-3.5 text-gray-400 hover:text-sky-600 hover:bg-sky-50 rounded-2xl transition-all"
+              >
+                <Pencil size={18} />
+              </button>
 
-          <button 
-            onClick={() => onRepeat(order)}
-            title="הזמנה חוזרת (שכפול)"
-            className="p-3.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-2xl transition-all"
-          >
-            <RotateCcw size={18} />
-          </button>
+              <button 
+                onClick={() => onRepeat(order)}
+                title="הזמנה חוזרת (שכפול)"
+                className="p-3.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-2xl transition-all"
+              >
+                <RotateCcw size={18} />
+              </button>
 
-          <button 
-            onClick={() => {
-              if (window.confirm('בטוח שאתה רוצה למחוק את ההזמנה לצמיתות אחי?')) {
-                onDelete(order.id!);
-              }
-            }}
-            className="p-3.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-2xl transition-all"
-          >
-            <Trash2 size={18} />
-          </button>
+              <button 
+                onClick={() => {
+                  if (window.confirm('בטוח שאתה רוצה למחוק את ההזמנה לצמיתות אחי?')) {
+                    onDelete(order.id!);
+                  }
+                }}
+                className="p-3.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-2xl transition-all"
+              >
+                <Trash2 size={18} />
+              </button>
+            </>
+          )}
         </div>
       </div>
     </motion.div>

@@ -30,6 +30,7 @@ import {
   LayoutList,
   CalendarDays,
   Table,
+  Trello,
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
@@ -64,6 +65,7 @@ import { he } from 'date-fns/locale';
 import { auth, loginWithGoogle, logout, db } from './lib/firebase';
 import MorningReportSystem from './components/MorningReportSystem';
 import { OrderCard, StatusBadge } from './components/OrderCard';
+import { KanbanBoard } from './components/KanbanBoard';
 import { highlightText, parseItems } from './lib/utils';
 import { DriverList } from './components/DriverList';
 import { DriverCard } from './components/DriverCard';
@@ -228,6 +230,7 @@ const Drawer = ({
             {[
               { id: 'chat', label: 'דברו עם נועה (AI)', icon: MessageSquare },
               { id: 'list', label: 'לוח הזמנות', icon: LayoutList },
+              { id: 'kanban', label: 'לוח קנבן', icon: Trello },
               { id: 'calendar', label: 'סידור עבודה שבועי', icon: CalendarDays },
               { id: 'reports', label: 'דוח בוקר (ארכיון)', icon: FileText },
               { id: 'table', label: 'סטטוס מלאי', icon: Table },
@@ -329,7 +332,7 @@ export default function App() {
 
   // --- User Memory Persistence ---
   const [settings, setSettings] = useUserMemory(user?.uid, 'ui_settings', {
-    viewMode: 'list' as 'list' | 'calendar' | 'reports' | 'chat' | 'drivers',
+    viewMode: 'list' as 'list' | 'calendar' | 'reports' | 'chat' | 'drivers' | 'kanban',
     statusFilter: 'all',
     driverFilter: 'all',
     warehouseFilter: 'all',
@@ -1303,7 +1306,7 @@ export default function App() {
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-4">
             <h2 className="text-2xl font-black text-gray-900 underline decoration-sky-500 decoration-4 underline-offset-8">
-              {viewMode === 'list' ? 'דוח בוקר' : viewMode === 'calendar' ? 'לוח שנתי' : viewMode === 'drivers' ? 'נהגים וביצועים' : 'ארכיון דוחות'}
+              {viewMode === 'list' ? 'דוח בוקר' : viewMode === 'kanban' ? 'לוח קנבן' : viewMode === 'calendar' ? 'לוח שנתי' : viewMode === 'drivers' ? 'נהגים וביצועים' : 'ארכיון דוחות'}
             </h2>
             <div className="flex bg-gray-100 p-1 rounded-xl">
               <button 
@@ -1311,6 +1314,13 @@ export default function App() {
                 className={`p-1.5 rounded-lg transition-all ${viewMode === 'list' ? 'bg-white shadow-sm text-sky-600' : 'text-gray-400 hover:text-gray-600'}`}
               >
                 <LayoutList size={20} />
+              </button>
+              <button 
+                onClick={() => setViewMode('kanban')}
+                className={`p-1.5 rounded-lg transition-all ${viewMode === 'kanban' ? 'bg-white shadow-sm text-sky-600' : 'text-gray-400 hover:text-gray-600'}`}
+                title="קנבן"
+              >
+                <Trello size={20} />
               </button>
               <button 
                 onClick={() => setViewMode('calendar')}
@@ -1438,7 +1448,7 @@ export default function App() {
         </div>
 
         <div className="space-y-4">
-          {filteredOrders.length === 0 && viewMode === 'list' ? (
+          {filteredOrders.length === 0 && (viewMode === 'list' || viewMode === 'kanban') ? (
             <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
               <div className="bg-gray-100 p-4 rounded-full mb-3 text-gray-400">
                 <Search size={32} />
@@ -1479,6 +1489,19 @@ export default function App() {
                 />
               ))}
             </div>
+          ) : viewMode === 'kanban' ? (
+            <KanbanBoard
+              orders={filteredOrders}
+              drivers={drivers}
+              searchQuery={searchQuery}
+              onOrderEdit={setEditingOrder}
+              onOrderUpdateStatus={handleStatusUpdate}
+              onOrderUpdateEta={(id, eta) => updateOrder(id, { eta })}
+              onOrderDelete={deleteOrder}
+              onOrderRepeat={handleRepeatOrder}
+              onAddToast={addToast}
+              onUploadDoc={handleDriveFileUpload}
+            />
           ) : (
             <div className="grid gap-4">
               {filteredOrders.map((order) => (
