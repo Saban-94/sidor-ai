@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+// משתנים לצד הלקוח (קריאה בלבד)
 const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_DRIVE_API_KEY;
 const FOLDER_ID = process.env.NEXT_PUBLIC_DRIVE_FOLDER_ID;
 
@@ -14,7 +15,7 @@ export interface DriveFile {
 }
 
 /**
- * List files in the specified Drive folder.
+ * שליפת רשימת קבצים - נשאר עם API Key כי זו פעולת קריאה
  */
 export async function listDriveFiles(folderId: string = FOLDER_ID || ''): Promise<DriveFile[]> {
   if (!API_KEY) {
@@ -36,16 +37,41 @@ export async function listDriveFiles(folderId: string = FOLDER_ID || ''): Promis
 }
 
 /**
- * Get the content of a file as a base64 string.
- * Note: For PDFs, we need to download the file data.
+ * העלאת קובץ לדרייב - עוברת דרך ה-Backend שלנו
+ */
+export async function uploadFileToDrive(file: File, folderId: string = FOLDER_ID || ''): Promise<any> {
+  // אנחנו שולחים את הקובץ ל-API Route פנימי שיצרנו בווירסל
+  // ה-API הזה יחזיק את מפתח ה-Service Account שהעלית (saban-ai-drive-aa2cd6d3c571.json)
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('folderId', folderId);
+
+  try {
+    const response = await fetch('/api/drive/upload', {
+      method: 'POST',
+      body: formData,
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || "Upload failed");
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Error uploading file to Drive via Backend:", error);
+    throw error;
+  }
+}
+
+/**
+ * הורדת תוכן קובץ כ-Base64
  */
 export async function getFileBase64(fileId: string): Promise<string> {
   if (!API_KEY) {
     throw new Error("GOOGLE_DRIVE_API_KEY is missing");
   }
 
-  // To download file content using an API key, we use the 'alt=media' parameter.
-  // Note: This only works for files that are publicly accessible or shared with the API Key/Identity.
   const url = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&key=${API_KEY}`;
 
   try {
@@ -62,45 +88,6 @@ export async function getFileBase64(fileId: string): Promise<string> {
     });
   } catch (error) {
     console.error("Error downloading file from Drive:", error);
-    throw error;
-  }
-}
-
-/**
- * Upload a file to the specified Drive folder.
- * Note: Drive API file uploads generally require OAuth 2.0 access tokens.
- * This implementation uses the API Key if provided, but may fail if the folder is not publicly writable.
- */
-export async function uploadFileToDrive(file: File, folderId: string = FOLDER_ID || ''): Promise<any> {
-  if (!API_KEY) {
-    throw new Error("GOOGLE_DRIVE_API_KEY is missing");
-  }
-
-  const metadata = {
-    name: file.name,
-    parents: [folderId],
-  };
-
-  const formData = new FormData();
-  formData.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-  formData.append('file', file);
-
-  const url = `https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&key=${API_KEY}`;
-
-  try {
-    const response = await fetch(url, {
-      method: 'POST',
-      body: formData,
-    });
-    
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error?.message || "Upload failed");
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error("Error uploading file to Drive:", error);
     throw error;
   }
 }
