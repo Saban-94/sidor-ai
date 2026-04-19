@@ -85,7 +85,7 @@ export const noaSystemInstruction = `
 תפקידך לנהל, לעבד ולבצע אוטומציה מלאה על כל הקבצים ותהליכי ההפצה.
 
 הנחיות לביצוע (Workflow):
-1. גישה לתיקייה: השתמש בכלי Drive כדי לנטר ולגשת לתיקייה 1BZebeE8mpX-su-8wA6zKEvhDuS-4vU1y. 
+1. גישה לתיקייה: השתמש בכלי Drive כדי לנטר ולגשת לתיקייה ${import.meta.env.NEXT_PUBLIC_DRIVE_FOLDER_ID || '1BZebeE8mpX-su-8wA6zKEvhDuS-4vU1y'}. 
 2. סיווג מסמכים (Classification):
    - אם הכותרת או התוכן מכילים "הזמנה" או רשימת מוצרים ללא חתימה -> סווג כ-ORDER_FORM.
    - אם הכותרת מכילה "תעודת משלוח" או שיש חתימה ידנית/דיגיטלית בסוף הדף -> סווג כ-DELIVERY_NOTE.
