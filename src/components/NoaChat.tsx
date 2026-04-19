@@ -83,7 +83,7 @@ export const NoaChat = ({
               <div className="bg-sky-50 w-24 h-24 rounded-[3rem] flex items-center justify-center mx-auto mb-6 shadow-inner">
                  <MessageSquare className="text-sky-600" size={48} />
               </div>
-              <h2 className="text-2xl font-black mb-2 italic">Google (Android 12L) סדרנית בח.סבן נעים מאוד 👋🏻  👩🏼 היי אני נועה </h2>
+              <h2 className="text-2xl font-black mb-2 italic">סדרנית בח.סבן נעים מאוד 👋🏻  👩🏼 היי אני נועה </h2>
               <p className="text-sm font-bold text-gray-400 mb-8 max-w-[250px] mx-auto">"ניתן דרכי לבצע פעולות ולברר מה על הכול תבחר מקיצורי דרך או שאל כל שאלה אני פה להקשיב ולשרת אותך"</p>
               
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-md mx-auto">
