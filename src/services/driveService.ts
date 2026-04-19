@@ -97,18 +97,22 @@ export async function uploadFileToDrive(file: File, folderId: string = FOLDER_ID
       folderId: folderId
     };
 
-    // Using mode: 'no-cors' as requested. Note: this means we won't be able to read the response body.
-    await fetch(GAS_URL, {
+    // Using mode: 'cors' so we can read the response body. 
+    // GAS bridge must return a JSON response with the fileId.
+    const response = await fetch(GAS_URL, {
       method: 'POST',
-      mode: 'no-cors',
       headers: {
         'Content-Type': 'text/plain', // Standard practice for GAS POST
       },
       body: JSON.stringify(payload)
     });
 
-    // Since mode is no-cors, we assume success if no error is thrown by fetch
-    return { status: 'success', message: 'File sent to GAS bridge' };
+    if (!response.ok) {
+      throw new Error(`Upload failed: ${response.statusText}`);
+    }
+
+    const result = await response.json();
+    return result; // Should contain { status: 'success', fileId: '...' }
   } catch (error) {
     console.error("Error uploading file to GAS bridge:", error);
     throw error;

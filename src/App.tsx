@@ -382,20 +382,17 @@ export default function App() {
     setIsUploadingDoc(true);
     try {
       const uploadResult = await uploadFileToDrive(file);
-      // Note: GAS bridge currently returns success message but not the file ID due to no-cors mode limitation.
-      // However, we can try to guess or assume the filename structure if we modified GAS.
-      // For now, let's inform the user we are tracking it.
+      const fileId = uploadResult?.fileId;
+      
+      if (!fileId) {
+        throw new Error("לא התקבל מזהה קובץ מהדרייב אחי.");
+      }
       
       addToast('העלאה הצליחה', 'הקובץ נשמר בתיקיית SabanOS אחי ✅', 'success');
       
       if (orderId) {
-        // Since we can't get the ID back directly from a no-cors POST,
-        // in a real scenario we'd need a different bridge or OAuth.
-        // For this demo/requirement, we will mark it as "attached" with a dummy ID or name if needed,
-        // or just notify Noa to find it.
         addToast('עדכון הזמנה', 'משייכת את המסמך להזמנה אחי...', 'info');
-        // We'll use a placeholder or the filename if we can't get the ID
-        const updateField = documentType === 'orderForm' ? { orderFormId: 'PENDING_SCAN' } : { deliveryNoteId: 'PENDING_SCAN' };
+        const updateField = documentType === 'orderForm' ? { orderFormId: fileId } : { deliveryNoteId: fileId };
         await updateOrder(orderId, updateField);
       }
 

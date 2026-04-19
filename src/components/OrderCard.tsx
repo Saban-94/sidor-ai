@@ -70,7 +70,9 @@ const DocumentPopover = ({
   onUpload?: (file: File, type: 'orderForm' | 'deliveryNote') => Promise<void>
 }) => {
   const [isUploading, setIsUploading] = useState<'orderForm' | 'deliveryNote' | null>(null);
-  const getDriveUrl = (id: string) => `https://drive.google.com/uc?id=${id}`;
+  const getDriveUrl = (id: string) => id === 'PENDING_SCAN' ? '#' : `https://drive.google.com/file/d/${id}/view`;
+  
+  const isPending = (id?: string) => id === 'PENDING_SCAN';
   
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, type: 'orderForm' | 'deliveryNote') => {
     const file = e.target.files?.[0];
@@ -97,17 +99,26 @@ const DocumentPopover = ({
         {/* Order Form Row */}
         <div className="flex items-center gap-2 p-1">
           {order.orderFormId ? (
-            <a 
-              href={getDriveUrl(order.orderFormId)} 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="flex-1 flex items-center gap-2.5 p-2 bg-sky-50 hover:bg-sky-100 rounded-xl transition-colors text-right group shadow-sm"
-            >
-              <div className="bg-white p-1.5 rounded-lg text-sky-600 shadow-sm">
-                <FileText size={14} />
+            isPending(order.orderFormId) ? (
+              <div className="flex-1 flex items-center gap-2.5 p-2 bg-sky-50/50 rounded-xl text-right shadow-sm border border-sky-100 opacity-60">
+                <div className="bg-white p-1.5 rounded-lg text-sky-400 shadow-sm">
+                  <Loader2 size={14} className="animate-spin" />
+                </div>
+                <span className="text-xs font-bold text-sky-400 italic">מעבד טופס...</span>
               </div>
-              <span className="text-xs font-bold text-sky-900">טופס הזמנה</span>
-            </a>
+            ) : (
+              <a 
+                href={getDriveUrl(order.orderFormId)} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="flex-1 flex items-center gap-2.5 p-2 bg-sky-50 hover:bg-sky-100 rounded-xl transition-colors text-right group shadow-sm border border-sky-100"
+              >
+                <div className="bg-white p-1.5 rounded-lg text-sky-600 shadow-sm border border-sky-50 group-hover:bg-sky-600 group-hover:text-white transition-colors">
+                  <FileText size={14} />
+                </div>
+                <span className="text-xs font-bold text-sky-900">טופס הזמנה</span>
+              </a>
+            )
           ) : (
             <div className="flex-1 p-2 bg-gray-50 rounded-xl text-gray-400 text-[10px] font-bold border border-dashed border-gray-200">
               אין טופס הזמנה
@@ -133,17 +144,26 @@ const DocumentPopover = ({
         {/* Delivery Note Row */}
         <div className="flex items-center gap-2 p-1">
           {order.deliveryNoteId ? (
-            <a 
-              href={getDriveUrl(order.deliveryNoteId)} 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="flex-1 flex items-center gap-2.5 p-2 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-colors text-right group shadow-sm"
-            >
-              <div className="bg-white p-1.5 rounded-lg text-emerald-600 shadow-sm">
-                <FileText size={14} />
+            isPending(order.deliveryNoteId) ? (
+              <div className="flex-1 flex items-center gap-2.5 p-2 bg-emerald-50/50 rounded-xl text-right shadow-sm border border-emerald-100 opacity-60">
+                <div className="bg-white p-1.5 rounded-lg text-emerald-400 shadow-sm">
+                  <Loader2 size={14} className="animate-spin" />
+                </div>
+                <span className="text-xs font-bold text-emerald-400 italic">מעבד תעודה...</span>
               </div>
-              <span className="text-xs font-bold text-emerald-900">תעודת משלוח</span>
-            </a>
+            ) : (
+              <a 
+                href={getDriveUrl(order.deliveryNoteId)} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="flex-1 flex items-center gap-2.5 p-2 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-colors text-right group shadow-sm border border-emerald-100"
+              >
+                <div className="bg-white p-1.5 rounded-lg text-emerald-600 shadow-sm border border-emerald-50 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+                  <FileText size={14} />
+                </div>
+                <span className="text-xs font-bold text-emerald-900">תעודת משלוח</span>
+              </a>
+            )
           ) : (
             <div className="flex-1 p-2 bg-gray-50 rounded-xl text-gray-400 text-[10px] font-bold border border-dashed border-gray-200">
               אין תעודת משלוח
@@ -252,10 +272,19 @@ export const OrderCard = ({
         <div className="absolute top-4 left-24 z-10">
           <button 
             onClick={() => setShowDocs(!showDocs)}
-            className={`p-1.5 rounded-full shadow-lg border transition-all ${showDocs ? 'bg-sky-600 text-white border-sky-600' : 'bg-white text-sky-600 border-sky-100 hover:bg-sky-50'}`}
-            title="צפה במסמכים"
+            disabled={order.orderFormId === 'PENDING_SCAN' || order.deliveryNoteId === 'PENDING_SCAN'}
+            className={`p-1.5 rounded-full shadow-lg border transition-all ${
+              showDocs ? 'bg-sky-600 text-white border-sky-600' : 
+              (order.orderFormId === 'PENDING_SCAN' || order.deliveryNoteId === 'PENDING_SCAN') ? 'bg-gray-100 text-gray-400 border-gray-100 cursor-not-allowed' :
+              'bg-white text-sky-600 border-sky-100 hover:bg-sky-50'
+            }`}
+            title={order.orderFormId === 'PENDING_SCAN' || order.deliveryNoteId === 'PENDING_SCAN' ? "מעבד מסמכים..." : "צפה במסמכים"}
           >
-            <Eye size={14} strokeWidth={3} />
+            {order.orderFormId === 'PENDING_SCAN' || order.deliveryNoteId === 'PENDING_SCAN' ? (
+              <Loader2 size={14} className="animate-spin" />
+            ) : (
+              <Eye size={14} strokeWidth={3} />
+            )}
           </button>
           <AnimatePresence>
             {showDocs && (
