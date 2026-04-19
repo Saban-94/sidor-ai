@@ -277,9 +277,17 @@ export const tools = [
 ];
 
 export async function askNoa(message: string, history: any[] = []) {
+  const contents = [...history, { role: 'user', parts: [{ text: message }] }];
+  return await processNoaTurn(contents);
+}
+
+/** 
+ * Internal recursive handler for tool calls 
+ */
+async function processNoaTurn(contents: any[]): Promise<any> {
   const response = await ai.models.generateContent({
-    model: "gemini-3.1-pro-preview", // Use Pro for complex document analysis if needed, or stick to Flash for speed
-    contents: [...history, { role: 'user', parts: [{ text: message }] }],
+    model: "gemini-3.1-pro-preview",
+    contents: contents,
     config: {
       systemInstruction: noaSystemInstruction,
       tools: tools
@@ -288,7 +296,7 @@ export async function askNoa(message: string, history: any[] = []) {
 
   const functionCalls = response.functionCalls;
   if (functionCalls && functionCalls.length > 0) {
-    const historicalMessages = [...history, { role: 'user', parts: [{ text: message }] }, response.candidates[0].content];
+    const modelResponseContent = response.candidates[0].content;
     const functionResponses: any[] = [];
 
     for (const call of functionCalls) {
@@ -336,23 +344,11 @@ export async function askNoa(message: string, history: any[] = []) {
     }
 
     if (functionResponses.length > 0) {
-      return await askNoaResponse([...historicalMessages, ...functionResponses]);
+      // Recurse with the function results back to the model
+      return await processNoaTurn([...contents, modelResponseContent, ...functionResponses]);
     }
   }
 
-  return response;
-}
-
-/** Helper to continue chat after function result */
-async function askNoaResponse(contents: any[]) {
-  const response = await ai.models.generateContent({
-    model: "gemini-3.1-pro-preview",
-    contents: contents,
-    config: {
-      systemInstruction: noaSystemInstruction,
-      tools: tools
-    }
-  });
   return response;
 }
 

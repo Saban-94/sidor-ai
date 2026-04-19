@@ -675,6 +675,13 @@ export default function App() {
     
     try {
       const result = await askNoa(msg, chatHistory);
+      
+      // Extract text parts carefully to avoid SDK warnings about non-text parts (function calls)
+      const textResponse = result.candidates?.[0]?.content?.parts
+        ?.filter((p: any) => p.text)
+        ?.map((p: any) => p.text)
+        .join('\n');
+
       const functionCalls = result.functionCalls;
 
       if (functionCalls) {
@@ -744,7 +751,7 @@ export default function App() {
         }
       }
 
-      const auraResponse = { role: 'model', parts: [{ text: result.text || "בוצע אחי." }] };
+      const auraResponse = { role: 'model', parts: [{ text: textResponse || "בוצע אחי." }] };
       setChatHistory(prev => [...prev, auraResponse]);
     } catch (err) {
       console.error(err);
