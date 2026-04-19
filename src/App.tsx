@@ -332,7 +332,7 @@ export default function App() {
 
   // --- User Memory Persistence ---
   const [settings, setSettings] = useUserMemory(user?.uid, 'ui_settings', {
-    viewMode: 'list' as 'list' | 'calendar' | 'reports' | 'chat' | 'drivers' | 'kanban',
+    viewMode: 'kanban' as 'list' | 'calendar' | 'reports' | 'chat' | 'drivers' | 'kanban',
     statusFilter: 'all',
     driverFilter: 'all',
     warehouseFilter: 'all',
