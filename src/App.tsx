@@ -443,12 +443,24 @@ export default function App() {
         }
         
         if (change.type === 'modified') {
-          const title = 'עדכון הזמנה ✏️';
-          const msg = `הסטטוס של ${order.customerName} השתנה ל-${order.status}`;
-          addToast(title, msg, 'info');
+          const oldData = change.oldIndex !== -1 ? null : null; // Snapshot changes don't easily provide previous fields without state tracking
+          // We'll track previous status in a specialized hook/ref if we wanted perfection, 
+          // but for now let's refine the message to be more specific.
+          
+          const title = 'עדכון סטטוס אחי! 🔄';
+          const statusLabels: Record<string, string> = {
+            pending: 'ממתין',
+            preparing: 'בהכנה',
+            ready: 'מוכן',
+            delivered: 'סופק',
+            cancelled: 'בוטל'
+          };
+          const msg = `ההזמנה של ${order.customerName} עודכנה ל-${statusLabels[order.status] || order.status}`;
+          
+          addToast(title, msg, order.status === 'delivered' ? 'success' : 'info');
           
           if (Notification.permission === 'granted') {
-            new Notification(title, { body: msg });
+            new Notification(title, { body: msg, icon: '/vite.svg' });
           }
         }
       });
@@ -856,7 +868,11 @@ export default function App() {
       const matchesDriver = driverFilter === 'all' || order.driverId === driverFilter;
       const matchesWarehouse = warehouseFilter === 'all' || order.warehouse === warehouseFilter;
       
-      return matchesSearch && matchesStatus && matchesDriver && matchesWarehouse;
+      // Feature: Hide delivered from main board, keep in reports
+      const isDelivered = order.status === 'delivered';
+      const shouldHideDelivered = viewMode !== 'reports' && isDelivered && statusFilter === 'all';
+      
+      return matchesSearch && matchesStatus && matchesDriver && matchesWarehouse && !shouldHideDelivered;
     })
     .sort((a: any, b: any) => {
       let comparison = 0;

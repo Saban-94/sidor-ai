@@ -9,7 +9,8 @@ import {
   Sparkles, 
   Send, 
   Pencil,
-  AlertCircle
+  AlertCircle,
+  Trash2
 } from 'lucide-react';
 import { Order, Driver, predictOrderEta } from '../services/auraService';
 import { highlightText } from '../lib/utils';
@@ -189,6 +190,17 @@ export const OrderCard = ({
             className="p-3.5 text-gray-400 hover:text-sky-600 hover:bg-sky-50 rounded-2xl transition-all"
           >
             <Pencil size={18} />
+          </button>
+
+          <button 
+            onClick={() => {
+              if (window.confirm('בטוח שאתה רוצה למחוק את ההזמנה לצמיתות אחי?')) {
+                onDelete(order.id!);
+              }
+            }}
+            className="p-3.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-2xl transition-all"
+          >
+            <Trash2 size={18} />
           </button>
         </div>
       </div>
