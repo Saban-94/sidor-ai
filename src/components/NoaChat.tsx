@@ -10,7 +10,7 @@ import {
   Settings,
   Waves
 } from 'lucide-react';
-import { Order } from '../services/auraService';
+import { Order } from '../types';
 import { parseItems } from '../lib/utils';
 
 interface NoaChatProps {

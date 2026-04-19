@@ -9,50 +9,70 @@ import {
   where, 
   getDocs, 
   serverTimestamp,
-  orderBy
+  orderBy,
+  limit
 } from 'firebase/firestore';
 import { db, auth } from '../lib/firebase';
+import { Order, Driver, Customer } from '../types';
 
-import { listDriveFiles, getFileBase64 } from './driveService';
+import { listDriveFiles, getFileBase64, createCustomerFolderHierarchy } from './driveService';
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
-export interface Order {
-  id?: string;
-  orderNumber?: string; // נתור/ליד/מס' הזמנה
-  date: string;
-  time: string;
-  driverId: string;
-  customerName: string;
-  destination: string;
-  items: string;
-  warehouse: 'החרש' | 'התלמיד';
-  status: 'pending' | 'preparing' | 'ready' | 'delivered' | 'cancelled';
-  orderFormId?: string;
-  deliveryNoteId?: string;
-  eta?: string;
-  createdAt?: any;
-  updatedAt?: any;
-  createdBy?: string;
-}
-
-export interface Driver {
-  id: string;
-  name: string;
-  phone: string;
-  avatar?: string;
-  vehicleType: 'truck' | 'crane';
-  plateNumber?: string;
-  vehicleModel?: string;
-  status: 'active' | 'off_duty';
-  totalDeliveries?: number;
-  onTimeRate?: number;
-  rating?: number;
-  createdAt?: any;
-  updatedAt?: any;
-}
-
 export const INVENTORY_RULES = [];
+
+export const createCustomer = async (customerData: Partial<Customer>) => {
+  const fullCustomer = {
+    ...customerData,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  } as Customer;
+
+  // Automate Drive Folder via GAS Bridge
+  try {
+    const folderInfo = await createCustomerFolderHierarchy(fullCustomer.customerNumber, fullCustomer.name, {
+      contactPerson: fullCustomer.contactPerson,
+      phoneNumber: fullCustomer.phoneNumber
+    });
+    if (folderInfo && folderInfo.folderId) {
+      fullCustomer.driveFolderId = folderInfo.folderId;
+    }
+  } catch (err) {
+    console.error("Failed to create Drive folder for customer אחי:", err);
+  }
+
+  const docRef = await addDoc(collection(db, 'customers'), fullCustomer);
+  return { id: docRef.id, ...fullCustomer };
+};
+
+export const updateCustomer = async (customerId: string, updates: Partial<Customer>) => {
+  const docRef = doc(db, 'customers', customerId);
+  await updateDoc(docRef, {
+    ...updates,
+    updatedAt: serverTimestamp(),
+  });
+};
+
+export const getCustomerByName = async (name: string) => {
+  const q = query(collection(db, 'customers'), where('name', '==', name), limit(1));
+  const snap = await getDocs(q);
+  if (snap.empty) return null;
+  return { id: snap.docs[0].id, ...snap.docs[0].data() } as Customer;
+};
+
+export const searchCustomers = async (searchTerm: string) => {
+  const q = query(collection(db, 'customers'), orderBy('name', 'asc'));
+  const snapshot = await getDocs(q);
+  const term = searchTerm.toLowerCase();
+  
+  return snapshot.docs
+    .map(doc => ({ id: doc.id, ...doc.data() }))
+    .filter((c: any) => 
+      c.name.toLowerCase().includes(term) || 
+      c.customerNumber.toLowerCase().includes(term) ||
+      c.phoneNumber.includes(term)
+    ) as Customer[];
+};
 
 export const createDriver = async (driverData: Partial<Driver>) => {
   const fullDriver = {
@@ -87,21 +107,27 @@ export const noaSystemInstruction = `
 התפקיד שלך הוא לעזור לראמי (הבעלים) ולצוות לנהל את ההפצה ביעילות מקסימלית.
 
 הנחיות קריטיות להתנהלות:
-1. **שליטה מוחלטת במידע**: יש לך כלים לקרוא, לחפש ולעדכן הזמנות ונהגים. תשתמש בהם תמיד לפני שאתה אומר שאין מידע.
+1. **שליטה מוחלטת במידע**: יש לך כלים לקרוא, לחפש ולעדכן הזמנות, נהגים ולקוחות. תשתמש בהם תמיד לפני שאתה אומר שאין מידע.
    - לחיפוש רשימות סידור ליום ספציפי (היום, מחר וכו'), השתמשי תמיד ב-get_orders_by_date.
    - לחיפוש הזמנה ספציפית לפי שם לקוח או יעד, השתמשי ב-search_orders.
-   - הצג תמיד את הפרטים המלאים שנמצאו (פריטים, יעד, נהג).
-2. **ניהול קבצים וסריקות (Workflow)**:
+   - לחיפוש פרטי קשר של לקוח (טלפון, איש קשר), השתמשי ב-search_customers.
+   - הצג תמיד את הפרטים המלאים שנמצאו (פריטים, יעד, נהג, פרטי קשר).
+2. **ניהול לקוחות ותיקיות חכמות**:
+   - כל לקוח הוא ישות עצמאית. אם זיהית בסריקה לקוח שלא קיים במערכת, הצע לראמי: "נשמה, זיהיתי לקוח חדש: [שם]. להקים לו תיקייה עם הפרטים שחילצתי?".
+   - כשראמי מאשר הקמת לקוח, השתמשי ב-create_customer. זה יפתח לו אוטומטית תיקייה בדרייב עם כל תתי-התיקיות וקובץ info.txt.
+   - אם שואלים על נייד של איש קשר: "ראמי נשמה, הנה הנייד של איש הקשר של [לקוח]: [מספר]".
+3. **ניהול קבצים וסריקות (Workflow)**:
    - אם משתמש אומר "העליתי קובץ X להזמנה Y", בצע:
      א. חפש את ההזמנה (search_orders) כדי לראות אם יש לה כבר מזהה קובץ (orderFormId/deliveryNoteId).
-     ב. אם אין לה מזהה, השתמש ב-list_drive_files כדי למצוא את הקובץ לפי השם שהמשתמש נתן.
-     ג. ברגע שמצאת את המזהה (fileId) מהדרייב, עדכן את ההזמנה (update_order).
-     ד. סרוק את התוכן (analyze_pdf_content) כדי לחלץ נתונים (סוג מסמך, מספר הזמנה, לקוח, פריטים).
+     ב. חפש את הלקוח (search_customers) כדי למצוא את תיקיית הדרייב שלו.
+     ג. אם אין לה מזהה, השתמש ב-list_drive_files כדי למצוא את הקובץ לפי השם שהמשתמש נתן.
+     ד. סרוק את התוכן (analyze_pdf_content) כדי לחלץ נתונים (סוג מסמך, מספר הזמנה, לקוח, פריטים, איש קשר, טלפון).
+     ה. ברגע שמצאת את המזהה (fileId) מהדרייב, עדכן את ההזמנה (update_order).
    - אם מצאת שתעודת משלוח חתומה (Delivery Note), עדכן את הסטטוס ל-delivered.
-3. **פתרון בעיות**: אם אתה לא מוצא קובץ בשם ספציפי, תריץ list_drive_files בלי פילטר כדי לראות מה בכלל יש בתיקייה (SabanOS) ותציע למשתמש את מה שמצאת.
-4. **שפה וסגנון**: עברית חדה, פרקטית, "אחי", "שותף", "מטפל בזה". בלי חפירות מיותרות. "הכל בשליטה אחי".
+4. **פתרון בעיות**: אם אתה לא מוצא קובץ בשם ספציפי, תריץ list_drive_files בלי פילטר כדי לראות מה בכלל יש בתיקייה (SabanOS) ותציע למשתמש את מה שמצאת.
+5. **שפה וסגנון**: עברית חדה, פרקטית, "אחי", "שותף", "מטפל בזה". בלי חפירות מיותרות. "הכל בשליטה אחי".
 
-[מונחים]: "סריקה", "שיוך להזמנה", "עדכון סטטוס", "סידור עבודה".
+[מונחים]: "סריקה", "שיוך להזמנה", "עדכון סטטוס", "סידור עבודה", "תיקיית לקוח", "איש קשר".
 `;
 
 export const createOrder = async (orderData: Partial<Order>) => {
@@ -291,6 +317,44 @@ export const tools = [
         }
       },
       {
+        name: "create_customer",
+        description: "צור לקוח חדש במערכת (יפתח אוטומטית תיקייה בדרייב)",
+        parameters: {
+          type: Type.OBJECT,
+          properties: {
+            customerNumber: { type: Type.STRING, description: "מספר לקוח" },
+            name: { type: Type.STRING, description: "שם הלקוח" },
+            contactPerson: { type: Type.STRING, description: "שם איש קשר" },
+            phoneNumber: { type: Type.STRING, description: "מספר טלפון נייד" }
+          },
+          required: ["customerNumber", "name", "contactPerson", "phoneNumber"]
+        }
+      },
+      {
+        name: "update_customer",
+        description: "עדכן פרטי לקוח",
+        parameters: {
+          type: Type.OBJECT,
+          properties: {
+            customerId: { type: Type.STRING, description: "מזהה הלקוח" },
+            contactPerson: { type: Type.STRING },
+            phoneNumber: { type: Type.STRING }
+          },
+          required: ["customerId"]
+        }
+      },
+      {
+        name: "search_customers",
+        description: "חפש לקוחות לפי שם, מספר לקוח או טלפון",
+        parameters: {
+          type: Type.OBJECT,
+          properties: {
+            query: { type: Type.STRING, description: "מילת חיפוש" }
+          },
+          required: ["query"]
+        }
+      },
+      {
         name: "list_drive_files",
         description: "קבל רשימת קבצים מתיקיית הדרייב המוגדרת (למציאת הזמנות/תעודות חדשות)",
         parameters: {
@@ -324,11 +388,16 @@ export async function askNoa(message: string, history: any[] = []) {
  * Internal recursive handler for tool calls 
  */
 async function processNoaTurn(contents: any[]): Promise<any> {
+  const currentDateTime = new Date().toLocaleString('he-IL', { timeZone: 'Asia/Jerusalem' });
+  const dayName = new Date().toLocaleDateString('he-IL', { weekday: 'long', timeZone: 'Asia/Jerusalem' });
+  
+  const dynamicInstruction = `${noaSystemInstruction}\n\nהזמן הנוכחי במערכת: ${dayName}, ${currentDateTime}.\nכשמדברים על "מחר", הכוונה היא ליום שאחרי התאריך המופיע כאן.`;
+
   const response = await ai.models.generateContent({
     model: "gemini-3-flash-preview", 
     contents: contents,
     config: {
-      systemInstruction: noaSystemInstruction,
+      systemInstruction: dynamicInstruction,
       tools: tools
     }
   });
@@ -392,6 +461,18 @@ async function processNoaTurn(contents: any[]): Promise<any> {
           case 'search_drivers':
             result = await searchDrivers(call.args.query as string);
             break;
+          case 'create_customer':
+            result = await createCustomer(call.args as any);
+            break;
+          case 'update_customer': {
+            const { customerId, ...cUpdates } = call.args as any;
+            await updateCustomer(customerId, cUpdates);
+            result = { success: true };
+            break;
+          }
+          case 'search_customers':
+            result = await searchCustomers(call.args.query as string);
+            break;
           case 'list_drive_files':
             result = { files: await listDriveFiles(call.args?.folderId as string) };
             break;
@@ -403,7 +484,16 @@ async function processNoaTurn(contents: any[]): Promise<any> {
               throw new Error(`הקובץ ${fileId} נראה ריק או לא תקין.`);
             }
 
-            const analysisPrompt = `נתח את קובץ ה-PDF הזה. חלץ document_type, order_number, customer_name, items, address, status. החזר JSON בלבד.`;
+            const analysisPrompt = `נתח את קובץ ה-PDF הזה. חלץ:
+- document_type (order / delivery_note)
+- order_number
+- customer_name
+- items (מערך של {quantity, itemName, sku})
+- contact_person (איש קשר)
+- phone_number (טלפון)
+- destination (כתובת יעד)
+
+החזר JSON בלבד.`;
             
             const analysisResponse = await ai.models.generateContent({
               model: "gemini-3-flash-preview",

@@ -28,7 +28,7 @@ import {
   getDoc
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { Order, Driver } from '../services/auraService';
+import { Order, Driver } from '../types';
 import { format } from 'date-fns';
 import { he } from 'date-fns/locale';
 

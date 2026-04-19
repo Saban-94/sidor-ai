@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'motion/react';
 import { Truck, Phone, Star, TrendingUp, Package, AlertCircle } from 'lucide-react';
-import { Order, Driver } from '../services/auraService';
+import { Order, Driver } from '../types';
 import { OrderCard } from './OrderCard';
 
 interface DriverCardProps {

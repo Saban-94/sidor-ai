@@ -26,7 +26,8 @@ import {
   ChevronLeft
 } from 'lucide-react';
 import { AnimatePresence } from 'motion/react';
-import { Order, Driver, predictOrderEta } from '../services/auraService';
+import { predictOrderEta } from '../services/auraService';
+import { Order, Driver } from '../types';
 import { highlightText, parseItems, isKnownProduct, cn } from '../lib/utils';
 
 export const StatusBadge = ({ status }: { status: Order['status'] }) => {

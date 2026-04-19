@@ -71,8 +71,6 @@ import { SearchSuggestions } from './components/SearchSuggestions';
 import { NoaChat } from './components/NoaChat';
 import { initOneSignal, sendOrderNotification } from './services/notificationService';
 import { 
-  Order, 
-  Driver,
   createOrder, 
   updateOrder, 
   updateDriver,
@@ -81,6 +79,7 @@ import {
   predictOrderEta,
   createDriver
 } from './services/auraService';
+import { Order, Driver, Customer } from './types';
 import { useUserMemory } from './hooks/useUserMemory';
 import { uploadFileToDrive } from './services/driveService';
 

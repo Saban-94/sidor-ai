@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { User, MapPin, Package, Hash, Search as SearchIcon } from 'lucide-react';
-import { Order } from '../services/auraService';
+import { Order } from '../types';
 import { highlightText } from '../lib/utils';
 
 interface SearchSuggestionsProps {

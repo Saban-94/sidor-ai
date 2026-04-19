@@ -133,3 +133,40 @@ export async function uploadFileToDrive(file: File, folderId: string = FOLDER_ID
     throw error;
   }
 }
+
+/**
+ * Automates the creation of a customer folder hierarchy in Google Drive.
+ * 1. Main folder: [CustomerNumber] - [CustomerName]
+ * 2. Subfolders: Orders, Delivery Notes, Accounting Documents
+ * 3. Metadata: info.txt with contact details
+ */
+export async function createCustomerFolderHierarchy(
+  customerNumber: string, 
+  customerName: string, 
+  contactInfo: { contactPerson: string, phoneNumber: string }
+): Promise<any> {
+  try {
+    const payload = {
+      action: 'createCustomerFolder',
+      customerNumber,
+      customerName,
+      contactPerson: contactInfo.contactPerson,
+      phoneNumber: contactInfo.phoneNumber
+    };
+
+    const response = await fetch(GAS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+      throw new Error(`GAS folder creation failed: ${response.statusText}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Error creating customer folder hierarchy אחי:", error);
+    throw error;
+  }
+}
