@@ -1,12 +1,13 @@
-export default defineConfig(({mode}) => {
-  const env = loadEnv(mode, '.', '');
-  return {
-    define: {
-      // חובה להוסיף את השורה הזו כדי ש-process.env יעבוד בדפדפן
-      'process.env.VITE_GAS_URL': JSON.stringify(env.VITE_GAS_URL),
-      'process.env.NEXT_PUBLIC_GOOGLE_DRIVE_API_KEY': JSON.stringify(env.NEXT_PUBLIC_GOOGLE_DRIVE_API_KEY),
-      'process.env.NEXT_PUBLIC_DRIVE_FOLDER_ID': JSON.stringify(env.NEXT_PUBLIC_DRIVE_FOLDER_ID),
-    },
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+// שימוש ב-import.meta.env - הדרך הנכונה ב-Vite להזרקת משתנים לדפדפן
+// וודא שב-Vercel המשתנים מוגדרים בדיוק בשמות האלו
+const API_KEY = import.meta.env.VITE_GOOGLE_DRIVE_API_KEY || import.meta.env.VITE_NEXT_PUBLIC_GOOGLE_DRIVE_API_KEY;
+const FOLDER_ID = import.meta.env.VITE_DRIVE_FOLDER_ID || import.meta.env.VITE_NEXT_PUBLIC_DRIVE_FOLDER_ID;
+const GAS_URL = import.meta.env.VITE_GAS_URL;
 
 export interface DriveFile {
   id: string;
@@ -20,7 +21,7 @@ export interface DriveFile {
  */
 export async function listDriveFiles(folderId: string = FOLDER_ID || ''): Promise<DriveFile[]> {
   if (!API_KEY) {
-    console.warn("NEXT_PUBLIC_GOOGLE_DRIVE_API_KEY is missing");
+    console.error("קריטי: API_KEY חסר במערכת");
     return [];
   }
 
@@ -29,6 +30,7 @@ export async function listDriveFiles(folderId: string = FOLDER_ID || ''): Promis
 
   try {
     const response = await fetch(url);
+    if (!response.ok) throw new Error(`Drive API Error: ${response.statusText}`);
     const data = await response.json();
     return data.files || [];
   } catch (error) {
@@ -38,16 +40,14 @@ export async function listDriveFiles(folderId: string = FOLDER_ID || ''): Promis
 }
 
 /**
- * הורדת תוכן קובץ כ-Base64
- * מעודכן לעבוד דרך ה-GAS Bridge כדי למנוע שגיאות 404/401 של API Key
+ * הורדת תוכן קובץ כ-Base64 דרך ה-GAS Bridge
  */
 export async function getFileBase64(fileId: string): Promise<string> {
   if (!GAS_URL) {
-    throw new Error("VITE_GAS_URL is missing");
+    throw new Error("שגיאה: VITE_GAS_URL לא מוגדר. וודא שביצעת Redeploy ב-Vercel.");
   }
 
   try {
-    // פנייה ל-GAS כדי למשוך את תוכן הקובץ בבטחה
     const response = await fetch(`${GAS_URL}?fileId=${fileId}`);
     
     if (!response.ok) {
@@ -66,11 +66,12 @@ export async function getFileBase64(fileId: string): Promise<string> {
 
 /**
  * העלאת קובץ לדרייב דרך Google Apps Script Bridge
- * פותר את בעיית ה-CORS ומחזיר fileId אמיתי במקום PENDING_SCAN
  */
 export async function uploadFileToDrive(file: File, folderId: string = FOLDER_ID || ''): Promise<any> {
+  // בדיקה בזמן אמת אם המשתנה קיים
   if (!GAS_URL) {
-    throw new Error("VITE_GAS_URL חסר בכתובות המערכת אחי.");
+    console.error("Missing GAS_URL. Current ENV:", import.meta.env);
+    throw new Error("אחי, VITE_GAS_URL חסר. תבדוק שהגדרת אותו ב-Vercel ועשית Redeploy.");
   }
 
   try {
@@ -79,7 +80,11 @@ export async function uploadFileToDrive(file: File, folderId: string = FOLDER_ID
       const reader = new FileReader();
       reader.onload = () => {
         const result = reader.result as string;
-        resolve(result.split(',')[1]);
+        if (typeof result === 'string') {
+          resolve(result.split(',')[1]);
+        } else {
+          reject(new Error("Failed to read file as string"));
+        }
       };
       reader.onerror = reject;
       reader.readAsDataURL(file);
@@ -92,14 +97,17 @@ export async function uploadFileToDrive(file: File, folderId: string = FOLDER_ID
       folderId: folderId
     };
 
-    // שליחה ל-GAS
+    // שליחה ל-GAS ללא mode: no-cors כדי שנוכל לקרוא את ה-fileId
     const response = await fetch(GAS_URL, {
       method: 'POST',
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
+      headers: {
+        'Content-Type': 'text/plain;charset=utf-8',
+      }
     });
 
     if (!response.ok) {
-      throw new Error(`העלאה נכשלה: ${response.statusText}`);
+      throw new Error(`העלאה נכשלה בשרת גוגל: ${response.statusText}`);
     }
 
     const result = await response.json();
@@ -109,10 +117,10 @@ export async function uploadFileToDrive(file: File, folderId: string = FOLDER_ID
     }
 
     if (!result.fileId) {
-      throw new Error("לא התקבל מזהה קובץ (File ID) מהדרייב.");
+      throw new Error("הקובץ עלה אבל לא התקבל מזהה (File ID) חזרה.");
     }
 
-    return result; // מחזיר { status: 'success', fileId: '...', url: '...' }
+    return result;
   } catch (error) {
     console.error("Error uploading file to GAS bridge:", error);
     throw error;
