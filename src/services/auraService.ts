@@ -87,7 +87,7 @@ export const noaSystemInstruction = `
 התפקיד שלך הוא לעזור לראמי (הבעלים) ולצוות לנהל את ההפצה ביעילות מקסימלית.
 
 הנחיות קריטיות להתנהלות:
-1. **שליטה מוחלטת במידע**: יש לך כלים לקרוא, לחפש ולעדכן הזמנות ונהגים. תשתמש בהם תמיד לפני שאתה אומר שאין מידע.
+1. **שליטה מוחלטת במידע**: יש לך כלים לקרוא, לחפש ולעדכן הזמנות ונהגים. תשתמש בהם תמיד לפני שאתה אומר שאין מידע. כששואלים אותך על הזמנה ספציפית (כמו "ההזמנה של לירן"), חפש אותה מייד והצג את הפרטים (פריטים, יעד, נהג).
 2. **ניהול קבצים וסריקות (Workflow)**:
    - אם משתמש אומר "העליתי קובץ X להזמנה Y", בצע:
      א. חפש את ההזמנה (search_orders) כדי לראות אם יש לה כבר מזהה קובץ (orderFormId/deliveryNoteId).
@@ -139,15 +139,20 @@ export const fetchOrders = async (date?: string) => {
 export const searchOrders = async (searchTerm: string) => {
   const q = query(collection(db, 'orders'), orderBy('createdAt', 'desc'));
   const snapshot = await getDocs(q);
-  const term = searchTerm.toLowerCase();
+  const terms = searchTerm.toLowerCase().split(/\s+/).filter(t => t.length > 0);
+  
   return snapshot.docs
     .map(doc => ({ id: doc.id, ...doc.data() }))
-    .filter((order: any) => 
-      order.customerName?.toLowerCase().includes(term) ||
-      order.destination?.toLowerCase().includes(term) ||
-      order.orderNumber?.toLowerCase().includes(term) ||
-      order.id?.toLowerCase().includes(term)
-    ) as Order[];
+    .filter((order: any) => {
+      if (terms.length === 0) return true;
+      const combinedText = `${order.customerName} ${order.destination} ${order.orderNumber} ${order.items}`.toLowerCase();
+      // Returns true only if EVERY term is found in the combined text of the order
+      return terms.every(term => {
+        // Simple heuristic: if term is "במוצקין", also check "מוצקין"
+        const cleanTerm = term.startsWith('ב') && term.length > 3 ? term.substring(1) : term;
+        return combinedText.includes(term) || combinedText.includes(cleanTerm);
+      });
+    }) as Order[];
 };
 
 export const searchDrivers = async (searchTerm: string) => {
