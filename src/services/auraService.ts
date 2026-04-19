@@ -287,44 +287,56 @@ export async function askNoa(message: string, history: any[] = []) {
   });
 
   const functionCalls = response.functionCalls;
-  if (functionCalls) {
+  if (functionCalls && functionCalls.length > 0) {
+    const historicalMessages = [...history, { role: 'user', parts: [{ text: message }] }, response.candidates[0].content];
+    const functionResponses: any[] = [];
+
     for (const call of functionCalls) {
       if (call.name === 'list_drive_files') {
         const files = await listDriveFiles(call.args?.folderId as string);
-        const resultPart = {
-          functionResponse: {
-            name: call.name,
-            id: call.id,
-            response: { files }
-          }
-        };
-        return await askNoaResponse([...history, { role: 'user', parts: [{ text: message }] }, response.candidates[0].content, resultPart]);
+        functionResponses.push({
+          role: 'function',
+          parts: [{
+            functionResponse: {
+              name: call.name,
+              id: call.id,
+              response: { files }
+            }
+          }]
+        });
       } else if (call.name === 'analyze_pdf_content') {
         const base64 = await getFileBase64(call.args.fileId as string);
         const analysisPrompt = `נתח את קובץ ה-PDF הזה לפי הוראות SabanOS. חלץ document_type, order_number, customer_name, items, address, status. החזר JSON בלבד.`;
         
         const analysisResponse = await ai.models.generateContent({
           model: "gemini-3.1-pro-preview",
-          contents: {
+          contents: [{
+            role: 'user',
             parts: [
               { text: analysisPrompt },
               { inlineData: { data: base64, mimeType: 'application/pdf' } }
             ]
-          },
+          }],
           config: {
             responseMimeType: "application/json"
           }
         });
 
-        const resultPart = {
-          functionResponse: {
-            name: call.name,
-            id: call.id,
-            response: { analysis: analysisResponse.text }
-          }
-        };
-        return await askNoaResponse([...history, { role: 'user', parts: [{ text: message }] }, response.candidates[0].content, resultPart]);
+        functionResponses.push({
+          role: 'function',
+          parts: [{
+            functionResponse: {
+              name: call.name,
+              id: call.id,
+              response: { analysis: analysisResponse.text }
+            }
+          }]
+        });
       }
+    }
+
+    if (functionResponses.length > 0) {
+      return await askNoaResponse([...historicalMessages, ...functionResponses]);
     }
   }
 
