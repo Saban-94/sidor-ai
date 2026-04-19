@@ -135,6 +135,27 @@ export async function uploadFileToDrive(file: File, folderId: string = FOLDER_ID
 }
 
 /**
+ * Find a subfolder by name within a parent folder.
+ */
+export async function findSubfolderByName(parentFolderId: string, name: string): Promise<string | null> {
+  if (!API_KEY) return null;
+  const query = `'${parentFolderId}' in parents and name = '${name}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
+  const url = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name)&key=${API_KEY}`;
+
+  try {
+    const response = await fetch(url);
+    const data = await response.json();
+    if (data.files && data.files.length > 0) {
+      return data.files[0].id;
+    }
+    return null;
+  } catch (error) {
+    console.error("Error finding subfolder:", error);
+    return null;
+  }
+}
+
+/**
  * Automates the creation of a customer folder hierarchy in Google Drive.
  * 1. Main folder: [CustomerNumber] - [CustomerName]
  * 2. Subfolders: Orders, Delivery Notes, Accounting Documents

@@ -43,7 +43,8 @@ import {
   FileUp,
   Paperclip,
   Loader2,
-  ListTodo
+  ListTodo,
+  FileSpreadsheet
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
@@ -73,6 +74,7 @@ import { DriverCard } from './components/DriverCard';
 import { SearchSuggestions } from './components/SearchSuggestions';
 import { NoaChat } from './components/NoaChat';
 import { initOneSignal, sendOrderNotification } from './services/notificationService';
+import { DeliveryImport } from './components/DeliveryImport';
 import { 
   createOrder, 
   updateOrder, 
@@ -247,6 +249,7 @@ const Drawer = ({
               { id: 'list', label: 'לוח הזמנות', icon: LayoutList },
               { id: 'kanban', label: 'לוח קנבן', icon: Trello },
               { id: 'calendar', label: 'סידור עבודה שבועי', icon: CalendarDays },
+              { id: 'import', label: 'יבוא אקסל (Export.xls)', icon: FileSpreadsheet },
               { id: 'reports', label: 'דוח בוקר (ארכיון)', icon: FileText },
               { id: 'table', label: 'סטטוס מלאי', icon: Table },
             ].map((item) => {
@@ -458,7 +461,7 @@ export default function App() {
 
   // --- User Memory Persistence ---
   const [settings, setSettings] = useUserMemory(user?.uid, 'ui_settings', {
-    viewMode: 'kanban' as 'list' | 'calendar' | 'reports' | 'chat' | 'drivers' | 'kanban',
+    viewMode: 'kanban' as 'list' | 'calendar' | 'reports' | 'chat' | 'drivers' | 'kanban' | 'import',
     statusFilter: 'all',
     driverFilter: 'all',
     warehouseFilter: 'all',
@@ -1461,7 +1464,7 @@ export default function App() {
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-4">
             <h2 className="text-2xl font-black text-gray-900 underline decoration-sky-500 decoration-4 underline-offset-8">
-              {viewMode === 'list' ? 'דוח בוקר' : viewMode === 'kanban' ? 'לוח קנבן' : viewMode === 'calendar' ? 'לוח שנתי' : viewMode === 'drivers' ? 'נהגים וביצועים' : 'ארכיון דוחות'}
+              {viewMode === 'list' ? 'דוח בוקר' : viewMode === 'kanban' ? 'לוח קנבן' : viewMode === 'calendar' ? 'לוח שנתי' : viewMode === 'drivers' ? 'נהגים וביצועים' : viewMode === 'import' ? 'יבוא הזמנות חכם' : 'ארכיון דוחות'}
             </h2>
             <div className="flex bg-gray-100 p-1 rounded-xl">
               <button 
@@ -1603,7 +1606,9 @@ export default function App() {
         </div>
 
         <div className="space-y-4">
-          {filteredOrders.length === 0 && (viewMode === 'list' || viewMode === 'kanban') ? (
+          {viewMode === 'import' ? (
+            <DeliveryImport />
+          ) : filteredOrders.length === 0 && (viewMode === 'list' || viewMode === 'kanban') ? (
             <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
               <div className="bg-gray-100 p-4 rounded-full mb-3 text-gray-400">
                 <Search size={32} />

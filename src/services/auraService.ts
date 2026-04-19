@@ -102,6 +102,13 @@ export const getAllDrivers = async () => {
   return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Driver[];
 };
 
+export const getCustomerByNumber = async (customerNumber: string) => {
+  const q = query(collection(db, 'customers'), where('customerNumber', '==', customerNumber), limit(1));
+  const snap = await getDocs(q);
+  if (snap.empty) return null;
+  return { id: snap.docs[0].id, ...snap.docs[0].data() } as Customer;
+};
+
 export const getReminders = async (date?: string) => {
   if (!auth.currentUser) return [];
   let q = query(
