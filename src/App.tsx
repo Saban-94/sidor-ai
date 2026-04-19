@@ -218,7 +218,7 @@ const Drawer = ({
               <div className="bg-sky-600 p-2 rounded-xl text-white">
                 <Truck size={20} />
               </div>
-              <h2 className="text-xl font-bold italic">ח. סבן</h2>
+              <h2 className="text-xl font-bold italic">ח.סבן</h2>
             </div>
             <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-xl transition-colors">
               <X size={24} className="text-gray-400" />
