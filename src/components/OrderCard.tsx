@@ -8,6 +8,8 @@ import {
   CheckCircle, 
   Sparkles, 
   Send, 
+  User,
+  LogOut,
   Pencil,
   AlertCircle,
   Trash2,
@@ -138,8 +140,33 @@ export const OrderCard = ({
         <div className="flex flex-col gap-1 text-right">
           <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">נהג וזמן</span>
           <div className="flex items-center gap-2">
-            <span className="text-sm font-black text-gray-900">{order.driverId === 'self' ? 'איסוף עצמי' : driver?.name.split(' ')[0]}</span>
-            <span className="text-sm font-black text-sky-600">| {order.time}</span>
+            {order.driverId === 'self' ? (
+              <span className="text-sm font-black text-gray-900">איסוף עצמי</span>
+            ) : (
+              <div className="flex items-center gap-2">
+                {driver?.avatar ? (
+                  <img 
+                    src={driver.avatar} 
+                    alt={driver.name} 
+                    className="w-7 h-7 rounded-full object-cover border-2 border-white shadow-sm"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <div className="w-7 h-7 rounded-full bg-sky-100 flex items-center justify-center border-2 border-white shadow-sm">
+                    <User size={14} className="text-sky-600" />
+                  </div>
+                )}
+                <div className="flex flex-col -gap-0.5">
+                  <span className="text-sm font-black text-gray-900 leading-tight">
+                    {driver?.name.split(' ')[0]}
+                  </span>
+                  <span className="text-[9px] font-bold text-sky-600/80 uppercase">
+                    {driver?.vehicleType === 'crane' ? 'מנוף 🏗️' : 'משאית 🚛'}
+                  </span>
+                </div>
+              </div>
+            )}
+            <span className="text-sm font-black text-sky-600 self-center mr-1">| {order.time}</span>
           </div>
         </div>
         <div className="flex flex-col items-end gap-1">
