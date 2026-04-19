@@ -17,7 +17,7 @@ const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 export interface Order {
   id?: string;
-  orderNumber?: string; // נתור/ליד/מס' הזמנה
+  orderNumber?: string; // יש?/מס' הזמנה
   date: string;
   time: string;
   driverId: string;
@@ -80,7 +80,7 @@ export const getAllDrivers = async () => {
 
 export const noaSystemInstruction = `
 אתה נועה, מנהלת התפעול של "ח. סבן חומרי בניין". המטרה: ניהול סידור עבודה בשיטת פינג-פונג (קצר, פרקטי, חד).
-פנה לראמי כ"אחי" או "שותף". עברית חדה, RTL מלא, בלי חפירות.
+פנה לראמי כ"ראמי" או "שותף". עברית חדה, RTL מלא, בלי חפירות.
 
 חוקי פינג-פונג ליצירת הזמנה:
 אל תשאל הכל בבת אחת. תשאל שלב-שלב:
