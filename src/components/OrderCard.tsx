@@ -19,7 +19,10 @@ import {
   FileText,
   FileUp,
   Loader2,
-  Paperclip
+  Paperclip,
+  X,
+  ExternalLink,
+  ChevronLeft
 } from 'lucide-react';
 import { AnimatePresence } from 'motion/react';
 import { Order, Driver, predictOrderEta } from '../services/auraService';
@@ -60,7 +63,7 @@ interface OrderCardProps {
   key?: React.Key;
 }
 
-const DocumentPopover = ({ 
+const DocumentSheet = ({ 
   order, 
   onClose, 
   onUpload 
@@ -71,7 +74,6 @@ const DocumentPopover = ({
 }) => {
   const [isUploading, setIsUploading] = useState<'orderForm' | 'deliveryNote' | null>(null);
   const getDriveUrl = (id: string) => id === 'PENDING_SCAN' ? '#' : `https://drive.google.com/file/d/${id}/view`;
-  
   const isPending = (id?: string) => id === 'PENDING_SCAN';
   
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, type: 'orderForm' | 'deliveryNote') => {
@@ -87,113 +89,146 @@ const DocumentPopover = ({
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.9, y: 10 }}
-      animate={{ opacity: 1, scale: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.9, y: 10 }}
-      className="absolute top-12 left-4 z-50 bg-white rounded-2xl shadow-2xl border border-sky-100 p-3 w-52 overflow-hidden"
-    >
-      <div className="flex flex-col gap-1">
-        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 px-1">מסמכי הזמנה</span>
-        
-        {/* Order Form Row */}
-        <div className="flex items-center gap-2 p-1">
-          {order.orderFormId ? (
-            isPending(order.orderFormId) ? (
-              <div className="flex-1 flex items-center gap-2.5 p-2 bg-sky-50/50 rounded-xl text-right shadow-sm border border-sky-100 opacity-60">
-                <div className="bg-white p-1.5 rounded-lg text-sky-400 shadow-sm">
-                  <Loader2 size={14} className="animate-spin" />
-                </div>
-                <span className="text-xs font-bold text-sky-400 italic">מעבד טופס...</span>
-              </div>
-            ) : (
-              <a 
-                href={getDriveUrl(order.orderFormId)} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="flex-1 flex items-center gap-2.5 p-2 bg-sky-50 hover:bg-sky-100 rounded-xl transition-colors text-right group shadow-sm border border-sky-100"
-              >
-                <div className="bg-white p-1.5 rounded-lg text-sky-600 shadow-sm border border-sky-50 group-hover:bg-sky-600 group-hover:text-white transition-colors">
-                  <FileText size={14} />
-                </div>
-                <span className="text-xs font-bold text-sky-900">טופס הזמנה</span>
-              </a>
-            )
-          ) : (
-            <div className="flex-1 p-2 bg-gray-50 rounded-xl text-gray-400 text-[10px] font-bold border border-dashed border-gray-200">
-              אין טופס הזמנה
-            </div>
-          )}
-          
-          <label className={`p-2 rounded-xl border transition-all cursor-pointer flex items-center justify-center min-w-[40px] ${isUploading === 'orderForm' ? 'bg-sky-50 border-sky-200' : 'bg-white border-gray-100 hover:border-sky-300 hover:bg-sky-50 text-gray-400 hover:text-sky-600'}`}>
-            {isUploading === 'orderForm' ? (
-              <Loader2 size={16} className="animate-spin text-sky-600" />
-            ) : (
-              <FileUp size={16} />
-            )}
-            <input 
-              type="file" 
-              accept="application/pdf" 
-              className="hidden" 
-              disabled={!!isUploading}
-              onChange={(e) => handleFileChange(e, 'orderForm')} 
-            />
-          </label>
-        </div>
-
-        {/* Delivery Note Row */}
-        <div className="flex items-center gap-2 p-1">
-          {order.deliveryNoteId ? (
-            isPending(order.deliveryNoteId) ? (
-              <div className="flex-1 flex items-center gap-2.5 p-2 bg-emerald-50/50 rounded-xl text-right shadow-sm border border-emerald-100 opacity-60">
-                <div className="bg-white p-1.5 rounded-lg text-emerald-400 shadow-sm">
-                  <Loader2 size={14} className="animate-spin" />
-                </div>
-                <span className="text-xs font-bold text-emerald-400 italic">מעבד תעודה...</span>
-              </div>
-            ) : (
-              <a 
-                href={getDriveUrl(order.deliveryNoteId)} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="flex-1 flex items-center gap-2.5 p-2 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-colors text-right group shadow-sm border border-emerald-100"
-              >
-                <div className="bg-white p-1.5 rounded-lg text-emerald-600 shadow-sm border border-emerald-50 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
-                  <FileText size={14} />
-                </div>
-                <span className="text-xs font-bold text-emerald-900">תעודת משלוח</span>
-              </a>
-            )
-          ) : (
-            <div className="flex-1 p-2 bg-gray-50 rounded-xl text-gray-400 text-[10px] font-bold border border-dashed border-gray-200">
-              אין תעודת משלוח
-            </div>
-          )}
-          
-          <label className={`p-2 rounded-xl border transition-all cursor-pointer flex items-center justify-center min-w-[40px] ${isUploading === 'deliveryNote' ? 'bg-emerald-50 border-emerald-200' : 'bg-white border-gray-100 hover:border-emerald-300 hover:bg-emerald-50 text-gray-400 hover:text-emerald-600'}`}>
-            {isUploading === 'deliveryNote' ? (
-              <Loader2 size={16} className="animate-spin text-emerald-600" />
-            ) : (
-              <FileUp size={16} />
-            )}
-            <input 
-              type="file" 
-              accept="application/pdf" 
-              className="hidden" 
-              disabled={!!isUploading}
-              onChange={(e) => handleFileChange(e, 'deliveryNote')} 
-            />
-          </label>
-        </div>
-
-      </div>
-      <button 
-        onClick={(e) => { e.stopPropagation(); onClose(); }}
-        className="mt-2 w-full text-[10px] font-bold text-gray-400 hover:text-gray-600 py-1.5 transition-colors border-t border-gray-50"
+    <div className="fixed inset-0 z-[100] flex overflow-hidden" dir="rtl">
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+        className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm transition-opacity"
+      />
+      
+      <motion.div
+        initial={{ x: '100%' }}
+        animate={{ x: 0 }}
+        exit={{ x: '100%' }}
+        transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+        className="relative w-full max-w-sm bg-white shadow-2xl flex flex-col h-full ml-auto"
       >
-        סגור
-      </button>
-    </motion.div>
+        <div className="flex items-center justify-between p-6 border-bottom border-gray-100 bg-sky-50/30">
+          <div className="flex items-center gap-3">
+             <div className="p-2.5 bg-sky-600 text-white rounded-2xl shadow-lg ring-4 ring-sky-50">
+               <FileText size={20} />
+             </div>
+             <div>
+               <h2 className="text-xl font-black text-gray-900 leading-tight">ניהול מסמכים</h2>
+               <p className="text-[10px] font-bold text-sky-600 uppercase tracking-widest">הזמנה #{order.orderNumber || order.id?.slice(-4).toUpperCase()}</p>
+             </div>
+          </div>
+          <button 
+            onClick={onClose}
+            className="p-2 text-gray-400 hover:text-gray-900 hover:bg-white rounded-xl transition-all shadow-sm hover:shadow-md"
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-6 space-y-8">
+          {/* Order Details Summary */}
+          <div className="p-4 bg-gray-50 rounded-[1.5rem] border border-gray-100 flex flex-col gap-1">
+            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">לקוח</span>
+            <p className="text-base font-black text-gray-900">{order.customerName}</p>
+            <p className="text-xs font-bold text-gray-500">{order.destination}</p>
+          </div>
+
+          <div className="space-y-6">
+            <h3 className="text-sm font-black text-gray-900 flex items-center gap-2">
+              <Paperclip size={16} className="text-sky-500" />
+              קבצים מצורפים
+            </h3>
+
+            {/* Document Types */}
+            {[
+              { id: order.orderFormId, type: 'orderForm', label: 'טופס הזמנה', themeColor: 'sky' },
+              { id: order.deliveryNoteId, type: 'deliveryNote', label: 'תעודת משלוח', themeColor: 'emerald' }
+            ].map((doc) => (
+              <div key={doc.type} className="group relative">
+                <div className={`p-5 rounded-[2rem] border transition-all duration-300 ${
+                  doc.id ? 
+                  `bg-white border-${doc.themeColor}-100 shadow-md` : 
+                  'bg-gray-50 border-dashed border-gray-200 opacity-80'
+                }`}>
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className={`p-3 rounded-2xl ${
+                        doc.id ? `bg-${doc.themeColor}-100 text-${doc.themeColor}-600` : 'bg-gray-200 text-gray-400'
+                      }`}>
+                        <FileText size={24} />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-black text-gray-900">{doc.label}</h4>
+                        <p className="text-[10px] font-bold text-gray-400">PDF Document</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-3">
+                    {doc.id ? (
+                      isPending(doc.id) ? (
+                        <div className={`flex items-center gap-3 p-3 bg-${doc.themeColor}-50/50 rounded-2xl border border-${doc.themeColor}-100 animate-pulse`}>
+                          <Loader2 size={16} className="animate-spin text-sky-600" />
+                          <span className={`text-xs font-bold text-${doc.themeColor}-700`}>מעבד את המסמך אחי...</span>
+                        </div>
+                      ) : (
+                        <div className="flex gap-2">
+                          <a 
+                            href={getDriveUrl(doc.id)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={`flex-1 flex items-center justify-center gap-2 py-3 bg-${doc.themeColor}-600 text-white rounded-2xl font-black text-xs shadow-lg shadow-${doc.themeColor}-600/20 hover:scale-[1.02] active:scale-95 transition-all`}
+                          >
+                            <ExternalLink size={14} /> צפייה בקובץ
+                          </a>
+                        </div>
+                      )
+                    ) : (
+                      <p className="text-[11px] font-bold text-gray-400 italic bg-gray-100/50 p-3 rounded-xl border border-gray-200">אין מסמך מצורף להזמנה זו</p>
+                    )}
+
+                    <div className="pt-2 border-t border-gray-100 flex items-center justify-between">
+                      <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest decoration-sky-500 decoration-2 underline-offset-4 decoration-dotted">עדכון קובץ</span>
+                      <label className={`flex items-center gap-2 px-4 py-2 rounded-xl border transition-all cursor-pointer shadow-sm ${
+                        isUploading === doc.type ? 
+                        `bg-${doc.themeColor}-50 border-${doc.themeColor}-200` : 
+                        'bg-white border-gray-100 hover:border-sky-300 hover:bg-sky-50 text-sky-600'
+                      }`}>
+                        {isUploading === doc.type ? (
+                          <>
+                            <Loader2 size={14} className="animate-spin" />
+                            <span className="text-[10px] font-black">מעלה...</span>
+                          </>
+                        ) : (
+                          <>
+                            <FileUp size={14} />
+                            <span className="text-[10px] font-black">העלה חדש</span>
+                          </>
+                        )}
+                        <input 
+                          type="file" 
+                          accept="application/pdf" 
+                          className="hidden" 
+                          disabled={!!isUploading}
+                          onChange={(e) => handleFileChange(e, doc.type as any)} 
+                        />
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="p-6 bg-gray-50 border-t border-gray-100">
+           <button 
+             onClick={onClose}
+             className="w-full py-4 bg-white border border-gray-200 text-gray-600 rounded-[1.5rem] font-black text-sm flex items-center justify-center gap-2 hover:bg-gray-100 transition-all hover:shadow-md"
+           >
+             סגור תצוגה
+           </button>
+        </div>
+      </motion.div>
+    </div>
   );
 };
 
@@ -288,7 +323,7 @@ export const OrderCard = ({
           </button>
           <AnimatePresence>
             {showDocs && (
-              <DocumentPopover 
+              <DocumentSheet 
                 order={order} 
                 onClose={() => setShowDocs(false)} 
                 onUpload={(file, type) => onUploadDoc ? onUploadDoc(file, order.id, type) : Promise.resolve()}
