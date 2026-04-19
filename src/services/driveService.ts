@@ -91,7 +91,9 @@ export async function uploadFileToDrive(file: File, folderId: string = FOLDER_ID
     });
 
     const payload = {
-      filename: file.name,
+      name: file.name,           // Common key for GAS
+      filename: file.name,       // Existing key
+      fileName: file.name,       // CamelCase variation
       mimeType: file.type,
       base64Data: base64Content, // GAS script expects this specific key
       data: base64Content,       // Keep for backward compatibility
