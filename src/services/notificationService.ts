@@ -2,16 +2,43 @@ import OneSignal from 'react-onesignal';
 
 const ONESIGNAL_APP_ID = "546472ac-f9ab-4c6c-beb2-e41c72af9849";
 
+let isInitialized = false;
+
 export const initOneSignal = async () => {
+  if (isInitialized) return;
+  
+  // Guard against domain mismatch in development/preview environments
+  const currentHost = window.location.hostname;
+  const targetHost = "sidor-ai-xi.vercel.app";
+  
+  if (currentHost !== targetHost && currentHost !== "localhost" && !currentHost.includes("europe-west3.run.app")) {
+    console.warn(`OneSignal initialization skipped: Current domain (${currentHost}) does not match configured domain (${targetHost}).`);
+    return;
+  }
+
   try {
+    isInitialized = true;
     await OneSignal.init({
       appId: ONESIGNAL_APP_ID,
       allowLocalhostAsSecureOrigin: true,
       serviceWorkerPath: 'OneSignalSDKWorker.js',
     });
     console.log("OneSignal Initialized");
-  } catch (err) {
-    console.error("Error initializing OneSignal", err);
+  } catch (err: any) {
+    const errorMessage = err?.message || "";
+    
+    if (errorMessage.includes("already initialized")) {
+      return;
+    }
+    
+    if (errorMessage.includes("Can only be used on")) {
+      console.warn(`OneSignal: Domain mismatch. This App ID is restricted to ${targetHost}. Push subscription will not work on this domain (${currentHost}).`);
+      isInitialized = true; // Mark as "done/failed" to prevent re-attempts
+      return;
+    }
+
+    console.error("Error initializing OneSignal:", err);
+    isInitialized = false;
   }
 };
 
