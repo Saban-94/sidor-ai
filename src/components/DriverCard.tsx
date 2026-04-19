@@ -1,8 +1,9 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { Truck, Phone, Star, TrendingUp, Package, AlertCircle } from 'lucide-react';
+import { Truck, Phone, Star, TrendingUp, Package, AlertCircle, BarChart3, ChevronDown, ChevronUp } from 'lucide-react';
 import { Order, Driver } from '../types';
 import { OrderCard } from './OrderCard';
+import { DriverPerformanceReport } from './DriverPerformanceReport';
 
 interface DriverCardProps {
   driver: Driver;
@@ -34,8 +35,13 @@ export const DriverCard = ({
   onUploadDoc,
   isExpanded = true
 }: DriverCardProps) => {
+  const [showReport, setShowReport] = React.useState(false);
   const deliveredCount = orders.filter(o => o.status === 'delivered').length;
   const deliveryProgress = orders.length > 0 ? (deliveredCount / orders.length) * 100 : 0;
+
+  const completedOrders = allOrders
+    .filter(o => o.driverId === driver.id && o.status === 'delivered')
+    .sort((a, b) => b.date.localeCompare(a.date));
 
   return (
     <motion.div
@@ -103,21 +109,49 @@ export const DriverCard = ({
           </div>
         </div>
 
-        {/* Delivery Progress Bar */}
-        <div className="mt-8">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-[11px] font-black text-gray-400 uppercase tracking-widest">התקדמות יומית</span>
-            <span className="text-[11px] font-black text-sky-600">{deliveredCount}/{orders.length} משלוחים שהושלמו</span>
-          </div>
-          <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden shadow-inner">
-            <motion.div 
-              initial={{ width: 0 }}
-              animate={{ width: `${deliveryProgress}%` }}
-              transition={{ duration: 1, ease: "easeOut" }}
-              className={`h-full ${deliveryProgress === 100 ? 'bg-green-500' : 'bg-sky-500'} shadow-[0_0_10px_rgba(14,165,233,0.3)]`}
+        {/* Action Tabs for Card */}
+        <div className="mt-8 flex gap-3">
+          <button 
+            onClick={() => setShowReport(!showReport)}
+            className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl font-black text-sm transition-all border ${
+              showReport 
+                ? 'bg-sky-600 border-sky-600 text-white shadow-lg shadow-sky-600/20' 
+                : 'bg-white border-gray-100 text-gray-500 hover:bg-sky-50 hover:text-sky-600'
+            }`}
+          >
+            <BarChart3 size={18} />
+            {showReport ? 'סגור דוח ביצועים' : 'פתח דוח ביצועים ודירוג'}
+            {showReport ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+          </button>
+        </div>
+
+        {/* Report Section */}
+        {showReport && (
+          <div className="mt-8 pt-8 border-t border-gray-100">
+            <DriverPerformanceReport 
+              driver={driver} 
+              completedOrders={completedOrders} 
             />
           </div>
-        </div>
+        )}
+
+        {/* Delivery Progress Bar */}
+        {!showReport && (
+          <div className="mt-8">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[11px] font-black text-gray-400 uppercase tracking-widest">התקדמות יומית</span>
+              <span className="text-[11px] font-black text-sky-600">{deliveredCount}/{orders.length} משלוחים שהושלמו</span>
+            </div>
+            <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden shadow-inner">
+              <motion.div 
+                initial={{ width: 0 }}
+                animate={{ width: `${deliveryProgress}%` }}
+                transition={{ duration: 1, ease: "easeOut" }}
+                className={`h-full ${deliveryProgress === 100 ? 'bg-green-500' : 'bg-sky-500'} shadow-[0_0_10px_rgba(14,165,233,0.3)]`}
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Orders List */}
