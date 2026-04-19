@@ -39,31 +39,36 @@ export async function listDriveFiles(folderId: string = FOLDER_ID || ''): Promis
   }
 }
 
-/**
- * הורדת תוכן קובץ כ-Base64 דרך ה-GAS Bridge
- */
+
 export async function getFileBase64(fileId: string): Promise<string> {
+  const GAS_URL = import.meta.env.VITE_GAS_URL;
+
   if (!GAS_URL) {
-    throw new Error("שגיאה: VITE_GAS_URL לא מוגדר. וודא שביצעת Redeploy ב-Vercel.");
+    throw new Error("VITE_GAS_URL חסר. לא ניתן למשוך את תוכן הקובץ.");
   }
 
   try {
+    // פנייה ל-Bridge כדי שימשוך עבורנו את ה-Blob של הקובץ
+    // אנחנו שולחים fileId כ-Query Parameter (GET)
     const response = await fetch(`${GAS_URL}?fileId=${fileId}`);
     
     if (!response.ok) {
-      throw new Error(`שגיאה בהורדת הקובץ מה-Bridge: ${response.status}`);
+      throw new Error(`שגיאה במשיכת קובץ מה-Bridge: ${response.status}`);
     }
     
     const data = await response.json();
-    if (data.status === 'error') throw new Error(data.message);
     
-    return data.base64Data;
+    if (data.status === 'error') {
+      throw new Error(`שגיאת GAS: ${data.message}`);
+    }
+    
+    // החזרת ה-Base64 שחזר מהסקריפט בגוגל
+    return data.base64Data; 
   } catch (error) {
-    console.error("Error downloading file via GAS bridge:", error);
+    console.error("Error in getFileBase64 via Bridge:", error);
     throw error;
   }
 }
-
 /**
  * העלאת קובץ לדרייב דרך Google Apps Script Bridge
  */
