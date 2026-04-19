@@ -1402,6 +1402,7 @@ export default function App() {
                   onOrderDelete={deleteOrder}
                   onOrderRepeat={handleRepeatOrder}
                   onAddToast={addToast}
+                  onUploadDoc={handleDriveFileUpload}
                 />
               ))}
             </div>
@@ -1420,6 +1421,7 @@ export default function App() {
                   onDelete={deleteOrder}
                   onRepeat={handleRepeatOrder}
                   onAddToast={addToast}
+                  onUploadDoc={handleDriveFileUpload}
                 />
               ))}
             </div>

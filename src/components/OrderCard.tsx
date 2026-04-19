@@ -16,7 +16,10 @@ import {
   Share2,
   RotateCcw,
   Eye,
-  FileText
+  FileText,
+  FileUp,
+  Loader2,
+  Paperclip
 } from 'lucide-react';
 import { AnimatePresence } from 'motion/react';
 import { Order, Driver, predictOrderEta } from '../services/auraService';
@@ -53,57 +56,120 @@ interface OrderCardProps {
   onAddToast: (title: string, msg: string, type?: any) => void;
   allOrders: Order[];
   searchQuery?: string;
+  onUploadDoc?: (file: File, orderId?: string, docType?: any) => Promise<void>;
   key?: React.Key;
 }
 
-const DocumentPopover = ({ order, onClose }: { order: Order, onClose: () => void }) => {
+const DocumentPopover = ({ 
+  order, 
+  onClose, 
+  onUpload 
+}: { 
+  order: Order, 
+  onClose: () => void,
+  onUpload?: (file: File, type: 'orderForm' | 'deliveryNote') => Promise<void>
+}) => {
+  const [isUploading, setIsUploading] = useState<'orderForm' | 'deliveryNote' | null>(null);
   const getDriveUrl = (id: string) => `https://drive.google.com/uc?id=${id}`;
   
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, type: 'orderForm' | 'deliveryNote') => {
+    const file = e.target.files?.[0];
+    if (file && onUpload) {
+      setIsUploading(type);
+      try {
+        await onUpload(file, type);
+      } finally {
+        setIsUploading(null);
+      }
+    }
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.9, y: 10 }}
       animate={{ opacity: 1, scale: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.9, y: 10 }}
-      className="absolute top-12 left-4 z-50 bg-white rounded-2xl shadow-2xl border border-sky-100 p-3 w-48"
+      className="absolute top-12 left-4 z-50 bg-white rounded-2xl shadow-2xl border border-sky-100 p-3 w-52 overflow-hidden"
     >
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-1">
         <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 px-1">מסמכי הזמנה</span>
         
-        {order.orderFormId && (
-          <a 
-            href={getDriveUrl(order.orderFormId)} 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="flex items-center gap-3 p-2.5 hover:bg-sky-50 rounded-xl transition-colors text-right group"
-          >
-            <div className="bg-sky-100 p-1.5 rounded-lg text-sky-600 group-hover:bg-sky-600 group-hover:text-white transition-colors">
-              <FileText size={14} />
+        {/* Order Form Row */}
+        <div className="flex items-center gap-2 p-1">
+          {order.orderFormId ? (
+            <a 
+              href={getDriveUrl(order.orderFormId)} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="flex-1 flex items-center gap-2.5 p-2 bg-sky-50 hover:bg-sky-100 rounded-xl transition-colors text-right group shadow-sm"
+            >
+              <div className="bg-white p-1.5 rounded-lg text-sky-600 shadow-sm">
+                <FileText size={14} />
+              </div>
+              <span className="text-xs font-bold text-sky-900">טופס הזמנה</span>
+            </a>
+          ) : (
+            <div className="flex-1 p-2 bg-gray-50 rounded-xl text-gray-400 text-[10px] font-bold border border-dashed border-gray-200">
+              אין טופס הזמנה
             </div>
-            <span className="text-xs font-bold text-gray-700">טופס הזמנה</span>
-          </a>
-        )}
+          )}
+          
+          <label className={`p-2 rounded-xl border transition-all cursor-pointer flex items-center justify-center min-w-[40px] ${isUploading === 'orderForm' ? 'bg-sky-50 border-sky-200' : 'bg-white border-gray-100 hover:border-sky-300 hover:bg-sky-50 text-gray-400 hover:text-sky-600'}`}>
+            {isUploading === 'orderForm' ? (
+              <Loader2 size={16} className="animate-spin text-sky-600" />
+            ) : (
+              <FileUp size={16} />
+            )}
+            <input 
+              type="file" 
+              accept="application/pdf" 
+              className="hidden" 
+              disabled={!!isUploading}
+              onChange={(e) => handleFileChange(e, 'orderForm')} 
+            />
+          </label>
+        </div>
 
-        {order.deliveryNoteId && (
-          <a 
-            href={getDriveUrl(order.deliveryNoteId)} 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="flex items-center gap-3 p-2.5 hover:bg-emerald-50 rounded-xl transition-colors text-right group"
-          >
-            <div className="bg-emerald-100 p-1.5 rounded-lg text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
-              <FileText size={14} />
+        {/* Delivery Note Row */}
+        <div className="flex items-center gap-2 p-1">
+          {order.deliveryNoteId ? (
+            <a 
+              href={getDriveUrl(order.deliveryNoteId)} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="flex-1 flex items-center gap-2.5 p-2 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-colors text-right group shadow-sm"
+            >
+              <div className="bg-white p-1.5 rounded-lg text-emerald-600 shadow-sm">
+                <FileText size={14} />
+              </div>
+              <span className="text-xs font-bold text-emerald-900">תעודת משלוח</span>
+            </a>
+          ) : (
+            <div className="flex-1 p-2 bg-gray-50 rounded-xl text-gray-400 text-[10px] font-bold border border-dashed border-gray-200">
+              אין תעודת משלוח
             </div>
-            <span className="text-xs font-bold text-gray-700">תעודת משלוח</span>
-          </a>
-        )}
+          )}
+          
+          <label className={`p-2 rounded-xl border transition-all cursor-pointer flex items-center justify-center min-w-[40px] ${isUploading === 'deliveryNote' ? 'bg-emerald-50 border-emerald-200' : 'bg-white border-gray-100 hover:border-emerald-300 hover:bg-emerald-50 text-gray-400 hover:text-emerald-600'}`}>
+            {isUploading === 'deliveryNote' ? (
+              <Loader2 size={16} className="animate-spin text-emerald-600" />
+            ) : (
+              <FileUp size={16} />
+            )}
+            <input 
+              type="file" 
+              accept="application/pdf" 
+              className="hidden" 
+              disabled={!!isUploading}
+              onChange={(e) => handleFileChange(e, 'deliveryNote')} 
+            />
+          </label>
+        </div>
 
-        {(!order.orderFormId && !order.deliveryNoteId) && (
-          <span className="text-[10px] text-gray-400 font-bold p-2">אין מסמכים מצורפים אחי</span>
-        )}
       </div>
       <button 
         onClick={(e) => { e.stopPropagation(); onClose(); }}
-        className="mt-2 w-full text-[10px] font-bold text-gray-400 hover:text-gray-600 py-1 transition-colors"
+        className="mt-2 w-full text-[10px] font-bold text-gray-400 hover:text-gray-600 py-1.5 transition-colors border-t border-gray-50"
       >
         סגור
       </button>
@@ -121,7 +187,8 @@ export const OrderCard = ({
   onRepeat,
   onAddToast,
   allOrders,
-  searchQuery = ''
+  searchQuery = '',
+  onUploadDoc
 }: OrderCardProps) => {
   const [isPredicting, setIsPredicting] = useState(false);
   const [showDocs, setShowDocs] = useState(false);
@@ -192,7 +259,11 @@ export const OrderCard = ({
           </button>
           <AnimatePresence>
             {showDocs && (
-              <DocumentPopover order={order} onClose={() => setShowDocs(false)} />
+              <DocumentPopover 
+                order={order} 
+                onClose={() => setShowDocs(false)} 
+                onUpload={(file, type) => onUploadDoc ? onUploadDoc(file, order.id, type) : Promise.resolve()}
+              />
             )}
           </AnimatePresence>
         </div>

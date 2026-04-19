@@ -15,6 +15,7 @@ interface DriverCardProps {
   onOrderDelete: (id: string) => void;
   onOrderRepeat: (o: Order) => void;
   onAddToast: (title: string, msg: string, type?: any) => void;
+  onUploadDoc?: (file: File, orderId?: string, documentType?: any) => Promise<void>;
   isExpanded?: boolean;
   key?: React.Key;
 }
@@ -30,6 +31,7 @@ export const DriverCard = ({
   onOrderDelete,
   onOrderRepeat,
   onAddToast,
+  onUploadDoc,
   isExpanded = true
 }: DriverCardProps) => {
   const deliveredCount = orders.filter(o => o.status === 'delivered').length;
@@ -145,6 +147,7 @@ export const DriverCard = ({
                 onDelete={onOrderDelete}
                 onRepeat={onOrderRepeat}
                 onAddToast={onAddToast}
+                onUploadDoc={onUploadDoc}
               />
             ))}
           </div>
