@@ -189,8 +189,8 @@ export const NoaChat = ({
               <div className="bg-sky-50 w-24 h-24 rounded-[3rem] flex items-center justify-center mx-auto mb-6 shadow-inner">
                  <MessageSquare className="text-sky-600" size={48} />
               </div>
-              <h2 className="text-2xl font-black mb-2 italic">אהלן ראמי, אחי</h2>
-              <p className="text-sm font-bold text-gray-400 mb-8 max-w-[250px] mx-auto">"תפתחי הזמנה חדשה לחכמת לשעה 9 ליעד ברקאי"</p>
+              <h2 className="text-2xl font-black mb-2 italic">היי, אני נועה 👩🏼 👋🏻 הסדרנית של ראמי נשמה שלי ❤️, מה בא לך שנבצע היום?</h2>
+              <p className="text-sm font-bold text-gray-400 mb-8 max-w-[250px] mx-auto">"ניתן דרכי לבצע פעולות ולברר מה על הכול תבחר מקיצורי דרך או שאל כל שאלה אני פה להקשיב ולשרת אותך"</p>
               
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-md mx-auto">
                  {dynamicSuggestions.slice(0, 6).map(suggestion => (
