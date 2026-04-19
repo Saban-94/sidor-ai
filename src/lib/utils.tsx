@@ -31,35 +31,38 @@ export interface ParsedItem {
 
 /**
  * Parses a raw string of items into structured objects.
- * Logistics: [Quantity] [Name] [SKU (5+ digits)]
+ * Pattern: [Quantity] [Name] [SKU (exactly 5 digits)]
  */
 export function parseItems(text: string): ParsedItem[] {
   if (!text) return [];
   
   const items: ParsedItem[] = [];
-  // Detect patterns like "8 חול שק גדול 11501" or "חול שק גדול 11501"
-  const itemRegex = /(\d+)?\s*([^\d]+?)\s*(\d{5,})/g;
-  let match;
   
-  while ((match = itemRegex.exec(text)) !== null) {
-    items.push({
-      quantity: match[1] || '1',
-      name: match[2].trim(),
-      sku: match[3]
-    });
-  }
+  // Split by lines first to ensure each line is handled individually
+  const lines = text.split('\n').map(l => l.trim()).filter(l => l);
   
-  if (items.length === 0 && text.trim()) {
-    // Fallback: try to split by lines or just return one item
-    const lines = text.split('\n').filter(l => l.trim());
-    lines.forEach(line => {
-      const qMatch = line.match(/^(\d+)\s+(.+)/);
-      if (qMatch) {
-         items.push({ quantity: qMatch[1], name: qMatch[2].trim(), sku: '' });
-      } else {
+  for (const line of lines) {
+    // Regex logic:
+    // 1. Optional number at start (Quantity)
+    // 2. Any text (Name)
+    // 3. Exactly 5 digits at end (SKU)
+    const match = line.match(/^(\d+)?\s*(.+?)\s*(\d{5})$/);
+    
+    if (match) {
+      items.push({
+        quantity: match[1] || '1',
+        name: match[2].trim(),
+        sku: match[3]
+      });
+    } else {
+      // Fallback: try to just get quantity and name if SKU is missing
+      const fallbackMatch = line.match(/^(\d+)\s+(.+)/);
+      if (fallbackMatch) {
+         items.push({ quantity: fallbackMatch[1], name: fallbackMatch[2].trim(), sku: '' });
+      } else if (line.trim()) {
          items.push({ quantity: '1', name: line.trim(), sku: '' });
       }
-    });
+    }
   }
 
   return items;

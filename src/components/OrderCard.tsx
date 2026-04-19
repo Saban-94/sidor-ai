@@ -64,6 +64,112 @@ interface OrderCardProps {
   key?: React.Key;
 }
 
+const ItemsModal = ({ 
+  order, 
+  onClose 
+}: { 
+  order: Order, 
+  onClose: () => void 
+}) => {
+  const parsedItems = parseItems(order.items);
+  
+  return (
+    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4" dir="rtl">
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+        className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm transition-opacity"
+      />
+      
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+        className="relative w-full max-w-lg bg-white rounded-[2.5rem] shadow-2xl flex flex-col overflow-hidden max-h-[85vh]"
+      >
+        <div className="flex items-center justify-between p-6 bg-gray-900 text-white">
+          <div className="flex items-center gap-3">
+             <div className="p-3 bg-sky-500 rounded-2xl shadow-lg ring-4 ring-sky-500/20">
+               <Package size={20} />
+             </div>
+             <div>
+               <h2 className="text-xl font-black leading-tight">פירוט פריטי הזמנה</h2>
+               <p className="text-[10px] font-bold text-sky-200 uppercase tracking-widest leading-none mt-1">
+                 {order.customerName} | #{order.orderNumber || order.id?.slice(-4).toUpperCase()}
+               </p>
+             </div>
+          </div>
+          <button 
+            onClick={onClose}
+            className="p-2 hover:bg-white/10 rounded-xl transition-all"
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-6">
+          <table className="w-full text-right border-collapse">
+            <thead>
+              <tr className="border-b border-gray-100">
+                <th className="py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest w-12 text-center">כמות</th>
+                <th className="py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest px-4">תיאור פריט</th>
+                <th className="py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest w-24 text-left">מק"ט</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {parsedItems.map((item, idx) => (
+                <tr key={idx} className="group hover:bg-sky-50/50 transition-colors">
+                  <td className="py-4 text-center">
+                    <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-gray-900 text-white text-xs font-black shadow-sm group-hover:bg-sky-600 transition-colors">
+                      {item.quantity}
+                    </span>
+                  </td>
+                  <td className="py-4 px-4">
+                    <p className={cn(
+                      "text-sm font-black leading-tight",
+                      isKnownProduct(item.name) ? "text-sky-600" : "text-gray-900"
+                    )}>
+                      {item.name}
+                    </p>
+                  </td>
+                  <td className="py-4 text-left">
+                    {item.sku ? (
+                      <span className="text-[10px] font-bold text-gray-400 bg-gray-100 px-2 py-1 rounded-lg">
+                        {item.sku}
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-bold text-gray-300 italic">לא צוין</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          {parsedItems.length === 0 && (
+            <div className="py-12 text-center">
+              <Package size={48} className="mx-auto text-gray-100 mb-4" />
+              <p className="text-gray-400 font-bold">אין פריטים להצגה אחי</p>
+            </div>
+          )}
+        </div>
+
+        <div className="p-6 bg-gray-50 border-t border-gray-100 text-center">
+          <p className="text-[10px] font-bold text-gray-400 mb-4 uppercase tracking-widest">סה"כ {parsedItems.length} שורות פריטים</p>
+          <button 
+            onClick={onClose}
+            className="w-full py-4 bg-white border border-gray-200 text-gray-600 rounded-2xl font-black text-sm flex items-center justify-center gap-2 hover:bg-gray-100 transition-all shadow-sm"
+          >
+            סיימתי לצפות אחי
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+};
+
 const DocumentSheet = ({ 
   order, 
   onClose, 
@@ -245,7 +351,10 @@ export const OrderCard = ({
 }: OrderCardProps) => {
   const [isPredicting, setIsPredicting] = useState(false);
   const [showDocs, setShowDocs] = useState(false);
+  const [showItems, setShowItems] = useState(false);
   const [isLocalUploading, setIsLocalUploading] = useState(false);
+
+  const parsedItemsCount = parseItems(order.items).length;
 
   const handleQuickUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -438,43 +547,32 @@ export const OrderCard = ({
       </div>
 
       <div className="space-y-4">
-        <div className="bg-gray-50/80 p-5 rounded-[2rem] border border-gray-100 text-right">
-           <div className="flex items-center justify-between mb-3 border-b border-gray-100 pb-2">
-             <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">פירוט פריטים מסודר</span>
-             <Package size={14} className="text-gray-300" />
+        <div className="bg-sky-50/30 p-4 rounded-[1.5rem] border border-sky-100/50 flex items-center justify-between group/items">
+           <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm border border-sky-100 transition-transform group-hover/items:scale-110">
+                <Package size={20} className="text-sky-600" />
+              </div>
+              <div>
+                <span className="text-[10px] font-black text-sky-700/60 uppercase tracking-widest block leading-none mb-1">תכולת משלוח</span>
+                <p className="text-xs font-black text-gray-700 leading-none">
+                  {parsedItemsCount} פריטים רשומים
+                </p>
+              </div>
            </div>
            
-           <div className="space-y-3">
-             {(() => {
-               const parsed = parseItems(order.items);
-               if (parsed.length > 0) {
-                 return parsed.map((item, idx) => (
-                   <div key={idx} className="flex items-center justify-between gap-3 group/item">
-                     <div className="flex flex-col items-end flex-1 min-w-0">
-                       <span className={cn(
-                         "text-[13px] font-black truncate w-full text-right",
-                         isKnownProduct(item.name) ? "text-sky-600" : "text-gray-900"
-                       )}>
-                         {highlightText(item.name, searchQuery)}
-                       </span>
-                       {item.sku && (
-                         <span className="text-[9px] font-bold text-gray-400">מק"ט: {item.sku}</span>
-                       )}
-                     </div>
-                     <div className="shrink-0 flex items-center justify-center bg-white border border-gray-100 w-8 h-8 rounded-xl shadow-sm group-hover/item:border-sky-200 transition-colors">
-                       <span className="text-[11px] font-black text-gray-900 leading-none">{item.quantity}</span>
-                     </div>
-                   </div>
-                 ));
-               }
-               return (
-                 <p className="text-sm font-medium text-gray-700 leading-relaxed">
-                   {highlightText(order.items, searchQuery)}
-                 </p>
-               );
-             })()}
-           </div>
+           <button 
+             onClick={() => setShowItems(true)}
+             className="px-4 py-2 bg-white text-sky-600 border border-sky-200 rounded-xl font-black text-[11px] shadow-sm hover:bg-sky-600 hover:text-white hover:border-sky-600 transition-all active:scale-95"
+           >
+             צפייה בפריטים
+           </button>
         </div>
+
+        <AnimatePresence>
+          {showItems && (
+            <ItemsModal order={order} onClose={() => setShowItems(false)} />
+          )}
+        </AnimatePresence>
 
         <div className="flex items-center gap-2 pt-2 border-t border-gray-100">
           <button 

@@ -1049,16 +1049,37 @@ export default function App() {
                     required 
                     value={editingOrder ? editingOrder.items : draftOrder.items}
                     onChange={(e) => {
+                      const val = e.target.value;
                       if (editingOrder) {
-                        setEditingOrder({ ...editingOrder, items: e.target.value });
+                        setEditingOrder({ ...editingOrder, items: val });
                       } else {
-                        setDraftOrder({ items: e.target.value });
+                        setDraftOrder({ items: val });
                       }
                     }}
                     placeholder="מה מעמיסים? (למשל: 8 חול 11501)" 
                     rows={3} 
                     className="w-full bg-gray-50 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-sky-600 outline-none resize-none" 
                   />
+                  
+                  {/* Automatic Preview */}
+                  {(() => {
+                    const items = editingOrder ? editingOrder.items : draftOrder.items;
+                    const parsed = parseItems(items);
+                    if (parsed.length > 0) {
+                      return (
+                        <div className="mt-2 p-3 bg-sky-50/50 rounded-xl border border-sky-100 flex flex-wrap gap-2">
+                           {parsed.map((p, i) => (
+                             <div key={i} className="bg-white px-2 py-1 rounded-lg border border-sky-200 text-[10px] font-bold text-sky-700 flex items-center gap-1 shadow-sm">
+                                <span className="bg-sky-600 text-white w-4 h-4 flex items-center justify-center rounded-full text-[8px]">{p.quantity}</span>
+                                <span>{p.name}</span>
+                                {p.sku && <span className="text-gray-400 font-medium">({p.sku})</span>}
+                             </div>
+                           ))}
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
                 </div>
 
                 <div className="pt-4 flex items-center gap-3">
