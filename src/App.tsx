@@ -75,6 +75,7 @@ import {
   predictOrderEta,
   createDriver
 } from './services/auraService';
+import { useUserMemory } from './hooks/useUserMemory';
 
 // --- Components ---
 
@@ -279,25 +280,61 @@ export default function App() {
   const [chatHistory, setChatHistory] = useState<any[]>([]);
   const [isAddingOrder, setIsAddingOrder] = useState(false);
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
-  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [toasts, setToasts] = useState<any[]>([]);
+  const chatScrollRef = useRef<HTMLDivElement>(null);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [driverFilter, setDriverFilter] = useState<string>('all');
-  const [warehouseFilter, setWarehouseFilter] = useState<string>('all');
-  const [sortBy, setSortBy] = useState<string>('time');
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
-  const [groupByDriver, setGroupByDriver] = useState(false);
   const [selectedDriverId, setSelectedDriverId] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<'list' | 'calendar' | 'reports' | 'chat' | 'drivers'>('list');
   const [calendarMonth, setCalendarMonth] = useState(new Date());
-  const [isRangeMode, setIsRangeMode] = useState(false);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [installPrompt, setInstallPrompt] = useState<any>(null);
   const [startDate, setStartDate] = useState(new Date());
   const [endDate, setEndDate] = useState(new Date());
-  const [toasts, setToasts] = useState<any[]>([]);
-  const chatScrollRef = useRef<HTMLDivElement>(null);
+
+  // --- User Memory Persistence ---
+  const [settings, setSettings] = useUserMemory(user?.uid, 'ui_settings', {
+    viewMode: 'list' as 'list' | 'calendar' | 'reports' | 'chat' | 'drivers',
+    statusFilter: 'all',
+    driverFilter: 'all',
+    warehouseFilter: 'all',
+    sortBy: 'time',
+    sortDirection: 'asc' as 'asc' | 'desc',
+    groupByDriver: false,
+    notificationsEnabled: false,
+    isRangeMode: false
+  });
+
+  const [draftOrder, setDraftOrder, clearDraftOrder] = useUserMemory(user?.uid, 'new_order_draft', {
+    date: format(new Date(), 'yyyy-MM-dd'),
+    time: '',
+    driverId: '',
+    customerName: '',
+    destination: '',
+    items: '',
+    orderNumber: '',
+    warehouse: 'החרש'
+  });
+
+  // Backward compatibility aliases for existing code
+  const viewMode = settings.viewMode;
+  const setViewMode = (v: any) => setSettings({ viewMode: v });
+  const statusFilter = settings.statusFilter;
+  const setStatusFilter = (v: any) => setSettings({ statusFilter: v });
+  const driverFilter = settings.driverFilter;
+  const setDriverFilter = (v: any) => setSettings({ driverFilter: v });
+  const warehouseFilter = settings.warehouseFilter;
+  const setWarehouseFilter = (v: any) => setSettings({ warehouseFilter: v });
+  const sortBy = settings.sortBy;
+  const setSortBy = (v: any) => setSettings({ sortBy: v });
+  const sortDirection = settings.sortDirection;
+  const setSortDirection = (v: any) => setSettings({ sortDirection: v });
+  const groupByDriver = settings.groupByDriver;
+  const setGroupByDriver = (v: any) => setSettings({ groupByDriver: v });
+  const notificationsEnabled = settings.notificationsEnabled;
+  const setNotificationsEnabled = (v: any) => setSettings({ notificationsEnabled: v });
+  const isRangeMode = settings.isRangeMode;
+  const setIsRangeMode = (v: any) => setSettings({ isRangeMode: v });
   const isNotificationListenerReady = useRef(false);
 
   useEffect(() => {
@@ -898,6 +935,11 @@ export default function App() {
               
               <form 
                 key={editingOrder?.id || 'new'}
+                onChange={(e) => {
+                  if (editingOrder) return;
+                  const target = e.target as any;
+                  setDraftOrder({ [target.name === 'customer' ? 'customerName' : target.name === 'driver' ? 'driverId' : target.name]: target.value });
+                }}
                 onSubmit={async (e) => {
                   e.preventDefault();
                   const form = e.target as any;
@@ -916,6 +958,7 @@ export default function App() {
                     await updateOrder(editingOrder.id!, data);
                   } else {
                     await createOrder(data);
+                    clearDraftOrder();
                   }
                   
                   setIsAddingOrder(false);
@@ -926,25 +969,25 @@ export default function App() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-bold text-gray-400 mb-1">תאריך</label>
-                    <input name="date" type="date" required defaultValue={editingOrder ? editingOrder.date : format(startDate, 'yyyy-MM-dd')} className="w-full bg-gray-50 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-sky-600 outline-none" />
+                    <input name="date" type="date" required defaultValue={editingOrder ? editingOrder.date : draftOrder.date} className="w-full bg-gray-50 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-sky-600 outline-none" />
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-gray-400 mb-1">שעה</label>
-                    <input name="time" type="time" required defaultValue={editingOrder?.time || ''} className="w-full bg-gray-50 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-sky-600 outline-none" />
+                    <input name="time" type="time" required defaultValue={editingOrder ? editingOrder.time : draftOrder.time} className="w-full bg-gray-50 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-sky-600 outline-none" />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-bold text-gray-400 mb-1">מחסן</label>
-                    <select name="warehouse" required defaultValue={editingOrder?.warehouse || "החרש"} className="w-full bg-gray-50 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-sky-600 outline-none">
+                    <select name="warehouse" required defaultValue={editingOrder ? editingOrder.warehouse : draftOrder.warehouse} className="w-full bg-gray-50 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-sky-600 outline-none">
                       <option value="החרש">החרש</option>
                       <option value="התלמיד">התלמיד</option>
                     </select>
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-gray-400 mb-1">נהג</label>
-                    <select name="driver" required defaultValue={editingOrder?.driverId || (drivers.length > 0 ? drivers[0].id : '')} className="w-full bg-gray-50 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-sky-600 outline-none">
+                    <select name="driver" required defaultValue={editingOrder ? editingOrder.driverId : (draftOrder.driverId || (drivers.length > 0 ? drivers[0].id : ''))} className="w-full bg-gray-50 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-sky-600 outline-none">
                       {drivers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                     </select>
                   </div>
@@ -953,22 +996,22 @@ export default function App() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-bold text-gray-400 mb-1">לקוח</label>
-                    <input name="customer" required defaultValue={editingOrder?.customerName || ''} placeholder="שם הלקוח" className="w-full bg-gray-50 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-sky-600 outline-none" />
+                    <input name="customer" required defaultValue={editingOrder ? editingOrder.customerName : draftOrder.customerName} placeholder="שם הלקוח" className="w-full bg-gray-50 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-sky-600 outline-none" />
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-gray-400 mb-1">מספר הזמנה / ליד</label>
-                    <input name="orderNumber" defaultValue={editingOrder?.orderNumber || ''} placeholder="מס' נתור / הזמנה" className="w-full bg-gray-50 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-sky-600 outline-none" />
+                    <input name="orderNumber" defaultValue={editingOrder ? editingOrder.orderNumber : draftOrder.orderNumber} placeholder="מס' נתור / הזמנה" className="w-full bg-gray-50 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-sky-600 outline-none" />
                   </div>
                 </div>
                 
                 <div>
                   <label className="block text-xs font-bold text-gray-400 mb-1">יעד</label>
-                  <input name="destination" required defaultValue={editingOrder?.destination || ''} placeholder="לאן נוסעים?" className="w-full bg-gray-50 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-sky-600 outline-none" />
+                  <input name="destination" required defaultValue={editingOrder ? editingOrder.destination : draftOrder.destination} placeholder="לאן נוסעים?" className="w-full bg-gray-50 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-sky-600 outline-none" />
                 </div>
                 
                 <div>
                   <label className="block text-xs font-bold text-gray-400 mb-1">פריטים</label>
-                  <textarea name="items" required defaultValue={editingOrder?.items || ''} placeholder="מה מעמיסים?" rows={3} className="w-full bg-gray-50 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-sky-600 outline-none resize-none" />
+                  <textarea name="items" required defaultValue={editingOrder ? editingOrder.items : draftOrder.items} placeholder="מה מעמיסים?" rows={3} className="w-full bg-gray-50 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-sky-600 outline-none resize-none" />
                 </div>
 
                 <div className="pt-4">
