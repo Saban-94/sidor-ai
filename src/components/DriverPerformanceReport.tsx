@@ -72,7 +72,7 @@ export const DriverPerformanceReport: React.FC<DriverPerformanceReportProps> = (
             <div className="bg-sky-600 p-2 rounded-xl text-white">
               <History size={18} />
             </div>
-            <h4 className="text-lg font-black text-gray-900">הזמנות אחרונות שהושלמו אחי</h4>
+            <h4 className="text-lg font-black text-gray-900">הזמנות אחרונות שהושלמו </h4>
           </div>
           <span className="text-xs font-bold text-sky-600 bg-sky-50 px-3 py-1 rounded-full border border-sky-100">
             {completedOrders.length} מסירות
@@ -83,7 +83,7 @@ export const DriverPerformanceReport: React.FC<DriverPerformanceReportProps> = (
           {completedOrders.length === 0 ? (
             <div className="p-12 text-center">
               <PackageCheck size={40} className="mx-auto text-gray-100 mb-3" />
-              <p className="text-gray-400 font-bold">אין עדיין הזמנות שהושלמו ברשימה אחי</p>
+              <p className="text-gray-400 font-bold">אין עדיין הזמנות שהושלמו ברשימה </p>
             </div>
           ) : (
             completedOrders.slice(0, 10).map((order) => (
