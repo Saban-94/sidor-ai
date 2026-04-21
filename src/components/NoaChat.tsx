@@ -36,16 +36,15 @@ export const NoaChat = ({
   useEffect(() => {
     localStorage.setItem('noa_auto_voice', String(isAutoVoice));
   }, [isAutoVoice]);
- const items = parseItems(text);
- if (items.length > 0) {
-    // דיבור טבעי במקום "פריט" ו-"כמות"
-    let speech = "הנה הרשימה: ";
+if (items && items.length > 0) {
+    // בניית משפט נקי: במקום "פריט 1: X כמות: Y", היא תגיד "20 יחידות של מסלול 0.5"
+    let speech = "הנה הפירוט: ";
     items.forEach((item) => {
-      // נועה תגיד: "20 מסלול 0.5" במקום "פריט 1: מסלול 0.5, כמות: 20"
-      speech += `${item.quantity} יחידות של ${item.name}. `;
+      // כאן הסרנו את המילים "פריט" ו"כמות" והשארנו רק נתונים
+      speech += `${item.quantity} של ${item.name}. `;
     });
     return speech;
-  }
+  } 
 
   // 2. ניקוי רגיל של סימנים ואימוג'ים לשאר הטקסט
   return text
