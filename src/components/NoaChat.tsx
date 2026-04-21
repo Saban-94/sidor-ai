@@ -84,11 +84,13 @@ export const NoaChat = ({
 
     const utterance = new SpeechSynthesisUtterance(cleanTextForSpeech(text));
     const voices = synthRef.current.getVoices();
-    const hebrewVoice = voices.find(v => v.lang.includes('he')) || voices[0];
+    const hebrewVoice = voices.find(v => 
+      v.lang.includes('he') && (v.name.includes('Google') || v.name.includes('Premium'))
+    ) || voices.find(v => v.lang.includes('he')) || voices[0];
     
     utterance.voice = hebrewVoice;
     utterance.lang = 'he-IL';
-    utterance.rate = 1.0;
+    utterance.rate = 0.9; // הורדתי מעט את המהירות בשביל טון אנושי יותר
     utterance.pitch = 1.0;
 
     utterance.onstart = () => setCurrentlySpeaking(index);
