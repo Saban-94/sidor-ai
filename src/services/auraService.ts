@@ -508,19 +508,8 @@ export async function askNoa(message: string, history: any[] = []) {
 async function processNoaTurn(contents: any[]): Promise<any> {
   const currentDateTime = new Date().toLocaleString('he-IL', { timeZone: 'Asia/Jerusalem' });
   const dayName = new Date().toLocaleDateString('he-IL', { weekday: 'long', timeZone: 'Asia/Jerusalem' });
-
-  // 1. שליפת פרופיל משתמש (חוק הברזל לזיהוי פונה)
-  const userProfile = auth.currentUser ? await getProfileByUid(auth.currentUser.uid) : null;
-  const greetingInstruction = userProfile 
-    ? `את מדברת עם ${userProfile.name}. פני אליו בשמו. אם זה ראמי, השתמשי ב"ראמי נשמה".` 
-    : "אינך יודעת מי הפונה. חוק ברזל: שאלי 'עם מי יש לי את הכבוד?' בתחילת השיחה.";
-
-  const dynamicInstruction = `
-    ${noaSystemInstruction}
-    ${greetingInstruction}
-    הזמן הנוכחי במערכת: ${dayName}, ${currentDateTime}.
-    חוק ברזל לדיבור: אל תשתמשי בסימני ** או ##. אל תגידי מילים טכניות כמו "פריט" או "כמות".
-  `;
+  
+  const dynamicInstruction = `${noaSystemInstruction}\n\nהזמן הנוכחי במערכת: ${dayName}, ${currentDateTime}.\nכשמדברים על "מחר", הכוונה היא ליום שאחרי התאריך המופיע כאן.`;
 
   const response = await ai.models.generateContent({
     model: "gemini-3-flash-preview", 
@@ -530,6 +519,167 @@ async function processNoaTurn(contents: any[]): Promise<any> {
       tools: tools
     }
   });
+
+  const functionCalls = response.functionCalls;
+  if (functionCalls && functionCalls.length > 0) {
+    const modelResponseContent = response.candidates[0].content;
+    const functionResponseParts: any[] = [];
+
+    for (const call of functionCalls) {
+      try {
+        let result: any;
+        
+        switch (call.name) {
+          case 'create_order':
+            result = await createOrder(call.args as any);
+            break;
+          case 'update_order': {
+            const { orderId, ...updates } = call.args as any;
+            await updateOrder(orderId, updates);
+            result = { success: true, message: `הזמנה ${orderId} עודכנה בהצלחה אחי` };
+            break;
+          }
+          case 'update_order_status':
+            await updateOrder(call.args.orderId as string, { status: call.args.status as any });
+            result = { success: true };
+            break;
+          case 'delete_order_by_customer': {
+            const ordersToDelete = await searchOrders(call.args.customerName as string);
+            if (ordersToDelete.length > 0) {
+              await deleteOrder(ordersToDelete[0].id!);
+              result = { success: true, deleted: ordersToDelete[0].customerName };
+            } else {
+              result = { success: false, error: 'לא מצאתי הזמנה כזו למחיקה אחי' };
+            }
+            break;
+          }
+          case 'search_orders':
+            result = await searchOrders(call.args.query as string);
+            break;
+          case 'get_orders_by_date':
+            result = await fetchOrders(call.args.date as string);
+            break;
+          case 'get_order_eta': {
+            const searchRes = await searchOrders(call.args.customerName as string);
+            if (searchRes.length > 0) {
+              const hist = await fetchOrders();
+              const eta = await predictOrderEta(searchRes[0], hist);
+              result = { eta };
+            } else {
+              result = { error: 'לא מצאתי הזמנה לחישוב ETA אחי' };
+            }
+            break;
+          }
+          case 'update_driver': {
+            const { driverId, ...dUpdates } = call.args as any;
+            await updateDriver(driverId, dUpdates);
+            result = { success: true };
+            break;
+          }
+          case 'search_drivers':
+            result = await searchDrivers(call.args.query as string);
+            break;
+          case 'create_customer':
+            result = await createCustomer(call.args as any);
+            break;
+          case 'update_customer': {
+            const { customerId, ...cUpdates } = call.args as any;
+            await updateCustomer(customerId, cUpdates);
+            result = { success: true };
+            break;
+          }
+          case 'search_customers':
+            result = await searchCustomers(call.args.query as string);
+            break;
+          case 'list_drive_files':
+            result = { files: await listDriveFiles(call.args?.folderId as string) };
+            break;
+          case 'analyze_pdf_content': {
+            const fileId = call.args.fileId as string;
+            const base64 = await getFileBase64(fileId);
+            
+            if (!base64 || base64.length < 100) {
+              throw new Error(`הקובץ ${fileId} נראה ריק או לא תקין.`);
+            }
+
+            const analysisPrompt = `נתח את קובץ ה-PDF הזה. חלץ: document_type, order_number, customer_name, items, contact_person, phone_number, destination. החזר JSON בלבד.`;
+            
+            const analysisResponse = await ai.models.generateContent({
+              model: "gemini-3-flash-preview",
+              contents: [{
+                role: 'user',
+                parts: [
+                  { text: analysisPrompt },
+                  { inlineData: { data: base64, mimeType: 'application/pdf' } }
+                ]
+              }],
+              config: {
+                responseMimeType: "application/json"
+              }
+            });
+            result = { analysis: analysisResponse.text };
+            break;
+          }
+          case 'create_reminder':
+            result = await createReminder(call.args as any);
+            break;
+          case 'get_reminders':
+            result = await getReminders(call.args.date as string);
+            break;
+          case 'update_reminder': {
+            const { reminderId, ...remUpdates } = call.args as any;
+            await updateReminder(reminderId, remUpdates);
+            result = { success: true };
+            break;
+          }
+          default:
+            result = { error: 'כלי לא מזוהה אחי' };
+        }
+
+        const wrappedResponse = (result && typeof result === 'object' && !Array.isArray(result)) 
+          ? result 
+          : { content: result };
+
+        functionResponseParts.push({
+          functionResponse: {
+            name: call.name,
+            response: wrappedResponse
+          }
+        });
+
+      } catch (toolError: any) {
+        console.error(`Error executing tool ${call.name}:`, toolError);
+        functionResponseParts.push({
+          functionResponse: {
+            name: call.name,
+            response: { error: toolError.message || "שגיאה לא ידועה אחי" }
+          }
+        });
+      }
+    }
+
+    if (functionResponseParts.length > 0) {
+      return await processNoaTurn([
+        ...contents, 
+        modelResponseContent, 
+        { role: 'function', parts: functionResponseParts }
+      ]);
+    }
+  }
+
+  // תיקון הסגירה של ה-return כאן למטה:
+  const rawText = response.text || "";
+  const cleanSpeech = rawText
+    .replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g, '')
+    .replace(/[*_#`~]/g, '')
+    .trim();
+
+  return {
+    ...response,
+    text: rawText,
+    audioContent: cleanSpeech
+  };
+}
 
   // --- כאן קורה הקסם של הניקוי ---
   
