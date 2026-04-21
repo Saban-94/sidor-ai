@@ -445,7 +445,7 @@ export const tools = [
         parameters: {
           type: Type.OBJECT,
           properties: {
-            folderId: { type: Type.STRING, description: "מזהה התיקייה (אופציונלי, ברירת מחדל לתיקיית SabanOS)" }
+            folderId: { type: Type.STRING, description: "מזהה התיקייה (אופציונלי, ברירת מחדל לתיקיית סידור)" }
           }
         }
       },
@@ -685,8 +685,9 @@ async function processNoaTurn(contents: any[]): Promise<any> {
     }
   }
 
-  return response;
-   audioContent: cleanSpeech
+if (response.text) {
+    (response as any).audioContent = sanitizeForVoice(response.text);
+  }
 }
 
 export async function predictOrderEta(order: Order, historicalOrders: Order[] = []) {
