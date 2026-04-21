@@ -92,7 +92,15 @@ import { useUserMemory } from './hooks/useUserMemory';
 import { uploadFileToDrive } from './services/driveService';
 
 // --- Components ---
-
+// פונקציית עזר לניקוי טקסט לדיבור (TTS)
+const sanitizeForVoice = (text: string): string => {
+  return text
+    .replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g, '') // הסרת אימוג'ים
+    .replace(/\*\*|##|__|#|\*|`/g, '') // הסרת סימני Markdown
+    .replace(/^\s*[\-\*+]\s+/gm, '') // הסרת סימני רשימות
+    .replace(/\s+/g, ' ') // ניקוי רווחים כפולים
+    .trim();
+};
 const SortIcon = ({ field, currentSort, direction }: { field: string, currentSort: string, direction: 'asc' | 'desc' }) => {
   if (currentSort !== field) return <ArrowUpDown size={12} className="inline mr-2 opacity-20" />;
   return direction === 'asc' ? <ArrowUp size={12} className="inline mr-2 text-sky-600" /> : <ArrowDown size={12} className="inline mr-2 text-sky-600" />;
