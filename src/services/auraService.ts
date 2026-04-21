@@ -16,8 +16,7 @@ import { db, auth } from '../lib/firebase';
 import { Order, Driver, Customer, Reminder } from '../types';
 
 import { listDriveFiles, getFileBase64, createCustomerFolderHierarchy } from './driveService';
-const rawText = response.text || "";
-const cleanSpeech = sanitizeForVoice(rawText);
+
 // פונקציית עזר לניקוי טקסט לדיבור (TTS)
 const sanitizeForVoice = (text: string): string => {
   return text
