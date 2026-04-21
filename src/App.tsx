@@ -581,7 +581,7 @@ export default function App() {
       if (newStatus === 'preparing') {
         const order = orders.find(o => o.id === id);
         if (order) {
-          addToast('מחשבת צפי הגעה', `מעדכנת צפי ל-${order.customerName} נשמה ...`, 'info');
+          addToast('מחשבת צפי הגעה', `מעדכנת צפי ל-${order.customerName}  ...`, 'info');
           const predictedEta = await predictOrderEta(order, orders.filter(o => o.status === 'delivered'));
           if (predictedEta) {
             await updateOrder(id, { eta: predictedEta });
