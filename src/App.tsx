@@ -138,7 +138,7 @@ const Header = ({
           <Truck className="text-sky-600" size={24} />
         </div>
         <div className="hidden sm:block">
-          <h1 className="text-lg font-bold text-gray-900 leading-tight tracking-tight">ח. סבן לוגיסטיקה</h1>
+          <h1 className="text-lg font-bold text-gray-900 leading-tight tracking-tight">סידור ח.סבן חומרי בנין</h1>
           <p className="text-[10px] text-gray-500 font-medium">בוקר טוב, {user.displayName?.split(' ')[0] || 'ראמי'} </p>
         </div>
       </div>
