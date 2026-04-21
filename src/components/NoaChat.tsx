@@ -106,7 +106,7 @@ export const NoaChat = ({
     { label: 'הזמנה חדשה תכתבי לי  ✍️', action: 'הזמנה חדשה ' },
     { label: 'סטטוס סידור 📊', action: 'מה סטטוס ההפצה כרגע?' },
     { label: 'סכם מוצרים שיצאו 📊', action: 'מה המוצרים שיצאו היום?' },
-    { label: 'דוח בוקר 📋', action: 'תכיני לי דוח בוקר 📋' },
+    { label: 'דוח בוקר☀️ 📋', action: '☀️תכיני לי דוח בוקר 📋' },
     { label: 'מה סטטוס נהגים חכמת/עלי? 🚛', action: '"סטטוס נהגים חכמת/עלי 🚛' },
     { label: 'חריגות היו היום? ⚠️', action: 'חריגות בטון/ריצופית ⚠️' },
     { label: 'סיכום עמוסים 📈', action: 'סיכום עמוסים' },
@@ -125,7 +125,7 @@ export const NoaChat = ({
           <button onClick={onBack} className="p-2 hover:bg-gray-200 rounded-xl transition-colors">
             <ChevronRight size={20} />
           </button>
-          <h1 className="text-xl font-bold">נועה (SabanOS)</h1>
+          <h1 className="text-xl font-bold">נועה (סידור ח.סבן)</h1>
         </div>
         
           <div className="space-y-6">
@@ -176,7 +176,7 @@ export const NoaChat = ({
              </button>
              <div className="flex items-center gap-1.5">
                <div className="w-2 h-2 bg-green-500 rounded-full" />
-               <span className="text-[10px] font-black text-gray-400 uppercase">ONLINE</span>
+               <span className="text-[10px] font-black text-gray-400 uppercase">מחוברת👩🏼</span>
              </div>
           </div>
         </header>
