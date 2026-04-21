@@ -37,27 +37,16 @@ export const NoaChat = ({
     localStorage.setItem('noa_auto_voice', String(isAutoVoice));
   }, [isAutoVoice]);
 
-const cleanTextForSpeech = (text: string) => {
-  // 1. זיהוי אם מדובר ברשימת פריטים
-  const items = parseItems(text);
-  
-  if (items.length > 0) {
-    // דיבור טבעי במקום "פריט" ו-"כמות"
-    let speech = "הנה הרשימה: ";
-    items.forEach((item) => {
-      // נועה תגיד: "20 מסלול 0.5" במקום "פריט 1: מסלול 0.5, כמות: 20"
-      speech += `${item.quantity} יחידות של ${item.name}. `;
-    });
-    return speech;
-  }
-
-  // 2. ניקוי רגיל של סימנים ואימוג'ים לשאר הטקסט
-  return text
-    .replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g, '') // הסרת אימוג'ים
-    .replace(/[*_#`~]/g, '') // הסרת Markdown
-    .replace(/\s+/g, ' ') // ניקוי רווחים כפולים
-    .trim();
-};
+  const cleanTextForSpeech = (text: string) => {
+    // 1. Detect if it's an item list
+    const items = parseItems(text);
+    if (items.length > 0) {
+      let speech = "הנה הפריטים שמצאתי : ";
+      items.forEach((item, index) => {
+        speech += `פריט ${index + 1}: ${item.name}, כמות: ${item.quantity}. `;
+      });
+      return speech;
+    }
 
 // 2. Clean for speech - Safe version
     return text
@@ -118,7 +107,7 @@ const cleanTextForSpeech = (text: string) => {
     { label: 'סטטוס סידור 📊', action: 'מה סטטוס ההפצה כרגע?' },
     { label: 'סכם מוצרים שיצאו 📊', action: 'מה המוצרים שיצאו היום?' },
     { label: 'דוח בוקר☀️ 📋', action: '☀️תכיני לי דוח בוקר 📋' },
-    { label: 'מה סטטוס נהגים חכמת/עלי? 🚛', action: 'סטטוס נהגים חכמת/עלי 🚛' },
+    { label: 'מה סטטוס נהגים חכמת/עלי? 🚛', action: '"סטטוס נהגים חכמת/עלי 🚛' },
     { label: 'חריגות היו היום? ⚠️', action: 'חריגות בטון/ריצופית ⚠️' },
     { label: 'סיכום עמוסים 📈', action: 'סיכום עמוסים' },
     { label: 'תיעוד מסירה 📜', action: 'תיעוד מסירה' },
