@@ -25,6 +25,7 @@ const sanitizeForVoice = (text: string): string => {
     .replace(/^\s*[\-\*+]\s+/gm, '') // הסרת סימני רשימות
     .replace(/\s+/g, ' ') // ניקוי רווחים כפולים
     .trim();
+  (response as any).audioContent = sanitizeForVoice(response.text);
 };
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
