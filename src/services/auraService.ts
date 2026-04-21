@@ -18,14 +18,7 @@ import { Order, Driver, Customer, Reminder } from '../types';
 import { listDriveFiles, getFileBase64, createCustomerFolderHierarchy } from './driveService';
 
 // פונקציית עזר לניקוי טקסט לדיבור (TTS)
-const sanitizeForVoice = (text: string): string => {
-  return text
-    .replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g, '') // הסרת אימוג'ים
-    .replace(/\*\*|##|__|#|\*|`/g, '') // הסרת סימני Markdown
-    .replace(/^\s*[\-\*+]\s+/gm, '') // הסרת סימני רשימות
-    .replace(/\s+/g, ' ') // ניקוי רווחים כפולים
-    .trim();
-};
+
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 export const INVENTORY_RULES = [];
@@ -445,7 +438,7 @@ export const tools = [
         parameters: {
           type: Type.OBJECT,
           properties: {
-            folderId: { type: Type.STRING, description: "מזהה התיקייה (אופציונלי, ברירת מחדל לתיקיית סידור)" }
+            folderId: { type: Type.STRING, description: "מזהה התיקייה (אופציונלי, ברירת מחדל לתיקיית SabanOS)" }
           }
         }
       },
@@ -515,8 +508,19 @@ export async function askNoa(message: string, history: any[] = []) {
 async function processNoaTurn(contents: any[]): Promise<any> {
   const currentDateTime = new Date().toLocaleString('he-IL', { timeZone: 'Asia/Jerusalem' });
   const dayName = new Date().toLocaleDateString('he-IL', { weekday: 'long', timeZone: 'Asia/Jerusalem' });
-  
-  const dynamicInstruction = `${noaSystemInstruction}\n\nהזמן הנוכחי במערכת: ${dayName}, ${currentDateTime}.\nכשמדברים על "מחר", הכוונה היא ליום שאחרי התאריך המופיע כאן.`;
+
+  // 1. שליפת פרופיל משתמש (חוק הברזל לזיהוי פונה)
+  const userProfile = auth.currentUser ? await getProfileByUid(auth.currentUser.uid) : null;
+  const greetingInstruction = userProfile 
+    ? `את מדברת עם ${userProfile.name}. פני אליו בשמו. אם זה ראמי, השתמשי ב"ראמי נשמה".` 
+    : "אינך יודעת מי הפונה. חוק ברזל: שאלי 'עם מי יש לי את הכבוד?' בתחילת השיחה.";
+
+  const dynamicInstruction = `
+    ${noaSystemInstruction}
+    ${greetingInstruction}
+    הזמן הנוכחי במערכת: ${dayName}, ${currentDateTime}.
+    חוק ברזל לדיבור: אל תשתמשי בסימני ** או ##. אל תגידי מילים טכניות כמו "פריט" או "כמות".
+  `;
 
   const response = await ai.models.generateContent({
     model: "gemini-3-flash-preview", 
@@ -526,6 +530,28 @@ async function processNoaTurn(contents: any[]): Promise<any> {
       tools: tools
     }
   });
+
+  // --- כאן קורה הקסם של הניקוי ---
+  
+  // 2. פונקציית ניקוי פנימית לדיבור
+  const sanitizeForVoice = (text: string) => {
+    return text
+      .replace(/[*_#`~]/g, '') // הסרת Markdown
+      .replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g, '') // הסרת אימוג'ים
+      .replace(/\b(פריט|כמות|מקט|סטטוס|itemName|quantity)\b/g, '') // הסרת מילים טכניות שקופצות מה-PDF
+      .replace(/\s+/g, ' ') // ניקוי רווחים
+      .trim();
+  };
+
+  // 3. הוספת שדה audioContent נקי לתגובה
+  if (response.text) {
+    (response as any).audioContent = sanitizeForVoice(response.text);
+  }
+
+  // ... המשך הלוגיקה של Tool Calls (נשאר כפי שהיה)
+  
+  return response;
+}
 
   const functionCalls = response.functionCalls;
   if (functionCalls && functionCalls.length > 0) {
@@ -685,9 +711,8 @@ async function processNoaTurn(contents: any[]): Promise<any> {
     }
   }
 
-if (response.text) {
-    (response as any).audioContent = sanitizeForVoice(response.text);
-  }
+  return response;
+   audioContent: cleanSpeech
 }
 
 export async function predictOrderEta(order: Order, historicalOrders: Order[] = []) {
