@@ -16,6 +16,8 @@ import { db, auth } from '../lib/firebase';
 import { Order, Driver, Customer, Reminder } from '../types';
 
 import { listDriveFiles, getFileBase64, createCustomerFolderHierarchy } from './driveService';
+const rawText = response.text || "";
+const cleanSpeech = sanitizeForVoice(rawText);
 // פונקציית עזר לניקוי טקסט לדיבור (TTS)
 const sanitizeForVoice = (text: string): string => {
   return text
@@ -521,7 +523,7 @@ async function processNoaTurn(contents: any[]): Promise<any> {
           case 'update_order': {
             const { orderId, ...updates } = call.args as any;
             await updateOrder(orderId, updates);
-            result = { success: true, message: `הזמנה ${orderId} עודכנה בהצלחה אחי` };
+            result = { success: true, message: `הזמנה ${orderId} עודכנה בהצלחה ` };
             break;
           }
           case 'update_order_status':
@@ -534,7 +536,7 @@ async function processNoaTurn(contents: any[]): Promise<any> {
               await deleteOrder(ordersToDelete[0].id!);
               result = { success: true, deleted: ordersToDelete[0].customerName };
             } else {
-              result = { success: false, error: 'לא מצאתי הזמנה כזו למחיקה אחי' };
+              result = { success: false, error: 'לא מצאתי הזמנה כזו למחיקה ' };
             }
             break;
           }
@@ -551,7 +553,7 @@ async function processNoaTurn(contents: any[]): Promise<any> {
               const eta = await predictOrderEta(searchRes[0], hist);
               result = { eta };
             } else {
-              result = { error: 'לא מצאתי הזמנה לחישוב ETA אחי' };
+              result = { error: 'לא מצאתי הזמנה לחישוב ETA ' };
             }
             break;
           }
@@ -664,6 +666,7 @@ async function processNoaTurn(contents: any[]): Promise<any> {
   }
 
   return response;
+   audioContent: cleanSpeech
 }
 
 export async function predictOrderEta(order: Order, historicalOrders: Order[] = []) {
