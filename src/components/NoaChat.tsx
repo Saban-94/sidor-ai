@@ -48,10 +48,11 @@ export const NoaChat = ({
       return speech;
     }
 
-    // 2. Regular cleaning
+// 2. Clean for speech - Safe version
     return text
-      .replace(/[*_#]/g, '') // remove markdown
-      .replace(/[^\u0590-\u05FF0-9\s,.?!]/g, ' ') // keep hebrew, numbers, basic punctuation
+      .replace(/[*_#`~]/g, '') // מסיר סימני Markdown בלבד
+      .replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g, '') // מסיר אימוג'ים
+      .replace(/\s+/g, ' ') // מנקה רווחים כפולים
       .trim();
   };
 
