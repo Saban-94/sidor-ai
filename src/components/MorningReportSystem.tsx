@@ -102,7 +102,7 @@ export default function MorningReportSystem({ onBack, drivers }: { onBack: () =>
     const craneCount = selectedOrdersData.filter(o => drivers.find(d => d.id === o.driverId)?.vehicleType === 'crane').length;
     const truckCount = total - craneCount;
 
-    text += `📊 *סיכום לוגיסטי:*\n`;
+    text += `📊 *סיכום סידור:*\n`;
     text += `סה"כ הזמנות: ${total}\n`;
     text += `📦 מהמחסנים: החרש (${harashCount}) | התלמיד (${talmidCount})\n`;
     text += `🚛 סוגי הובלה: מנוף (${craneCount}) | משאית (${truckCount})\n`;
