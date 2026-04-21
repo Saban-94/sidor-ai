@@ -41,7 +41,7 @@ export const NoaChat = ({
     // 1. Detect if it's an item list
     const items = parseItems(text);
     if (items.length > 0) {
-      let speech = "הנה הפריטים שמצאתי אחי: ";
+      let speech = "הנה הפריטים שמצאתי : ";
       items.forEach((item, index) => {
         speech += `פריט ${index + 1}: ${item.name}, כמות: ${item.quantity}. `;
       });
@@ -101,12 +101,13 @@ export const NoaChat = ({
   }, [chatHistory.length]);
 
   const dynamicSuggestions = [
-    { label: 'סנכרון דרייב 📂', action: 'סרוק את תיקיית SabanOS ותחלץ נתונים מהקובץ האחרון' },
-    { label: 'הזמנה חדשה ✍️', action: 'הזמנה חדשה אחי' },
-    { label: 'סטטוס הפצה 📊', action: 'מה סטטוס ההפצה כרגע?' },
+    { label: 'יש הזמנה או תעודה חדשה? 📂', action: 'סרוק את תיקיית סידור ח.סבן ותחלץ נתונים מהקובץ האחרון' },
+    { label: 'הזמנה חדשה תכתבי לי  ✍️', action: 'הזמנה חדשה אחי' },
+    { label: 'סטטוס סידור 📊', action: 'מה סטטוס ההפצה כרגע?' },
+    { label: 'סכם מוצרים שיצאו 📊', action: 'מה המוצרים שיצאו היום?' },
     { label: 'דוח בוקר 📋', action: 'תכיני לי דוח בוקר 📋' },
-    { label: 'סטטוס נהגים 🚛', action: 'סטטוס נהגים 🚛' },
-    { label: 'חריגות בטון/ריצופית ⚠️', action: 'חריגות בטון/ריצופית ⚠️' },
+    { label: 'מה סטטוס נהגים חכמת/עלי? 🚛', action: '"סטטוס נהגים חכמת/עלי 🚛' },
+    { label: 'חריגות היו היום? ⚠️', action: 'חריגות בטון/ריצופית ⚠️' },
     { label: 'סיכום עמוסים 📈', action: 'סיכום עמוסים' },
     { label: 'תיעוד מסירה 📜', action: 'תיעוד מסירה' },
     ...orders.filter(o => o.status === 'preparing').slice(0, 2).map(o => ({
@@ -150,7 +151,7 @@ export const NoaChat = ({
                     />
                   </button>
                 </div>
-                <p className="text-[9px] text-gray-400 leading-tight">במצב פעיל, נועה תקריא כל תשובה חדשה באופן אוטומטי אחי.</p>
+                <p className="text-[9px] text-gray-400 leading-tight">במצב פעיל, נועה תקריא כל תשובה חדשה באופן אוטומטי .</p>
               </div>
             </div>
           </div>
@@ -189,8 +190,8 @@ export const NoaChat = ({
               <div className="bg-sky-50 w-24 h-24 rounded-[3rem] flex items-center justify-center mx-auto mb-6 shadow-inner">
                  <MessageSquare className="text-sky-600" size={48} />
               </div>
-              <h2 className="text-2xl font-black mb-2 italic">אהלן ראמי, אחי</h2>
-              <p className="text-sm font-bold text-gray-400 mb-8 max-w-[250px] mx-auto">"תפתחי הזמנה חדשה לחכמת לשעה 9 ליעד ברקאי"</p>
+              <h2 className="text-2xl font-black mb-2 italic">היי אני נועה מעים מאוד! 👩🏼,</h2>
+              <p className="text-sm font-bold text-gray-400 mb-8 max-w-[250px] mx-auto">"מוכנה לכל שאלה? או פעולה , מה תרצה לבצע היום?"</p>
               
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-md mx-auto">
                  {dynamicSuggestions.slice(0, 6).map(suggestion => (
