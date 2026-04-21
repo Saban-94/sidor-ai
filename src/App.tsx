@@ -92,15 +92,7 @@ import { useUserMemory } from './hooks/useUserMemory';
 import { uploadFileToDrive } from './services/driveService';
 
 // --- Components ---
-// פונקציית עזר לניקוי טקסט לדיבור (TTS)
-const sanitizeForVoice = (text: string): string => {
-  return text
-    .replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g, '') // הסרת אימוג'ים
-    .replace(/\*\*|##|__|#|\*|`/g, '') // הסרת סימני Markdown
-    .replace(/^\s*[\-\*+]\s+/gm, '') // הסרת סימני רשימות
-    .replace(/\s+/g, ' ') // ניקוי רווחים כפולים
-    .trim();
-};
+
 const SortIcon = ({ field, currentSort, direction }: { field: string, currentSort: string, direction: 'asc' | 'desc' }) => {
   if (currentSort !== field) return <ArrowUpDown size={12} className="inline mr-2 opacity-20" />;
   return direction === 'asc' ? <ArrowUp size={12} className="inline mr-2 text-sky-600" /> : <ArrowDown size={12} className="inline mr-2 text-sky-600" />;
@@ -138,8 +130,8 @@ const Header = ({
           <Truck className="text-sky-600" size={24} />
         </div>
         <div className="hidden sm:block">
-          <h1 className="text-lg font-bold text-gray-900 leading-tight tracking-tight">סידור ח.סבן </h1>
-          <p className="text-[10px] text-gray-500 font-medium">בוקר טוב, {user.displayName?.split(' ')[0] || 'ראמי'} </p>
+          <h1 className="text-lg font-bold text-gray-900 leading-tight tracking-tight">סידור ח.סבן חומרי בנין</h1>
+          <p className="text-[10px] text-gray-500 font-medium">בוקר טוב, {user.displayName?.split(' ')[0] || 'ראמי'} אחי</p>
         </div>
       </div>
     </div>
@@ -337,7 +329,7 @@ const EmptyState = () => (
       <CalendarIcon className="text-gray-400" size={48} />
     </div>
     <h3 className="text-lg font-bold text-gray-800">אין הזמנות ליום הזה</h3>
-    <p className="text-gray-500 mt-2 max-w-xs text-sm">הסידור ריק בינתיים 👩🏼. אפשר להוסיף הזמנה חדשה או לבקש מ-ראמי לעזור.</p>
+    <p className="text-gray-500 mt-2 max-w-xs text-sm">הסידור ריק בינתיים אחי. אפשר להוסיף הזמנה חדשה או לבקש מ-Aura לעזור.</p>
   </div>
 );
 
@@ -380,7 +372,7 @@ const RemindersSidebar = ({
               <div className="bg-sky-600 p-2 rounded-xl text-white">
                 <ListTodo size={20} />
               </div>
-              <h2 className="text-xl font-bold italic">תזכורות </h2>
+              <h2 className="text-xl font-bold italic">תזכורות אחי</h2>
             </div>
             <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-xl transition-colors">
               <X size={24} className="text-gray-400" />
@@ -391,7 +383,7 @@ const RemindersSidebar = ({
             {reminders.length === 0 ? (
               <div className="text-center py-20">
                 <Sparkles size={40} className="mx-auto text-sky-100 mb-4" />
-                <p className="text-gray-400 font-bold">אין תזכורות לבינתיים . הכל מוכן!</p>
+                <p className="text-gray-400 font-bold">אין תזכורות לבינתיים אחי. הכל בשליטה!</p>
               </div>
             ) : (
               reminders.map((reminder) => (
@@ -421,7 +413,7 @@ const RemindersSidebar = ({
                     </div>
                     <button 
                       onClick={() => {
-                        if (window.confirm('למחוק את התזכורת ?')) onDelete(reminder.id!);
+                        if (window.confirm('למחוק את התזכורת אחי?')) onDelete(reminder.id!);
                       }}
                       className="p-1 text-gray-300 hover:text-red-500 transition-colors"
                     >
@@ -536,14 +528,14 @@ export default function App() {
       const fileId = uploadResult?.fileId;
       
       if (!fileId) {
-        const errorMsg = uploadResult?.message || uploadResult?.error || "לא התקבל מזהה קובץ מהדרייב .";
+        const errorMsg = uploadResult?.message || uploadResult?.error || "לא התקבל מזהה קובץ מהדרייב אחי.";
         throw new Error(errorMsg);
       }
       
-      addToast('העלאה הצליחה', 'הקובץ נשמר בתיקיית הראשית  ✅', 'success');
+      addToast('העלאה הצליחה', 'הקובץ נשמר בתיקיית SabanOS אחי ✅', 'success');
       
       if (orderId) {
-        addToast('עדכון הזמנה', 'משייכת את המסמך להזמנה 👩🏼...', 'info');
+        addToast('עדכון הזמנה', 'משייכת את המסמך להזמנה אחי...', 'info');
         const updateField = documentType === 'orderForm' ? { orderFormId: fileId } : { deliveryNoteId: fileId };
         await updateOrder(orderId, updateField);
       }
@@ -572,7 +564,7 @@ export default function App() {
           cancelled: 'בוטל'
         };
         sendOrderNotification(
-          'עדכון סטטוס ! 🔄', 
+          'עדכון סטטוס אחי! 🔄', 
           `ההזמנה של ${order.customerName} עודכנה ל-${statusLabels[newStatus] || newStatus}`
         );
       }
@@ -581,7 +573,7 @@ export default function App() {
       if (newStatus === 'preparing') {
         const order = orders.find(o => o.id === id);
         if (order) {
-          addToast('מחשבת צפי הגעה', `מעדכנת צפי ל-${order.customerName} נשמה ...`, 'info');
+          addToast('מחשבת צפי הגעה', `מעדכנת צפי ל-${order.customerName} אחי...`, 'info');
           const predictedEta = await predictOrderEta(order, orders.filter(o => o.status === 'delivered'));
           if (predictedEta) {
             await updateOrder(id, { eta: predictedEta });
@@ -604,7 +596,7 @@ export default function App() {
       }
     } catch (error) {
       console.error(error);
-      addToast('שגיאה', 'משהו השתבש בעדכון הסטטוס ', 'warning');
+      addToast('שגיאה', 'משהו השתבש בעדכון הסטטוס אחי', 'warning');
     }
   };
 
@@ -623,11 +615,11 @@ export default function App() {
       };
       
       await createOrder(newOrder);
-      addToast('הזמנה שוכפלה', `ההזמנה של ${order.customerName} שוכפלה להיום 👩🏼`, 'success');
-      sendOrderNotification('הזמנה חוזרת 👩🏼 🔄', `שוכפלה הזמנה עבור ${order.customerName}`);
+      addToast('הזמנה שוכפלה', `ההזמנה של ${order.customerName} שוכפלה להיום אחי`, 'success');
+      sendOrderNotification('הזמנה חוזרת אחי! 🔄', `שוכפלה הזמנה עבור ${order.customerName}`);
     } catch (error) {
       console.error(error);
-      addToast('שגיאה', 'לא הצלחתי לשכפל את ההזמנה 👩🏼', 'warning');
+      addToast('שגיאה', 'לא הצלחתי לשכפל את ההזמנה אחי', 'warning');
     }
   };
 
@@ -677,7 +669,7 @@ export default function App() {
         const order = change.doc.data() as Order;
         
         if (change.type === 'added') {
-          const title = 'הזמנה חדשה ! 🚛';
+          const title = 'הזמנה חדשה אחי! 🚛';
           const msg = `${order.customerName} - ${order.items}`;
           addToast(title, msg, 'success');
           
@@ -691,7 +683,7 @@ export default function App() {
           // We'll track previous status in a specialized hook/ref if we wanted perfection, 
           // but for now let's refine the message to be more specific.
           
-          const title = 'עדכון סטטוס 👩🏼! 🔄';
+          const title = 'עדכון סטטוס אחי! 🔄';
           const statusLabels: Record<string, string> = {
             pending: 'ממתין',
             preparing: 'בהכנה',
@@ -722,7 +714,7 @@ export default function App() {
       if (permission === 'granted') {
         setNotificationsEnabled(true);
       } else {
-        alert('כדי לקבל התראות צריך לאשר אותן בדפדפן .');
+        alert('כדי לקבל התראות צריך לאשר אותן בדפדפן אחי.');
       }
     } else {
       setNotificationsEnabled(false);
@@ -879,7 +871,7 @@ export default function App() {
           if (call.name === 'create_order') {
             const args = call.args as any;
             await createOrder(args);
-            sendOrderNotification('הזמנה חדשה 👩🏼! 🚛', `${args.customerName} - ${args.items}`);
+            sendOrderNotification('הזמנה חדשה אחי! 🚛', `${args.customerName} - ${args.items}`);
           } else if (call.name === 'update_order') {
             const { orderId, ...rest } = call.args as any;
             await updateOrder(orderId, rest);
@@ -897,7 +889,7 @@ export default function App() {
             const { query: qStr } = call.args as any;
             setSearchQuery(qStr);
             setViewMode('list');
-            addToast('חיפוש הזמנות', `מחפשת את "${qStr}" בלוח 👩🏼`, 'info');
+            addToast('חיפוש הזמנות', `מחפשת את "${qStr}" בלוח אחי`, 'info');
           } else if (call.name === 'get_order_eta') {
             const { customerName, orderId } = call.args as any;
             let targetOrder = orders.find(o => 
@@ -919,33 +911,33 @@ export default function App() {
               const eta = await predictOrderEta(targetOrder, orders);
               if (eta) {
                 await updateOrder(targetOrder.id!, { eta });
-                const etaMsg = { role: 'model', parts: [{ text: ` הצפי להגעה ליעד-${targetOrder.customerName} הוא בערך ב-${eta}.` }] };
+                const etaMsg = { role: 'model', parts: [{ text: `אחי, הצפי להגעה ל-${targetOrder.customerName} הוא בערך ב-${eta}.` }] };
                 setChatHistory(prev => [...prev, etaMsg]);
                 addToast('צפי עודכן', `הצפי ל-${targetOrder.customerName} הוא ${eta}`, 'success');
               } else {
-                setChatHistory(prev => [...prev, { role: 'model', parts: [{ text: "ניסיתי לחשב צפי בשבילך , אבל לא הצלחתי להתחבר למפות כרגע." }] }]);
+                setChatHistory(prev => [...prev, { role: 'model', parts: [{ text: "ניסיתי לחשב צפי בשבילך אחי, אבל לא הצלחתי להתחבר למפות כרגע." }] }]);
               }
             } else {
-              setChatHistory(prev => [...prev, { role: 'model', parts: [{ text: `לא מצאתי הזמנה עבור ${customerName} .` }] }]);
+              setChatHistory(prev => [...prev, { role: 'model', parts: [{ text: `לא מצאתי הזמנה עבור ${customerName} אחי.` }] }]);
             }
           } else if (call.name === 'update_driver') {
             const { driverId, ...rest } = call.args as any;
             await updateDriver(driverId, rest);
-            addToast('👩🏼עדכון נהג', `פרטי הנהג עודכנו בהצלחה תודה מנועה.`, 'success');
+            addToast('עדכון נהג', `פרטי הנהג עודכנו בהצלחה אחי`, 'success');
           } else if (call.name === 'search_drivers') {
             const { query: qStr } = call.args as any;
             setSearchQuery(qStr);
             setViewMode('drivers');
-            addToast('חיפוש נהגים', `מחפשת נהגים בשם "${qStr}" 👩🏼`, 'info');
+            addToast('חיפוש נהגים', `מחפשת נהגים בשם "${qStr}" אחי`, 'info');
           }
         }
       }
 
-      const auraResponse = { role: 'model', parts: [{ text: textResponse || "בוצע 👩🏼." }] };
+      const auraResponse = { role: 'model', parts: [{ text: textResponse || "בוצע אחי." }] };
       setChatHistory(prev => [...prev, auraResponse]);
     } catch (err) {
       console.error(err);
-      setChatHistory(prev => [...prev, { role: 'model', parts: [{ text: "משהו לא הסתדר , תנסה שוב." }] }]);
+      setChatHistory(prev => [...prev, { role: 'model', parts: [{ text: "משהו לא הסתדר אחי, תנסה שוב." }] }]);
     }
   };
 
@@ -1102,7 +1094,7 @@ export default function App() {
               className="relative w-full max-w-lg bg-white rounded-[32px] shadow-2xl overflow-hidden"
             >
               <div className="bg-gray-900 p-6 text-white flex justify-between items-center">
-                <h3 className="text-xl font-bold">{editingOrder ? 'עדכון הזמנה ' : 'הזמנה חדשה '}</h3>
+                <h3 className="text-xl font-bold">{editingOrder ? 'עדכון הזמנה אחי' : 'הזמנה חדשה אחי'}</h3>
                 <button onClick={() => {
                   setIsAddingOrder(false);
                   setEditingOrder(null);
@@ -1203,7 +1195,7 @@ export default function App() {
                           } else {
                             setDraftOrder({ items: formatted });
                           }
-                          addToast('סידור רשימה', 'הפריטים סודרו בשורות  ✅', 'success');
+                          addToast('סידור רשימה', 'הפריטים סודרו בשורות אחי ✅', 'success');
                         }
                       }}
                       className="text-[10px] font-black text-sky-600 bg-sky-50 px-2 py-1 rounded-lg border border-sky-100 hover:bg-sky-100 transition-all flex items-center gap-1 shadow-sm"
@@ -1273,7 +1265,7 @@ export default function App() {
                     </label>
                   )}
                   <button type="submit" className="flex-1 bg-sky-600 text-white py-4 rounded-2xl font-bold text-lg hover:bg-sky-700 transition-colors shadow-lg shadow-sky-600/20 h-[60px]">
-                    {editingOrder ? 'תעדכן לי' : 'תאשר לי, הכל מוכן'}
+                    {editingOrder ? 'תעדכן לי אחי' : 'תאשר לי אחי, הכל מוכן'}
                   </button>
                 </div>
               </form>
@@ -1621,7 +1613,7 @@ export default function App() {
               <div className="bg-gray-100 p-4 rounded-full mb-3 text-gray-400">
                 <Search size={32} />
               </div>
-              <h3 className="text-lg font-bold text-gray-800">לא מצאתי תוצאות </h3>
+              <h3 className="text-lg font-bold text-gray-800">לא מצאתי תוצאות אחי</h3>
               <p className="text-gray-500 text-sm">נסה לחפש משהו אחר או לשנות את הסינון.</p>
             </div>
           ) : groupByDriver ? (
