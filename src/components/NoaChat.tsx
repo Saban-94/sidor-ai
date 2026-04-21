@@ -36,43 +36,31 @@ export const NoaChat = ({
   useEffect(() => {
     localStorage.setItem('noa_auto_voice', String(isAutoVoice));
   }, [isAutoVoice]);
-if (items && items.length > 0) {
-    // בניית משפט נקי: במקום "פריט 1: X כמות: Y", היא תגיד "20 יחידות של מסלול 0.5"
-    let speech = "הנה הפירוט: ";
-    items.forEach((item) => {
-      // כאן הסרנו את המילים "פריט" ו"כמות" והשארנו רק נתונים
-      speech += `${item.quantity} של ${item.name}. `;
-    });
-    return speech;
-  } 
 
-  // 2. ניקוי רגיל של סימנים ואימוג'ים לשאר הטקסט
-  return text
-    .replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g, '') // הסרת אימוג'ים
-    .replace(/[*_#`~]/g, '') // הסרת Markdown
-    .replace(/\s+/g, ' ') // ניקוי רווחים כפולים
-    .trim();
-    }
-
-const cleanTextForSpeech = (text: string) => {
-    // 1. זיהוי אם מדובר ברשימת פריטים
+  const cleanTextForSpeech = (text: string) => {
+    // 1. Detect if it's an item list
     const items = parseItems(text);
-    
-    if (items && items.length > 0) {
-      let speech = "הנה הרשימה: ";
-      items.forEach((item) => {
-        speech += `${item.quantity} יחידות של ${item.name}. `;
+    if (items.length > 0) {
+      let speech = "הנה הפריטים שמצאתי : ";
+      items.forEach((item, index) => {
+        speech += `פריט ${index + 1}: ${item.name}, כמות: ${item.quantity}. `;
       });
       return speech;
     }
 
-    // 2. ניקוי רגיל של סימנים ואימוג'ים לשאר הטקסט
+// 2. Clean for speech - Safe version
     return text
-      .replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g, '') // הסרת אימוג'ים
-      .replace(/[*_#`~]/g, '') // הסרת Markdown
-      .replace(/\b(פריט|כמות|מקט|מק"ט|item|quantity)\b/g, '') // מחיקת מילים טכניות
+      .replace(/[*_#`~]/g, '') // מסיר סימני Markdown בלבד
+      .replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g, '') // מסיר אימוג'ים
       .replace(/\s+/g, ' ') // מנקה רווחים כפולים
       .trim();
+  };
+
+  const stopSpeaking = () => {
+    if (synthRef.current) {
+      synthRef.current.cancel();
+      setCurrentlySpeaking(null);
+    }
   };
 
   const speak = (text: string, index: number) => {
@@ -89,13 +77,11 @@ const cleanTextForSpeech = (text: string) => {
 
     const utterance = new SpeechSynthesisUtterance(cleanTextForSpeech(text));
     const voices = synthRef.current.getVoices();
-    const hebrewVoice = voices.find(v => 
-      v.lang.includes('he') && (v.name.includes('Google') || v.name.includes('Premium'))
-    ) || voices.find(v => v.lang.includes('he')) || voices[0];
+    const hebrewVoice = voices.find(v => v.lang.includes('he')) || voices[0];
     
     utterance.voice = hebrewVoice;
     utterance.lang = 'he-IL';
-    utterance.rate = 0.9; // הורדתי מעט את המהירות בשביל טון אנושי יותר
+    utterance.rate = 1.0;
     utterance.pitch = 1.0;
 
     utterance.onstart = () => setCurrentlySpeaking(index);
