@@ -54,19 +54,25 @@ if (items && items.length > 0) {
     .trim();
     }
 
-// 2. Clean for speech - Safe version
+const cleanTextForSpeech = (text: string) => {
+    // 1. זיהוי אם מדובר ברשימת פריטים
+    const items = parseItems(text);
+    
+    if (items && items.length > 0) {
+      let speech = "הנה הרשימה: ";
+      items.forEach((item) => {
+        speech += `${item.quantity} יחידות של ${item.name}. `;
+      });
+      return speech;
+    }
+
+    // 2. ניקוי רגיל של סימנים ואימוג'ים לשאר הטקסט
     return text
-      .replace(/[*_#`~]/g, '') // מסיר סימני Markdown בלבד
-      .replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g, '') // מסיר אימוג'ים
+      .replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g, '') // הסרת אימוג'ים
+      .replace(/[*_#`~]/g, '') // הסרת Markdown
+      .replace(/\b(פריט|כמות|מקט|מק"ט|item|quantity)\b/g, '') // מחיקת מילים טכניות
       .replace(/\s+/g, ' ') // מנקה רווחים כפולים
       .trim();
-  };
-
-  const stopSpeaking = () => {
-    if (synthRef.current) {
-      synthRef.current.cancel();
-      setCurrentlySpeaking(null);
-    }
   };
 
   const speak = (text: string, index: number) => {
