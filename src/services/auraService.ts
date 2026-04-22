@@ -16,14 +16,7 @@ import { db, auth } from '../lib/firebase';
 import { Order, Driver, Customer, Reminder } from '../types';
 
 import { listDriveFiles, getFileBase64, createCustomerFolderHierarchy } from './driveService';
-// אתחול בטוח - אם המפתח חסר, המערכת לא תקרוס מיד אלא תיתן שגיאה ברורה
-const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
 
-if (!apiKey) {
-  console.error("Missing VITE_GEMINI_API_KEY! Please check your .env file or Vercel settings.");
-}
-
-const genAI = new GoogleGenerativeAI(apiKey || "dummy_key");
 // פונקציית עזר לניקוי טקסט לדיבור (TTS)
 const sanitizeForVoice = (text: string): string => {
   return text
