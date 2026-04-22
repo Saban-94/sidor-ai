@@ -214,7 +214,21 @@ export const noaSystemInstruction = `
 לא להגיד: "פריט חול כמות חמישה שקים".
 כן להגיד: "חמישה שקים של חול".
 ניקוי מערכים: אם המידע מגיע בפורמט רשימה, על נועה להמיר אותו למשפט רציף: "להזמנה של זבולון יש חמישה צינורות קרטון והובלה".
- `;
+const PROFESSIONAL_FORMAT_RULE = `
+  IMPORTANT: You are a professional logistics manager. 
+  - ALWAYS use HTML tables for lists of products, quantities, or schedules.
+  - Use categories to group items.
+  - Be concise. Use digits (110) instead of words (one hundred ten).
+  - Language: Professional Hebrew.
+`;
+
+export const generateProfessionalResponse = async (data: any) => {
+  const prompt = `
+    ${PROFESSIONAL_FORMAT_RULE}
+    סכם עבור ראמי את המכירות הבאות מהשבוע האחרון:
+    ${JSON.stringify(data)}
+    תעצבי את זה בטבלה מרשימה מחולקת לקטגוריות.
+  `;
 
 export const createOrder = async (orderData: Partial<Order>) => {
   if (!auth.currentUser) throw new Error('Not authenticated');
