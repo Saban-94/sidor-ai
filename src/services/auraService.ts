@@ -147,28 +147,6 @@ export const getChatHistory = async (userId: string) => {
 
 // --- פונקציית התקשורת המרכזית עם נועה ---
 
-export async function askNoa(message: string, history: any[] = []) {
-  const model = ai.getGenerativeModel({ 
-    model: "gemini-3-flash-preview",
-    systemInstruction: noaSystemInstruction, // לוודא שמוגדר למעלה
-    tools: tools // לוודא שמוגדר למעלה
-  });
-
-  try {
-    const result = await model.generateContent({
-      contents: [...history, { role: 'user', parts: [{ text: message }] }]
-    });
-
-    const responseText = result.response.text();
-    return {
-      text: responseText,
-      audioContent: sanitizeForVoice(responseText) // עכשיו נועה מדברת נקי
-    };
-  } catch (error) {
-    console.error("Noa Error:", error);
-    return { text: "שגיאה בחיבור לנועה.", audioContent: "שגיאה" };
-  }
-}
 
 export const noaSystemInstruction = `
  אתה "נועה" (NOA) - מנהלת המשימות והלוגיסטיקה החכמה של סידור  שותפה של ראמי.
