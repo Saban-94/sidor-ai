@@ -86,12 +86,16 @@ export const searchCustomers = async (searchTerm: string) => {
 
 // הוספת שדה לשליחת התראה בכלי הקיים
 export const createReminder = async (reminderData: any) => {
+  if (!auth.currentUser) throw new Error('משתמש לא מחובר');
+
   const docRef = await addDoc(collection(db, 'reminders'), {
     ...reminderData,
+    userId: auth.currentUser.uid,
     status: 'pending',
-    sent: false, // שדה שבודק אם נשלחה התראה
+    sent: false, // לצורך OneSignal
     createdAt: serverTimestamp(),
   });
+
   return { id: docRef.id, success: true };
 };
 
@@ -176,9 +180,17 @@ export const getChatHistory = async (userId: string) => {
   return querySnapshot.docs.map(doc => ({
     role: doc.data().role,
     parts: [{ text: doc.data().content }]
-  }));
+  });
 };
 
+// פונקציה לשמירת הודעה חדשה
+export const saveMessage = async (userId: string, role: string, content: string) => {
+  await addDoc(collection(db, `users/${userId}/messages`), {
+    role,
+    content,
+    timestamp: serverTimestamp()
+  });
+};
 // פונקציה לשמירת הודעה חדשה
 export const saveMessage = async (userId: string, role: string, content: string) => {
   await addDoc(collection(db, `users/${userId}/messages`), {
