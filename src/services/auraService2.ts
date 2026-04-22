@@ -41,9 +41,9 @@ export const getPrivateChatHistory = async (userKey: string, isPersonal = false)
 // --- המוח המשוכפל (יכולות נועה X2) ---
 export async function askNoaPersonalized(message: string, userKey: string, history: any[], isPersonal = false) {
   try {
-    // הגדרת זהות לפי סוג הנועה
+    // 1. הגדרת זהות לפי סוג הנועה
     const roleInstruction = isPersonal 
-      ? `את "נועה ניהול" - העוזרת האישית של ${userKey}. תפקידך לנהל משימות, תזכורות ופרויקטים. את נפרדת מהסידור אבל חכמה באותה מידה.`
+      ? `את "נועה ניהול" - העוזרת האישית של ${userKey}. תפקידך לנהל משימות ותזכורות. את נפרדת מהסידור.`
       : `את "נועה סידור" - מנהלת הלוגיסטיקה של ח. סבן עבור ${userKey}.`;
 
     const model = genAI.getGenerativeModel({ 
@@ -51,6 +51,49 @@ export async function askNoaPersonalized(message: string, userKey: string, histo
       systemInstruction: `${roleInstruction} תעני בעברית חדה, מקצועית וקצרה.`
     });
 
+    // 2. תיקון קריטי: המרת ההיסטוריה לפורמט Parts תקין
+    const formattedHistory = (history || []).map(h => {
+      // קביעת התפקיד: model עבור נועה, user עבור המשתמש
+      const role = h.role === 'model' || h.sender === 'noa' ? 'model' : 'user';
+      
+      // חילוץ הטקסט בצורה בטוחה
+      let text = "";
+      if (h.parts && h.parts[0] && h.parts[0].text) {
+        text = h.parts[0].text;
+      } else if (h.text) {
+        text = h.text;
+      } else if (typeof h.content === 'string') {
+        text = h.content;
+      }
+
+      return {
+        role: role,
+        parts: [{ text: text }] // זה המבנה שגוגל דורשים
+      };
+    }).filter(item => item.parts[0].text.trim() !== ""); // סינון הודעות ריקות
+
+    // 3. יצירת הצ'אט עם ההיסטוריה המפורמטת
+    const chat = model.startChat({
+      history: formattedHistory,
+    });
+
+    // 4. שליחת ההודעה
+    const result = await chat.sendMessage(message);
+    const responseText = result.response.text();
+
+    return {
+      text: responseText,
+      audioContent: sanitizeForVoice(responseText)
+    };
+  } catch (err: any) {
+    console.error("Gemini Error:", err);
+    // החזרת שגיאה ידידותית למשתמש
+    return { 
+      text: "אחי, יש לי שגיאה במבנה הנתונים, תנסה לרענן את הדף.", 
+      audioContent: "" 
+    };
+  }
+}
     const chat = model.startChat({
       history: history.map(h => ({
         role: h.role === 'model' ? 'model' : 'user',
