@@ -2,7 +2,6 @@ import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
 import { createServer as createViteServer } from "vite";
-import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -15,36 +14,6 @@ async function startServer() {
   const PORT = 3000;
 
   app.use(express.json());
-
-  const apiKey = process.env.GEMINI_API_KEY;
-  const client = apiKey ? new GoogleGenAI({ apiKey }) : null;
-
-  // API Route for Gemini Generation
-  app.post("/api/generate", async (req, res) => {
-    try {
-      if (!client) {
-        return res.status(500).json({ error: "GEMINI_API_KEY is not configured on the server." });
-      }
-
-      const { model, contents, systemInstruction, tools, config } = req.body;
-      
-      const response = await client.models.generateContent({
-        model: model || "gemini-1.5-flash",
-        contents: contents,
-        config: {
-          ...config,
-          systemInstruction,
-          tools
-        }
-      });
-      
-      // Return the necessary parts of the response
-      res.json(response);
-    } catch (error: any) {
-      console.error("Gemini Generation Error:", error);
-      res.status(500).json({ error: error.message || "Internal Server Error" });
-    }
-  });
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {

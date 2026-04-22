@@ -9,10 +9,17 @@ export const initOneSignal = async () => {
   
   // Guard against domain mismatch in development/preview environments
   const currentHost = window.location.hostname;
-  const targetHost = "sidor-ai-xi.vercel.app";
   
-  if (currentHost !== targetHost && currentHost !== "localhost" && !currentHost.includes("europe-west3.run.app")) {
-    console.warn(`OneSignal initialization skipped: Current domain (${currentHost}) does not match configured domain (${targetHost}).`);
+  // Accept localhost, AI Studio preview domains, and any subdomain of the app's current domain
+  const isAllowedHost = 
+    currentHost === "localhost" || 
+    currentHost === "127.0.0.1" ||
+    currentHost.includes("europe-west3.run.app") ||
+    currentHost.includes("vercel.app") ||
+    currentHost.includes("google.app");
+
+  if (!isAllowedHost) {
+    console.warn(`OneSignal initialization skipped: Current domain (${currentHost}) might not be configured for push notifications.`);
     return;
   }
 
@@ -32,7 +39,7 @@ export const initOneSignal = async () => {
     }
     
     if (errorMessage.includes("Can only be used on")) {
-      console.warn(`OneSignal: Domain mismatch. This App ID is restricted to ${targetHost}. Push subscription will not work on this domain (${currentHost}).`);
+      console.warn(`OneSignal: Domain mismatch. The App ID might be restricted to a specific domain. Push subscription will not work on this domain (${currentHost}).`);
       isInitialized = true; // Mark as "done/failed" to prevent re-attempts
       return;
     }

@@ -25,21 +25,13 @@ export enum Type {
   INTEGER = "INTEGER",
 }
 
-const API_GENERATE_URL = "/api/generate";
+import { GoogleGenAI } from "@google/genai";
+
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY as string });
 
 async function callGeminiApi(payload: any) {
-  const response = await fetch(API_GENERATE_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload)
-  });
-
-  if (!response.ok) {
-    const errData = await response.json();
-    throw new Error(errData.error || "Failed to communicate with AI server");
-  }
-
-  return await response.json();
+  // We'll use the SDK directly in the calling functions instead of this proxy
+  throw new Error("callGeminiApi is deprecated. Use ai.models.generateContent directly.");
 }
 
 export const INVENTORY_RULES = [];
@@ -511,10 +503,13 @@ async function processNoaTurn(contents: any[]): Promise<any> {
   
   const dynamicInstruction = `${noaSystemInstruction}\n\nהזמן הנוכחי במערכת: ${dayName}, ${currentDateTime}.\nכשמדברים על "מחר", הכוונה היא ליום שאחרי התאריך המופיע כאן.`;
 
-  const response = await callGeminiApi({
+  const response = await ai.models.generateContent({
+    model: "gemini-3-flash-preview",
     contents: contents,
-    systemInstruction: dynamicInstruction,
-    tools: tools
+    config: {
+      systemInstruction: dynamicInstruction,
+      tools: tools
+    }
   });
 
   const functionCalls = response.functionCalls;
@@ -610,7 +605,8 @@ async function processNoaTurn(contents: any[]): Promise<any> {
 
 החזר JSON בלבד.`;
             
-            const analysisResponse = await callGeminiApi({
+            const analysisResponse = await ai.models.generateContent({
+              model: "gemini-3-flash-preview",
               contents: [{
                 role: 'user',
                 parts: [
@@ -704,7 +700,8 @@ export async function predictOrderEta(order: Order, historicalOrders: Order[] = 
   `;
 
   try {
-    const response = await callGeminiApi({
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
       config: {
         tools: [
