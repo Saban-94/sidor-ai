@@ -16,9 +16,6 @@ import { Order, Driver, Customer, Reminder } from '../types';
 
 import { listDriveFiles, getFileBase64, createCustomerFolderHierarchy } from './driveService';
 
-import { GoogleGenerativeAI } from "@google/generative-ai";
-
-// הגדרת טיפוסים לכלים (Tools) - Vite דורש הגדרה ברורה
 export enum Type {
   OBJECT = "OBJECT",
   STRING = "STRING",
@@ -28,19 +25,28 @@ export enum Type {
   INTEGER = "INTEGER",
 }
 
-let genAI: any = null;
+import { GoogleGenAI } from "@google/genai";
 
-function getAi() {
-  if (!genAI) {
-    // תיקון: שימוש ב-import.meta.env עבור Vite/Vercel
-    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-    if (!apiKey) {
-      throw new Error("Gemini API key is not configured. Please ensure it is set in the environment.");
-    }
-    genAI = new GoogleGenerativeAI(apiKey);
+// Helper to call backend AI proxy
+async function generateContentProxy(payload: { model: string, contents: any[], config?: any }) {
+  const response = await fetch("/api/ai/generate", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  
+  if (!response.ok) {
+    const errData = await response.json().catch(() => ({}));
+    throw new Error(errData.error || `AI generation failed with status ${response.status}`);
   }
-  return genAI;
+  
+  return await response.json();
 }
+
+async function callGeminiApi(payload: any) {
+  return generateContentProxy(payload);
+}
+
 export const INVENTORY_RULES = [];
 
 export const createCustomer = async (customerData: Partial<Customer>) => {
@@ -510,7 +516,7 @@ async function processNoaTurn(contents: any[]): Promise<any> {
   
   const dynamicInstruction = `${noaSystemInstruction}\n\nהזמן הנוכחי במערכת: ${dayName}, ${currentDateTime}.\nכשמדברים על "מחר", הכוונה היא ליום שאחרי התאריך המופיע כאן.`;
 
-  const response = await getAi().models.generateContent({
+  const response = await generateContentProxy({
     model: "gemini-3-flash-preview",
     contents: contents,
     config: {
@@ -519,9 +525,10 @@ async function processNoaTurn(contents: any[]): Promise<any> {
     }
   });
 
-  const functionCalls = response.functionCalls;
+  const functionCalls = (response as any).candidates?.[0]?.content?.parts?.filter((p: any) => p.functionCall).map((p: any) => p.functionCall);
+  
   if (functionCalls && functionCalls.length > 0) {
-    const modelResponseContent = response.candidates[0].content;
+    const modelResponseContent = (response as any).candidates[0].content;
     const functionResponseParts: any[] = [];
 
     for (const call of functionCalls) {
@@ -612,7 +619,7 @@ async function processNoaTurn(contents: any[]): Promise<any> {
 
 החזר JSON בלבד.`;
             
-            const analysisResponse = await getAi().models.generateContent({
+            const analysisResponse = await generateContentProxy({
               model: "gemini-3-flash-preview",
               contents: [{
                 role: 'user',
@@ -707,7 +714,7 @@ export async function predictOrderEta(order: Order, historicalOrders: Order[] = 
   `;
 
   try {
-    const response = await getAi().models.generateContent({
+    const response = await generateContentProxy({
       model: "gemini-3-flash-preview",
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
       config: {
