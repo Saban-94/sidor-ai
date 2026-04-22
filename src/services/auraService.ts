@@ -139,18 +139,7 @@ export const getCustomerByNumber = async (customerNumber: string) => {
 };
 
 
-// פונקציית יצירת הזמנה (חיונית לייבוא משלוחים)
-export const createOrder = async (orderData: any) => {
-  if (!auth.currentUser) throw new Error('Not authenticated');
-  const fullOrder = {
-    ...orderData,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-    status: orderData.status || 'pending'
-  };
-  const docRef = await addDoc(collection(db, 'orders'), fullOrder);
-  return { id: docRef.id, ...fullOrder };
-};
+
 
 export const getChatHistory = async (userId: string) => {
   const q = query(
