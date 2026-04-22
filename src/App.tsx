@@ -372,7 +372,7 @@ const RemindersSidebar = ({
               <div className="bg-sky-600 p-2 rounded-xl text-white">
                 <ListTodo size={20} />
               </div>
-              <h2 className="text-xl font-bold italic">תזכורות אחי</h2>
+              <h2 className="text-xl font-bold italic">משימות-הודעות לסידור🧏🏼‍♀️🧏🏼‍♀️🧏🏼‍♀️</h2>
             </div>
             <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-xl transition-colors">
               <X size={24} className="text-gray-400" />
