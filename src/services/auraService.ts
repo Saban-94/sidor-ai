@@ -84,6 +84,17 @@ export const searchCustomers = async (searchTerm: string) => {
     ) as Customer[];
 };
 
+// הוספת שדה לשליחת התראה בכלי הקיים
+export const createReminder = async (reminderData: any) => {
+  const docRef = await addDoc(collection(db, 'reminders'), {
+    ...reminderData,
+    status: 'pending',
+    sent: false, // שדה שבודק אם נשלחה התראה
+    createdAt: serverTimestamp(),
+  });
+  return { id: docRef.id, success: true };
+};
+
 export const createDriver = async (driverData: Partial<Driver>) => {
   const fullDriver = {
     ...driverData,
@@ -162,7 +173,29 @@ export const updateReminder = async (reminderId: string, updates: Partial<Remind
     updatedAt: serverTimestamp(),
   });
 };
+// פונקציה לטעינת היסטוריית שיחה מ-Firestore
+export const getChatHistory = async (userId: string) => {
+  const q = query(
+    collection(db, `users/${userId}/messages`),
+    orderBy("timestamp", "asc"),
+    limit(50) // טוען את 50 ההודעות האחרונות כדי שיהיה לה הקשר
+  );
+  
+  const querySnapshot = await getDocs(q);
+  return querySnapshot.docs.map(doc => ({
+    role: doc.data().role,
+    parts: [{ text: doc.data().content }]
+  }));
+};
 
+// פונקציה לשמירת הודעה חדשה
+export const saveMessage = async (userId: string, role: string, content: string) => {
+  await addDoc(collection(db, `users/${userId}/messages`), {
+    role,
+    content,
+    timestamp: serverTimestamp()
+  });
+};
 export const deleteReminder = async (reminderId: string) => {
   await deleteDoc(doc(db, 'reminders', reminderId));
 };
@@ -293,6 +326,10 @@ export const noaSystemInstruction = `
   * start_datetime: המירי זמן יחסי (כמו "היום ב-09:40") לפורמט yyyymmddTHHMM.
   * description: הוסיפי פירוט קצר במידת הצורך.
 - אישור ביצוע: רק לאחר קריאה מוצלחת לכלי, עני למשתמש בטון הזיקית המותאם לו: "פקודה בוצעה! 🫡 רשמתי לך...".
+
+10. ⚠️ חוק ברזל: ביצוע פעולות אקטיבי ו-OneSignal
+- בכל יצירת תזכורת, צייני בפני המשתמש: "רשמתי בסידור, ואני אשלח לך התראה לנייד דרך OneSignal בדיוק בזמן 🔔".
+- וודאי שאת שומרת את השעה המדויקת כדי שהשרת יוכל להקפיץ את ההתראה.
  `;
 
 export const createOrder = async (orderData: Partial<Order>) => {
