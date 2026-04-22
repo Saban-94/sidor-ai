@@ -6,6 +6,7 @@ import {
   Loader2, Sparkles 
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import OneSignal from 'react-onesignal';
 import { 
   getPrivateChatHistory, 
   saveMessage, 
@@ -36,6 +37,18 @@ export const UserApp = () => {
   };
 
   const currentProfile = profiles[userKey || 'rami'] || profiles.rami;
+
+  // אתחול OneSignal עם ה-ID החדש שסיפקת
+  useEffect(() => {
+    OneSignal.init({
+      appId: "546472ac-f9ab-4c6c-beb2-e41c72af9849",
+      allowLocalhostAsSecureOrigin: true,
+    }).then(() => {
+      console.log("OneSignal Initialized");
+    }).catch(err => {
+      console.error("OneSignal Init Error:", err);
+    });
+  }, []);
 
   useEffect(() => {
     const loadHistory = async () => {
@@ -145,7 +158,7 @@ export const UserApp = () => {
           ))}
           {isTyping && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-end">
-              <div className="bg-white p-3 rounded-xl rounded-tl-none shadow-sm flex gap-1">
+              <div className="bg-white p-3 rounded-xl rounded-tl-none shadow-sm flex gap-1 px-3 py-4">
                 <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"></span>
                 <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></span>
                 <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></span>
