@@ -11,7 +11,7 @@ import {
   getPrivateChatHistory, 
   saveMessage, 
   askNoaPersonalized, 
-} from '../services/auraService';
+} from '../services/auraService2';
 import { uploadFileToDrive } from '../services/driveService';
 
 const playNotificationSound = () => {
