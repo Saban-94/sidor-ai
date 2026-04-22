@@ -16,7 +16,17 @@ import { db, auth } from '../lib/firebase';
 import { Order, Driver, Customer, Reminder } from '../types';
 
 import { listDriveFiles, getFileBase64, createCustomerFolderHierarchy } from './driveService';
+// בדיקה כפולת הגנה על המפתח
+const GEMINI_KEY = 
+  import.meta.env.VITE_GEMINI_API_KEY || 
+  (window as any).process?.env?.VITE_GEMINI_API_KEY ||
+  "";
 
+if (!GEMINI_KEY) {
+  console.error("❌ שגיאה קריטית: ה-API Key לא זוהה במערכת!");
+}
+
+const genAI = new GoogleGenerativeAI(GEMINI_KEY);
 // פונקציית עזר לניקוי טקסט לדיבור (TTS)
 const sanitizeForVoice = (text: string): string => {
   return text
