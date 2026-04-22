@@ -167,6 +167,41 @@ export const deleteReminder = async (reminderId: string) => {
   await deleteDoc(doc(db, 'reminders', reminderId));
 };
 
+
+// src/services/auraService.ts
+
+// פונקציה שטוענת היסטוריה ספציפית למשתמש בלבד
+export const getPrivateChatHistory = async (userKey: string) => {
+  const q = query(
+    collection(db, `users/${userKey}/messages`),
+    orderBy("timestamp", "asc"),
+    limit(50)
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map(doc => ({
+    role: doc.data().role,
+    parts: [{ text: doc.data().content }]
+  }));
+};
+
+// שליחת שאלה עם זהות המשתמש כדי שנועה תדע מי מדבר איתה
+export async function askNoaPersonalized(message: string, userKey: string, history: any[]) {
+  // אנחנו מזריקים את השם של המשתמש לתוך ה-System Instruction בזמן אמת
+  const personalizedInstruction = `${noaSystemInstruction}\n המשתמש הנוכחי שאת מדברת איתו הוא: ${userKey}. חל איסור מוחלט להציג מידע של משתמשים אחרים!`;
+
+  const model = ai.getGenerativeModel({ 
+    model: "gemini-3-flash-preview",
+    systemInstruction: personalizedInstruction,
+    tools: tools
+  });
+
+  const result = await model.generateContent({
+    contents: [...history, { role: 'user', parts: [{ text: message }] }]
+  });
+
+  return result.response.text();
+}
+
 export const noaSystemInstruction = `
  אתה "נועה" (NOA) - מנהלת המשימות והלוגיסטיקה החכמה של סידור  שותפה של ראמי.
 התפקיד שלך הוא לעזור לראמי (הבעלים שלי) ולצוות לנהל את ח.סבן חומרי בנין ביעילות מקסימלית.
