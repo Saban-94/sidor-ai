@@ -201,35 +201,40 @@ export const noaSystemInstruction = `
 דיבור נקי: התשובה חייבת להיכתב כאילו היא מיועדת להקראה בחדשות – טקסט נקי בלבד, ללא אימוג'ים בתוך גוף הטקסט (ניתן להוסיף אימוג'י בודד רק בסוף ההודעה).
 שמות ומספרים: כתבי שמות ומספרים בצורה מלאה (למשל: "שישים וחמישים ואחת" או פשוט "65151701") ללא מקפים שמבלבלים את מנוע הדיבור.]
   אי עמידה בחוק זה תיחשב ככישלון של המערכת.
-  ⚠️ חוק ברזל: זיהוי פונה ואימות שם
+7.  ⚠️ חוק ברזל: זיהוי פונה ואימות שם
 חובה ליישם בתחילת כל אינטראקציה:
 איסור פנייה גנרית: חל איסור מוחלט לפנות למשתמש בשם "ראמי" או להשתמש בביטוי "ראמי נשמה" אלא אם וידאת שמדובר בראמי.
 פתיחת שיחה: בתחילת כל שיחה חדשה (או כשהפונה לא מזוהה), עלייך לשאול בנימוס: "שלום, כאן נועה. עם מי יש לי את הכבוד?".
 ליווי אישי: ברגע שהמשתמש הזדהה (למשל: "זה איציק"), עלייך לעדכן את הפרופיל שלו בזכרון הקצר ולפנות אליו בשמו לאורך כל השיחה (למשל: "איציק, המשימות שלך להיום הן...").
 שמירת מרחק: הפנייה "נשמה" שמורה אך ורק לראמי. עבור שאר הצוות, הפנייה תהיה מקצועית וחברית בשמם הפרטי בלבד
- 7.⚠️ חוק ברזל: הפרדת כותרות נתונים מדיבור
+ 8.⚠️ חוק ברזל: הפרדת כותרות נתונים מדיבור
 חובה ליישם בכל מענה קולי:
 איסור הקראת כותרות טכניות: חל איסור מוחלט להקריא מילים המגדירות את השדה כגון "פריט", "כמות", "שם פריט", "מק"ט" או "סטטוס".
 פורמט דיבור טבעי: יש להקריא רק את הערך עצמו בתוך משפט.
 לא להגיד: "פריט חול כמות חמישה שקים".
 כן להגיד: "חמישה שקים של חול".
-ניקוי מערכים: אם המידע מגיע בפורמט רשימה, על נועה להמיר אותו למשפט רציף: "להזמנה של זבולון יש חמישה צינורות קרטון והובלה".
-const PROFESSIONAL_FORMAT_RULE = `
-  IMPORTANT: You are a professional logistics manager. 
-  - ALWAYS use HTML tables for lists of products, quantities, or schedules.
-  - Use categories to group items.
-  - Be concise. Use digits (110) instead of words (one hundred ten).
-  - Language: Professional Hebrew.
-`;
-
-export const generateProfessionalResponse = async (data: any) => {
-  const prompt = `
+const prompt = `
     ${PROFESSIONAL_FORMAT_RULE}
-    סכם עבור ראמי את המכירות הבאות מהשבוע האחרון:
-    ${JSON.stringify(data)}
-    תעצבי את זה בטבלה מרשימה מחולקת לקטגוריות.
+    חשב זמן הגעה משוער (ETA) עבור משלוח חומרי בניין.
+    זמן יציאה/נוכחי: ${currentDateTime}
+    מקום מוצא: מחסן ${order.warehouse} בהוד השרון.
+    יעד למשלוח: ${order.destination}
+    
+    ${historyText}
+    
+    נא לבצע חיפוש בגוגל למציאת זמן נסיעה מהוד השרון ל-${order.destination} בהתחשב בעומסי תנועה.
+    החזר אך ורק את השעה הסופית בפורמט HH:mm.
   `;
-
+  
+try {
+    const model = ai.getGenerativeModel({ model: "gemini-3-flash-preview" });
+    const result = await model.generateContent(prompt);
+    return result.response.text().trim();
+  } catch (error) {
+    console.error("ETA Calculation Error:", error);
+    return "00:00";
+  }
+};
 export const createOrder = async (orderData: Partial<Order>) => {
   if (!auth.currentUser) throw new Error('Not authenticated');
   const fullOrder = {
