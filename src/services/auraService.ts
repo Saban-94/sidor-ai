@@ -16,6 +16,9 @@ import { Order, Driver, Customer, Reminder } from '../types';
 
 import { listDriveFiles, getFileBase64, createCustomerFolderHierarchy } from './driveService';
 
+import { GoogleGenerativeAI } from "@google/generative-ai";
+
+// הגדרת טיפוסים לכלים (Tools) - Vite דורש הגדרה ברורה
 export enum Type {
   OBJECT = "OBJECT",
   STRING = "STRING",
@@ -25,26 +28,19 @@ export enum Type {
   INTEGER = "INTEGER",
 }
 
-import { GoogleGenAI } from "@google/genai";
-
-let genAI: GoogleGenAI | null = null;
+let genAI: any = null;
 
 function getAi() {
   if (!genAI) {
-    const apiKey = process.env.VITE_GEMINI_API_KEY;
+    // תיקון: שימוש ב-import.meta.env עבור Vite/Vercel
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
     if (!apiKey) {
       throw new Error("Gemini API key is not configured. Please ensure it is set in the environment.");
     }
-    genAI = new GoogleGenAI({ apiKey });
+    genAI = new GoogleGenerativeAI(apiKey);
   }
   return genAI;
 }
-
-async function callGeminiApi(payload: any) {
-  // We'll use the SDK directly in the calling functions instead of this proxy
-  throw new Error("callGeminiApi is deprecated. Use getAi().models.generateContent directly.");
-}
-
 export const INVENTORY_RULES = [];
 
 export const createCustomer = async (customerData: Partial<Customer>) => {
