@@ -27,11 +27,22 @@ export enum Type {
 
 import { GoogleGenAI } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY as string });
+let genAI: GoogleGenAI | null = null;
+
+function getAi() {
+  if (!genAI) {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      throw new Error("Gemini API key is not configured. Please ensure it is set in the environment.");
+    }
+    genAI = new GoogleGenAI({ apiKey });
+  }
+  return genAI;
+}
 
 async function callGeminiApi(payload: any) {
   // We'll use the SDK directly in the calling functions instead of this proxy
-  throw new Error("callGeminiApi is deprecated. Use ai.models.generateContent directly.");
+  throw new Error("callGeminiApi is deprecated. Use getAi().models.generateContent directly.");
 }
 
 export const INVENTORY_RULES = [];
@@ -503,7 +514,7 @@ async function processNoaTurn(contents: any[]): Promise<any> {
   
   const dynamicInstruction = `${noaSystemInstruction}\n\nהזמן הנוכחי במערכת: ${dayName}, ${currentDateTime}.\nכשמדברים על "מחר", הכוונה היא ליום שאחרי התאריך המופיע כאן.`;
 
-  const response = await ai.models.generateContent({
+  const response = await getAi().models.generateContent({
     model: "gemini-3-flash-preview",
     contents: contents,
     config: {
@@ -605,7 +616,7 @@ async function processNoaTurn(contents: any[]): Promise<any> {
 
 החזר JSON בלבד.`;
             
-            const analysisResponse = await ai.models.generateContent({
+            const analysisResponse = await getAi().models.generateContent({
               model: "gemini-3-flash-preview",
               contents: [{
                 role: 'user',
@@ -700,7 +711,7 @@ export async function predictOrderEta(order: Order, historicalOrders: Order[] = 
   `;
 
   try {
-    const response = await ai.models.generateContent({
+    const response = await getAi().models.generateContent({
       model: "gemini-3-flash-preview",
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
       config: {
