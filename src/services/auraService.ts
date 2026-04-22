@@ -27,6 +27,8 @@ const sanitizeForVoice = (text: string): string => {
     .trim();
   (response as any).audioContent = sanitizeForVoice(response.text);
 };
+
+
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 export const INVENTORY_RULES = [];
@@ -83,7 +85,29 @@ export const searchCustomers = async (searchTerm: string) => {
       c.phoneNumber.includes(term)
     ) as Customer[];
 };
+// --- פונקציות ייעודיות לממשק משתמש אישי (Multi-Tenant) ---
 
+// שמירת הודעה בתיקיית משתמש נפרדת
+export const saveMessage = async (userKey: string, role: string, content: string) => {
+  await addDoc(collection(db, `users/${userKey}/messages`), {
+    role,
+    content,
+    timestamp: serverTimestamp()
+  });
+};
+
+// טעינת היסטוריה פרטית למשתמש
+
+
+// פנייה לנועה עם זהות משתמש מוזרקת (לדיוק מירבי עבור הראל/ורד)
+
+
+  const result = await model.generateContent({
+    contents: [...history, { role: 'user', parts: [{ text: message }] }]
+  });
+
+  return result.response.text();
+}
 export const createDriver = async (driverData: Partial<Driver>) => {
   const fullDriver = {
     ...driverData,
@@ -177,16 +201,21 @@ export const getPrivateChatHistory = async (userKey: string) => {
     orderBy("timestamp", "asc"),
     limit(50)
   );
-  const snap = await getDocs(q);
-  return snap.docs.map(doc => ({
+  const querySnapshot = await getDocs(q);
+  return querySnapshot.docs.map(doc => ({
     role: doc.data().role,
     parts: [{ text: doc.data().content }]
   }));
 };
-
 // שליחת שאלה עם זהות המשתמש כדי שנועה תדע מי מדבר איתה
 export async function askNoaPersonalized(message: string, userKey: string, history: any[]) {
-  // אנחנו מזריקים את השם של המשתמש לתוך ה-System Instruction בזמן אמת
+  const personalizedInstruction = `המערכת של ח. סבן. את מדברת עכשיו עם: ${userKey}. חל איסור להציג מידע של משתמשים אחרים. ${noaSystemInstruction}`;
+
+  const model = ai.getGenerativeModel({ 
+    model: "gemini-3-flash-preview",
+    systemInstruction: personalizedInstruction,
+    tools: tools
+  });  // אנחנו מזריקים את השם של המשתמש לתוך ה-System Instruction בזמן אמת
   const personalizedInstruction = `${noaSystemInstruction}\n המשתמש הנוכחי שאת מדברת איתו הוא: ${userKey}. חל איסור מוחלט להציג מידע של משתמשים אחרים!`;
 
   const model = ai.getGenerativeModel({ 
