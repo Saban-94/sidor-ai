@@ -2,23 +2,20 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
   Send, Paperclip, Camera, Mic, MoreVertical, 
-  ChevronRight, Truck, User, Bell, CheckCheck, 
-  FileSearch, Loader2, Sparkles, Clock 
+  ChevronRight, Truck, User, CheckCheck, 
+  Loader2, Sparkles 
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   getPrivateChatHistory, 
   saveMessage, 
   askNoaPersonalized, 
-  updateOrder 
 } from '../services/auraService';
 import { uploadFileToDrive } from '../services/driveService';
-import OneSignal from 'react-onesignal';
 
-// צליל הודעה וואטסאפ
 const playNotificationSound = () => {
   const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3');
-  audio.play().catch(e => console.log("Audio play blocked"));
+  audio.play().catch(() => console.log("Audio play blocked"));
 };
 
 export const UserApp = () => {
@@ -30,37 +27,37 @@ export const UserApp = () => {
   const [isUploading, setIsUploading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // הגדרות "זיקית" לפי פרופיל
   const profiles: Record<string, any> = {
-    harel: { name: 'הראל אידלסון', avatar: 'https://i.pravatar.cc/150?u=harel', color: '#075e54', sub: 'בוס - מחובר' },
-    vered: { name: 'ורד אידלסון', avatar: 'https://i.pravatar.cc/150?u=vered', color: '#d63384', sub: 'שכר ותפעול - מחוברת' },
+    harel: { name: 'הראל אידלסון', avatar: 'https://i.postimg.cc/d3S0NJJZ/Screenshot-20250623-200646-Facebook.jpg', color: '#075e54', sub: 'בוס - מחובר' },
+    vered: { name: 'ורד אידלסון', avatar: 'https://i.pravatar.cc/tCNbgXK3/Screenshot-20250623-200744-Tik-Tok.jpg', color: '#d63384', sub: 'שכר ותפעול - מחוברת' },
     oren: { name: 'אורן חצר', avatar: 'https://i.postimg.cc/tCNbgXK3/Screenshot-20250623-200744-Tik-Tok.jpg', color: '#128c7e', sub: 'מנהל חצר - מחובר' },
-    netanel: { name: 'נתנאל צדיק', avatar: 'https://i.pravatar.cc/150?u=netanel', color: '#34b7f1', sub: 'רכש - מחובר' },
-    rami: { name: 'ראמי נשמה', avatar: 'https://i.pravatar.cc/150?u=rami', color: '#075e54', sub: 'סידור עבודה - מחובר' }
+    netanel: { name: 'נתנאל צדיק', avatar: 'https://i.postimg.cc/d3S0NJJZ/Screenshot-20250623-200646-Facebook.jpg', color: '#34b7f1', sub: 'רכש - מחובר' },
+    rami: { name: 'ראמי נשמה', avatar: 'https://i.postimg.cc/tCNbgXK3/Screenshot-20250623-200744-Tik-Tok.jpg', color: '#075e54', sub: 'סידור עבודה - מחובר' }
   };
 
   const currentProfile = profiles[userKey || 'rami'] || profiles.rami;
 
-  // אתחול OneSignal
-  useEffect(() => {
-    OneSignal.init({ appId: "546472ac-f9ab-4c6c-beb2-e41c72af9849", allowLocalhostAsSecureOrigin: true });
-  }, []);
-
-  // טעינת היסטוריה וגלילה
   useEffect(() => {
     const loadHistory = async () => {
-      const history = await getPrivateChatHistory(userKey || 'rami');
-      setMessages(history.map(h => ({
-        text: h.parts[0].text,
-        sender: h.role === 'user' ? 'me' : 'noa',
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      })));
+      if (!userKey) return;
+      try {
+        const history = await getPrivateChatHistory(userKey);
+        setMessages(history.map(h => ({
+          text: h.parts[0].text,
+          sender: h.role === 'user' ? 'me' : 'noa',
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        })));
+      } catch (err) {
+        console.error("Load history error:", err);
+      }
     };
     loadHistory();
   }, [userKey]);
 
   useEffect(() => {
-    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
   }, [messages, isTyping]);
 
   const handleSendMessage = async (e?: React.FormEvent) => {
@@ -68,44 +65,44 @@ export const UserApp = () => {
     if (!inputText.trim() || isTyping) return;
 
     const userText = inputText;
-    setInputText('');
+    const currentTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     
-    // הוספת הודעת משתמש
-    const newMsg = { text: userText, sender: 'me', time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) };
-    setMessages(prev => [...prev, newMsg]);
+    setInputText('');
+    setMessages(prev => [...prev, { text: userText, sender: 'me', time: currentTime }]);
+    
     await saveMessage(userKey || 'rami', 'user', userText);
-
-    // אפקט הקלדה של נועה
     setIsTyping(true);
     
     try {
       const response = await askNoaPersonalized(userText, userKey || 'rami', messages);
-      
       setIsTyping(false);
       playNotificationSound();
       
-      const noaMsg = { text: response.text, sender: 'noa', time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) };
-      setMessages(prev => [...prev, noaMsg]);
-      await saveMessage(userKey || 'rami', 'model', response.text);
+      const noaText = typeof response === 'string' ? response : (response.text || "בוצע אחי.");
+      setMessages(prev => [...prev, { text: noaText, sender: 'noa', time: currentTime }]);
+      await saveMessage(userKey || 'rami', 'model', noaText);
     } catch (err) {
       setIsTyping(false);
+      console.error("Chat error:", err);
     }
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
     setIsUploading(true);
     try {
-      const result = await uploadFileToDrive(file);
-      await handleSendMessage(undefined); // טריגר לנועה לסרוק את הקובץ החדש
+      await uploadFileToDrive(file);
+      setInputText(`העליתי קובץ: ${file.name}, תסרקי ותעדכני אותי.`);
+      setTimeout(() => handleSendMessage(), 500);
+    } catch (err) {
+      console.error("Upload error:", err);
     } finally {
       setIsUploading(false);
     }
   };
 
-return (
+  return (
     <div className="h-screen flex flex-col bg-[#e5ddd5] font-sans overflow-hidden" dir="rtl">
       {/* Header */}
       <header className="flex items-center justify-between px-4 py-3 text-white shadow-md z-20" style={{ backgroundColor: currentProfile.color }}>
@@ -183,6 +180,5 @@ return (
         </button>
       </footer>
     </div>
-    );
   );
-
+};
