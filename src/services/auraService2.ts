@@ -43,7 +43,7 @@ export async function askNoaPersonalized(message: string, userKey: string, histo
     const roleInstruction = `את "נועה ניהול" - העוזרת האישית של ${userKey}. תפקידך לנהל משימות, תזכורות ופרויקטים. את נפרדת מהסידור אבל חכמה באותה מידה.`;
 
     const model = genAI.getGenerativeModel({ 
-      model: "gemini-1.5-flash",
+      model: "gemini-3-flash-preview",
       systemInstruction: `${roleInstruction} תעני בעברית חדה, מקצועית וקצרה.`
     });
 
