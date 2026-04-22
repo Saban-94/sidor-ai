@@ -157,8 +157,12 @@ export const getReminders = async (date?: string) => {
 };
 
   
-  const docRef = await addDoc(collection(db, 'reminders'), fullReminder);
-  return { id: docRef.id, ...fullReminder };
+export const updateReminder = async (reminderId: string, updates: Partial<Reminder>) => {
+  const docRef = doc(db, 'reminders', reminderId);
+  await updateDoc(docRef, {
+    ...updates,
+    updatedAt: serverTimestamp(),
+  });
 };
 
 export const updateReminder = async (reminderId: string, updates: Partial<Reminder>) => {
