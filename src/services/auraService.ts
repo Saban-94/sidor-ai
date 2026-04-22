@@ -152,15 +152,6 @@ export const getReminders = async (date?: string) => {
   return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Reminder[];
 };
 
-export const createReminder = async (reminderData: Partial<Reminder>) => {
-  if (!auth.currentUser) throw new Error('Not authenticated');
-  const fullReminder = {
-    ...reminderData,
-    isCompleted: false,
-    userId: auth.currentUser.uid,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-  } as Reminder;
   
   const docRef = await addDoc(collection(db, 'reminders'), fullReminder);
   return { id: docRef.id, ...fullReminder };
