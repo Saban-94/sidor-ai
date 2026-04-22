@@ -101,21 +101,45 @@ export const NoaChat = ({
     }
   }, [chatHistory.length]);
 
-  const dynamicSuggestions = [
-    { label: 'יש הזמנה או תעודה חדשה? 📂', action: 'תסרקי את תיקיית סידור ח.סבן ותחלץ נתונים מהקובץ האחרון' },
-    { label: 'הזמנה חדשה תכתבי לי  ✍️', action: 'הזמנה חדשה ' },
-    { label: 'סטטוס סידור 📊', action: 'מה סטטוס ההפצה כרגע?' },
-    { label: 'סכם מוצרים שיצאו 📊', action: 'מה המוצרים שיצאו היום?' },
-    { label: 'דוח בוקר☀️ 📋', action: '☀️תכיני לי דוח בוקר 📋' },
-    { label: 'מה סטטוס נהגים חכמת/עלי? 🚛', action: '"סטטוס נהגים חכמת/עלי 🚛' },
-    { label: 'חריגות היו היום? ⚠️', action: 'חריגות בטון/ריצופית ⚠️' },
-    { label: 'סיכום עמוסים 📈', action: 'סיכום עמוסים' },
-    { label: 'תיעוד מסירה 📜', action: 'תיעוד מסירה' },
-    ...orders.filter(o => o.status === 'preparing').slice(0, 2).map(o => ({
+const dynamicSuggestions = [
+  // כפתורי הזדהות מהירה - מפעילים את פרוטוקול "הזיהוי והתאמה אישית"
+  { 
+    label: 'כניסת מנכ"ל (הראל) 👴', 
+    action: 'שלום, אני הראל.' 
+  },
+  { 
+    label: 'כניסת מחסן (אורן) 🏗️', 
+    action: 'זה אורן מהמחסן.' 
+  },
+  { 
+    label: 'סריקת מסמך חדש 📂', 
+    action: 'נועה, תסרקי את הקובץ האחרון בתיקיית סידור עבודה ותעדכני את המערכת.' 
+  },
+  { 
+    label: 'דוח בוקר להראל ☀️', 
+    action: 'נועה, תכיני להראל דוח בוקר בטבלה על כל מה שיוצא היום מהמחסן.' 
+  },
+  { 
+    label: 'מוצרים שיצאו היום 📊', 
+    action: 'תציגי בטבלה את סיכום המוצרים שיצאו היום לפי קטגוריות.' 
+  },
+  { 
+    label: 'סטטוס נהגים 🚛', 
+    action: 'מה המיקום והסטטוס הנוכחי של חכמת ושל עלי?' 
+  },
+  { 
+    label: 'בדיקת חריגות ⚠️', 
+    action: 'האם היו חריגות היום באספקות בטון או ריצופית?' 
+  },
+  // קיצורי דרך דינמיים לפי הזמנות בטיפול
+  ...orders
+    .filter(o => o.status === 'preparing' || o.status === 'ready')
+    .slice(0, 2)
+    .map(o => ({
       label: `צפי ל${o.customerName.split(' ')[0]} ⏱️`,
-      action: `מה ה-ETA של ${o.customerName}?`
+      action: `חשבי ETA להזמנה של ${o.customerName} ליעד ${o.destination}.`
     }))
-  ];
+];
 
   return (
     <div className="h-[100dvh] bg-white flex flex-col md:flex-row overflow-hidden" dir="rtl">
