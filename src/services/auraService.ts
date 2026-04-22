@@ -3,7 +3,6 @@ import {
   collection, 
   addDoc, 
   updateDoc, 
-  deleteDoc, 
   doc, 
   query, 
   where, 
@@ -14,22 +13,22 @@ import {
 } from 'firebase/firestore';
 import { db, auth } from '../lib/firebase';
 import { Order, Driver, Customer, Reminder } from '../types';
-
-import { listDriveFiles, getFileBase64, createCustomerFolderHierarchy } from './driveService';
+import { createCustomerFolderHierarchy } from './driveService';
 
 // פונקציית עזר לניקוי טקסט לדיבור (TTS)
 const sanitizeForVoice = (text: string): string => {
   return text
     .replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g, '') // הסרת אימוג'ים
+    .replace(/<[^>]*>?/gm, '') // הסרת תגיות HTML לדיבור נקי
     .replace(/\*\*|##|__|#|\*|`/g, '') // הסרת סימני Markdown
     .replace(/^\s*[\-\*+]\s+/gm, '') // הסרת סימני רשימות
     .replace(/\s+/g, ' ') // ניקוי רווחים כפולים
     .trim();
-  (response as any).audioContent = sanitizeForVoice(response.text);
 };
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
-export const INVENTORY_RULES = [];
+const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
+
+// --- ניהול לקוחות ---
 
 export const createCustomer = async (customerData: Partial<Customer>) => {
   const fullCustomer = {
@@ -38,7 +37,6 @@ export const createCustomer = async (customerData: Partial<Customer>) => {
     updatedAt: serverTimestamp(),
   } as Customer;
 
-  // Automate Drive Folder via GAS Bridge
   try {
     const folderInfo = await createCustomerFolderHierarchy(fullCustomer.customerNumber, fullCustomer.name, {
       contactPerson: fullCustomer.contactPerson,
@@ -48,7 +46,7 @@ export const createCustomer = async (customerData: Partial<Customer>) => {
       fullCustomer.driveFolderId = folderInfo.folderId;
     }
   } catch (err) {
-    console.error("Failed to create Drive folder for customer אחי:", err);
+    console.error("Failed to create Drive folder for customer:", err);
   }
 
   const docRef = await addDoc(collection(db, 'customers'), fullCustomer);
@@ -61,13 +59,6 @@ export const updateCustomer = async (customerId: string, updates: Partial<Custom
     ...updates,
     updatedAt: serverTimestamp(),
   });
-};
-
-export const getCustomerByName = async (name: string) => {
-  const q = query(collection(db, 'customers'), where('name', '==', name), limit(1));
-  const snap = await getDocs(q);
-  if (snap.empty) return null;
-  return { id: snap.docs[0].id, ...snap.docs[0].data() } as Customer;
 };
 
 export const searchCustomers = async (searchTerm: string) => {
@@ -84,20 +75,7 @@ export const searchCustomers = async (searchTerm: string) => {
     ) as Customer[];
 };
 
-// הוספת שדה לשליחת התראה בכלי הקיים
-export const createReminder = async (reminderData: any) => {
-  if (!auth.currentUser) throw new Error('משתמש לא מחובר');
-
-  const docRef = await addDoc(collection(db, 'reminders'), {
-    ...reminderData,
-    userId: auth.currentUser.uid,
-    status: 'pending',
-    sent: false, // לצורך OneSignal
-    createdAt: serverTimestamp(),
-  });
-
-  return { id: docRef.id, success: true };
-};
+// --- ניהול נהגים ---
 
 export const createDriver = async (driverData: Partial<Driver>) => {
   const fullDriver = {
@@ -113,99 +91,84 @@ export const createDriver = async (driverData: Partial<Driver>) => {
   return { id: docRef.id, ...fullDriver };
 };
 
-export const updateDriver = async (driverId: string, updates: Partial<Driver>) => {
-  const docRef = doc(db, 'drivers', driverId);
-  await updateDoc(docRef, {
-    ...updates,
-    updatedAt: serverTimestamp(),
-  });
-};
-
 export const getAllDrivers = async () => {
   const q = query(collection(db, 'drivers'), orderBy('name', 'asc'));
   const snapshot = await getDocs(q);
   return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Driver[];
 };
 
-export const getCustomerByNumber = async (customerNumber: string) => {
-  const q = query(collection(db, 'customers'), where('customerNumber', '==', customerNumber), limit(1));
-  const snap = await getDocs(q);
-  if (snap.empty) return null;
-  return { id: snap.docs[0].id, ...snap.docs[0].data() } as Customer;
+// --- ניהול תזכורות (Reminders) ---
+
+export const createReminder = async (reminderData: any) => {
+  if (!auth.currentUser) throw new Error('Not authenticated');
+  const fullReminder = {
+    ...reminderData,
+    userId: auth.currentUser.uid,
+    status: 'pending',
+    sent: false,
+    createdAt: serverTimestamp(),
+  };
+  const docRef = await addDoc(collection(db, 'reminders'), fullReminder);
+  return { id: docRef.id, ...fullReminder };
 };
 
-export const getReminders = async (date?: string) => {
-  if (!auth.currentUser) return [];
-  let q = query(
-    collection(db, 'reminders'), 
-    where('userId', '==', auth.currentUser.uid),
-    orderBy('dueDate', 'asc'),
-    orderBy('dueTime', 'asc')
-  );
-  
-  if (date) {
-    q = query(
-      collection(db, 'reminders'), 
-      where('userId', '==', auth.currentUser.uid),
-      where('dueDate', '==', date),
-      orderBy('dueTime', 'asc')
-    );
-  }
-  
-  const snapshot = await getDocs(q);
-  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Reminder[];
-};
-
-  
-export const updateReminder = async (reminderId: string, updates: Partial<Reminder>) => {
+export const updateReminder = async (reminderId: string, updates: any) => {
   const docRef = doc(db, 'reminders', reminderId);
   await updateDoc(docRef, {
     ...updates,
-    updatedAt: serverTimestamp(),
+    updatedAt: serverTimestamp()
+  });
+  return { id: reminderId, ...updates };
+};
+
+// --- זיכרון עולם (Chat History) ---
+
+export const saveMessage = async (userId: string, role: string, content: string) => {
+  await addDoc(collection(db, `users/${userId}/messages`), {
+    role,
+    content,
+    timestamp: serverTimestamp()
   });
 };
 
-export const updateReminder = async (reminderId: string, updates: Partial<Reminder>) => {
-  const docRef = doc(db, 'reminders', reminderId);
-  await updateDoc(docRef, {
-    ...updates,
-    updatedAt: serverTimestamp(),
-  });
-};
-// פונקציה לטעינת היסטוריית שיחה מ-Firestore
 export const getChatHistory = async (userId: string) => {
   const q = query(
     collection(db, `users/${userId}/messages`),
     orderBy("timestamp", "asc"),
-    limit(50) // טוען את 50 ההודעות האחרונות כדי שיהיה לה הקשר
+    limit(50)
   );
   
   const querySnapshot = await getDocs(q);
   return querySnapshot.docs.map(doc => ({
     role: doc.data().role,
     parts: [{ text: doc.data().content }]
-  });
+  }));
 };
 
-// פונקציה לשמירת הודעה חדשה
-export const saveMessage = async (userId: string, role: string, content: string) => {
-  await addDoc(collection(db, `users/${userId}/messages`), {
-    role,
-    content,
-    timestamp: serverTimestamp()
+// --- פונקציית התקשורת המרכזית עם נועה ---
+
+export async function askNoa(message: string, history: any[] = []) {
+  const model = ai.getGenerativeModel({ 
+    model: "gemini-3-flash-preview",
+    systemInstruction: noaSystemInstruction, // לוודא שמוגדר למעלה
+    tools: tools // לוודא שמוגדר למעלה
   });
-};
-// פונקציה לשמירת הודעה חדשה
-export const saveMessage = async (userId: string, role: string, content: string) => {
-  await addDoc(collection(db, `users/${userId}/messages`), {
-    role,
-    content,
-    timestamp: serverTimestamp()
-  });
-};
-export const deleteReminder = async (reminderId: string) => {
-  await deleteDoc(doc(db, 'reminders', reminderId));
-};
+
+  try {
+    const result = await model.generateContent({
+      contents: [...history, { role: 'user', parts: [{ text: message }] }]
+    });
+
+    const responseText = result.response.text();
+    return {
+      text: responseText,
+      audioContent: sanitizeForVoice(responseText) // עכשיו נועה מדברת נקי
+    };
+  } catch (error) {
+    console.error("Noa Error:", error);
+    return { text: "שגיאה בחיבור לנועה.", audioContent: "שגיאה" };
+  }
+}
 
 export const noaSystemInstruction = `
  אתה "נועה" (NOA) - מנהלת המשימות והלוגיסטיקה החכמה של סידור  שותפה של ראמי.
