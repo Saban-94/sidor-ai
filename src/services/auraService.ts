@@ -31,7 +31,7 @@ let genAI: GoogleGenAI | null = null;
 
 function getAi() {
   if (!genAI) {
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = process.env.VITE_GEMINI_API_KEY;
     if (!apiKey) {
       throw new Error("Gemini API key is not configured. Please ensure it is set in the environment.");
     }
