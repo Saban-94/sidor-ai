@@ -153,7 +153,7 @@ const ItemsModal = ({
           {parsedItems.length === 0 && (
             <div className="py-12 text-center">
               <Package size={48} className="mx-auto text-gray-100 mb-4" />
-              <p className="text-gray-400 font-bold">אין פריטים להצגה אחי</p>
+              <p className="text-gray-400 font-bold">אין פריטים להצגה</p>
             </div>
           )}
         </div>
@@ -164,7 +164,7 @@ const ItemsModal = ({
             onClick={onClose}
             className="w-full py-4 bg-white border border-gray-200 text-gray-600 rounded-2xl font-black text-sm flex items-center justify-center gap-2 hover:bg-gray-100 transition-all shadow-sm"
           >
-            סיימתי לצפות אחי
+            סיימתי לצפות
           </button>
         </div>
       </motion.div>
@@ -276,7 +276,7 @@ const DocumentSheet = ({
                       isPending(doc.id) ? (
                         <div className={`flex items-center gap-3 p-3 bg-${doc.themeColor}-50/50 rounded-2xl border border-${doc.themeColor}-100 animate-pulse`}>
                           <Loader2 size={16} className="animate-spin text-sky-600" />
-                          <span className={`text-xs font-bold text-${doc.themeColor}-700`}>מעבד את המסמך אחי...</span>
+                          <span className={`text-xs font-bold text-${doc.themeColor}-700`}>מעבד את המסמך...</span>
                         </div>
                       ) : (
                         <div className="flex gap-2">
@@ -381,9 +381,9 @@ export const OrderCard = ({
       const predictedEta = await predictOrderEta(order, historicalOrders);
       if (predictedEta) {
         onUpdateEta(order.id!, predictedEta);
-        onAddToast('חיזוי ETA חכם', `נמצא זמן הגעה משוער: ${predictedEta} על סמך תנועה אחי`, 'success');
+        onAddToast('חיזוי ETA חכם', `נמצא זמן הגעה משוער: ${predictedEta} על סמך תנועה`, 'success');
       } else {
-        onAddToast('שגיאה בחיזוי', 'לא הצלחתי לחשב זמן הגעה, תנסה שוב שותף', 'warning');
+        onAddToast('שגיאה בחיזוי', 'לא הצלחתי לחשב זמן הגעה, אנא נסה שנית', 'warning');
       }
     } catch (error) {
       console.error(error);
@@ -409,7 +409,7 @@ export const OrderCard = ({
       navigator.share({ title: 'שיתוף הזמנה', text }).catch(console.error);
     } else {
       navigator.clipboard.writeText(text);
-      onAddToast('הועתק', 'פרטי ההזמנה הועתקו ללוח אחי', 'success');
+      onAddToast('הועתק', 'פרטי ההזמנה הועתקו ללוח', 'success');
     }
   };
 
@@ -637,7 +637,7 @@ export const OrderCard = ({
                </button>
                <button 
                 onClick={() => {
-                  if (window.confirm('למחוק אחי?')) onDelete(order.id!);
+                  if (window.confirm('האם למחוק הזמנה זו?')) onDelete(order.id!);
                 }}
                 className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl"
                >
@@ -685,7 +685,7 @@ export const OrderCard = ({
 
               <button 
                 onClick={() => {
-                  if (window.confirm('בטוח שאתה רוצה למחוק את ההזמנה לצמיתות אחי?')) {
+                  if (window.confirm('האם אתה בטוח שברצונך למחוק את ההזמנה לצמיתות?')) {
                     onDelete(order.id!);
                   }
                 }}

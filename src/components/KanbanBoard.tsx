@@ -103,7 +103,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                   >
                     {colOrders.length === 0 && !snapshot.isDraggingOver ? (
                       <div className="h-24 flex items-center justify-center border-2 border-dashed border-gray-100 rounded-[2.5rem] bg-gray-50/30">
-                        <span className="text-xs font-bold text-gray-300 italic">אין הזמנות אחי</span>
+                        <span className="text-xs font-bold text-gray-300 italic">אין הזמנות בשלב זה</span>
                       </div>
                     ) : (
                       colOrders.map((order, index) => (

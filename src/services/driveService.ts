@@ -20,7 +20,7 @@ export interface DriveFile {
  */
 export async function listDriveFiles(folderId: string = FOLDER_ID || ''): Promise<DriveFile[]> {
   if (!API_KEY) {
-    console.warn("Drive API Key is missing. Listing/Scanning documents won't work, but uploading via GAS Bridge is fine אחי.");
+    console.warn("Drive API Key is missing. Listing/Scanning documents won't work, but uploading via GAS Bridge is fine.");
     return [];
   }
 
@@ -43,7 +43,7 @@ export async function listDriveFiles(folderId: string = FOLDER_ID || ''): Promis
  */
 export async function getFileBase64(fileId: string): Promise<string> {
   if (!API_KEY) {
-    throw new Error("Missing Drive API Key אחי. תגדיר אותו ב-Settings כדי שנועה תוכל לסרוק קבצים.");
+    throw new Error("Missing Drive API Key. תגדיר אותו ב-Settings כדי שנועה תוכל לסרוק קבצים.");
   }
 
   // To download file content using an API key, we use the 'alt=media' parameter.
@@ -54,7 +54,7 @@ export async function getFileBase64(fileId: string): Promise<string> {
     const response = await fetch(url);
     if (!response.ok) {
       if (response.status === 404) {
-        throw new Error(`קובץ עם מזהה ${fileId} לא נמצא בדרייב. וודא שזה ה-ID הנכון אחי.`);
+        throw new Error(`קובץ עם מזהה ${fileId} לא נמצא בדרייב. וודא שזה ה-ID הנכון.`);
       }
       throw new Error(`שגיאה בהורדת הקובץ: ${response.statusText} (${response.status})`);
     }
@@ -187,7 +187,7 @@ export async function createCustomerFolderHierarchy(
 
     return await response.json();
   } catch (error) {
-    console.error("Error creating customer folder hierarchy אחי:", error);
+    console.error("Error creating customer folder hierarchy:", error);
     throw error;
   }
 }

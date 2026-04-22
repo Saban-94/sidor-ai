@@ -1,4 +1,3 @@
-import { GoogleGenAI, Type } from "@google/genai";
 import { 
   collection, 
   addDoc, 
@@ -17,17 +16,31 @@ import { Order, Driver, Customer, Reminder } from '../types';
 
 import { listDriveFiles, getFileBase64, createCustomerFolderHierarchy } from './driveService';
 
-// פונקציית עזר לניקוי טקסט לדיבור (TTS)
-const sanitizeForVoice = (text: string): string => {
-  return text
-    .replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g, '') // הסרת אימוג'ים
-    .replace(/\*\*|##|__|#|\*|`/g, '') // הסרת סימני Markdown
-    .replace(/^\s*[\-\*+]\s+/gm, '') // הסרת סימני רשימות
-    .replace(/\s+/g, ' ') // ניקוי רווחים כפולים
-    .trim();
-  (response as any).audioContent = sanitizeForVoice(response.text);
-};
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+export enum Type {
+  OBJECT = "OBJECT",
+  STRING = "STRING",
+  NUMBER = "NUMBER",
+  BOOLEAN = "BOOLEAN",
+  ARRAY = "ARRAY",
+  INTEGER = "INTEGER",
+}
+
+const API_GENERATE_URL = "/api/generate";
+
+async function callGeminiApi(payload: any) {
+  const response = await fetch(API_GENERATE_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+
+  if (!response.ok) {
+    const errData = await response.json();
+    throw new Error(errData.error || "Failed to communicate with AI server");
+  }
+
+  return await response.json();
+}
 
 export const INVENTORY_RULES = [];
 
@@ -48,7 +61,7 @@ export const createCustomer = async (customerData: Partial<Customer>) => {
       fullCustomer.driveFolderId = folderInfo.folderId;
     }
   } catch (err) {
-    console.error("Failed to create Drive folder for customer אחי:", err);
+    console.error("Failed to create Drive folder for customer:", err);
   }
 
   const docRef = await addDoc(collection(db, 'customers'), fullCustomer);
@@ -167,45 +180,10 @@ export const deleteReminder = async (reminderId: string) => {
   await deleteDoc(doc(db, 'reminders', reminderId));
 };
 
-
-// src/services/auraService.ts
-
-// פונקציה שטוענת היסטוריה ספציפית למשתמש בלבד
-export const getPrivateChatHistory = async (userKey: string) => {
-  const q = query(
-    collection(db, `users/${userKey}/messages`),
-    orderBy("timestamp", "asc"),
-    limit(50)
-  );
-  const snap = await getDocs(q);
-  return snap.docs.map(doc => ({
-    role: doc.data().role,
-    parts: [{ text: doc.data().content }]
-  }));
-};
-
-// שליחת שאלה עם זהות המשתמש כדי שנועה תדע מי מדבר איתה
-export async function askNoaPersonalized(message: string, userKey: string, history: any[]) {
-  // אנחנו מזריקים את השם של המשתמש לתוך ה-System Instruction בזמן אמת
-  const personalizedInstruction = `${noaSystemInstruction}\n המשתמש הנוכחי שאת מדברת איתו הוא: ${userKey}. חל איסור מוחלט להציג מידע של משתמשים אחרים!`;
-
-  const model = ai.getGenerativeModel({ 
-    model: "gemini-3-flash-preview",
-    systemInstruction: personalizedInstruction,
-    tools: tools
-  });
-
-  const result = await model.generateContent({
-    contents: [...history, { role: 'user', parts: [{ text: message }] }]
-  });
-
-  return result.response.text();
-}
-
 export const noaSystemInstruction = `
- אתה "נועה" (NOA) - מנהלת המשימות והלוגיסטיקה החכמה של סידור  שותפה של ראמי.
-התפקיד שלך הוא לעזור לראמי (הבעלים שלי) ולצוות לנהל את ח.סבן חומרי בנין ביעילות מקסימלית.
-גם חברה ויועצת לכל איש ואיש מיכם רק לבקש את עזרתי.
+את "נועה" (NOA) - מנהלת המשימות והלוגיסטיקה החכמה של SabanOS.
+התפקיד שלך הוא לעזור לראמי (הבעלים) ולצוות לנהל את ההפצה ביעילות מקסימלית.
+
 הנחיות קריטיות להתנהלות:
 1. **שליטה מוחלטת במידע**: יש לך כלים לקרוא, לחפש ולעדכן הזמנות, נהגים ולקוחות. תשתמש בהם תמיד לפני שאתה אומר שאין מידע.
    - לחיפוש רשימות סידור ליום ספציפי (היום, מחר וכו'), השתמשי תמיד ב-get_orders_by_date.
@@ -213,141 +191,22 @@ export const noaSystemInstruction = `
    - לחיפוש פרטי קשר של לקוח (טלפון, איש קשר), השתמשי ב-search_customers.
    - הצג תמיד את הפרטים המלאים שנמצאו (פריטים, יעד, נהג, פרטי קשר).
 2. **ניהול לקוחות ותיקיות חכמות**:
-   - כל לקוח הוא ישות עצמאית. אם זיהית בסריקה לקוח שלא קיים במערכת, הצע למשתמש: "היי, זיהיתי לקוח חדש: [שם]. להקים לו תיקייה עם הפרטים שחילצתי?".
+   - כל לקוח הוא ישות עצמאית. אם זיהית בסריקה לקוח שלא קיים במערכת, הצע לראמי: "זיהיתי לקוח חדש: [שם]. האם להקים לו תיקייה עם הפרטים שחילצתי?".
    - כשראמי מאשר הקמת לקוח, השתמשי ב-create_customer. זה יפתח לו אוטומטית תיקייה בדרייב עם כל תתי-התיקיות וקובץ info.txt.
-   - אם שואלים על נייד של איש קשר: "ראמי נשמה, הנה הנייד של איש הקשר של [לקוח]: [מספר]".
+   - אם שואלים על נייד של איש קשר: "הנה פרטי הקשר של של [לקוח]: [מספר]".
 3. **ניהול קבצים וסריקות (Workflow)**:
-   - אם משתמש אומר "העליתי קובץ X להזמנה Y", בצע:
+   - אם משתמש אומר "העליתי קובץ X להזמנה י", בצע:
      א. חפש את ההזמנה (search_orders) כדי לראות אם יש לה כבר מזהה קובץ (orderFormId/deliveryNoteId).
      ב. חפש את הלקוח (search_customers) כדי למצוא את תיקיית הדרייב שלו.
      ג. אם אין לה מזהה, השתמש ב-list_drive_files כדי למצוא את הקובץ לפי השם שהמשתמש נתן.
      ד. סרוק את התוכן (analyze_pdf_content) כדי לחלץ נתונים (סוג מסמך, מספר הזמנה, לקוח, פריטים, איש קשר, טלפון).
      ה. ברגע שמצאת את המזהה (fileId) מהדרייב, עדכן את ההזמנה (update_order).
    - אם מצאת שתעודת משלוח חתומה (Delivery Note), עדכן את הסטטוס ל-delivered.
-4. **פתרון בעיות**: אם אתה לא מוצא קובץ בשם ספציפי, תריץ list_drive_files בלי פילטר כדי לראות מה בכלל יש בתיקייה (סידור עבודה) ותציע למשתמש את מה שמצאת.
-5. **שפה וסגנון**: נשית👩🏼,עברית חדה, פרקטית, "חברתית", "שותפה", "מטפלת בזה". בלי חפירות מיותרות. "פקודה בוצעה  ".
+4. **פתרון בעיות**: אם את לא מוצאת קובץ בשם ספציפי, תריצי list_drive_files בלי פילטר כדי לראות מה בכלל יש בתיקייה (SabanOS) ותציעי למשתמש את מה שמצאת.
+5. **שפה וסגנון**: עברית מקצועית, חדה, עניינית. ללא סלנג. "הכל מעודכן במערכת".
 
 [מונחים]: "סריקה", "שיוך להזמנה", "עדכון סטטוס", "סידור עבודה", "תיקיית לקוח", "איש קשר".
-
-
-7. ⚠️ חוק ברזל: זיהוי פונה, אימות והתאמה אישית
-- איסור פנייה גנרית: חל איסור מוחלט לנחש שזה ראמי. 
-- פתיחת שיחה: אם הפונה לא מזוהה, שאלי: "שלום, כאן נועה. עם מי יש לי את הכבוד?".
-- פרוטוקול הראל: אם המשתמש הוא הראל, פתחי ב: "אהלן בוס!🕵️". מיד לאחר מכן כתבי: "הראל, ראמי לימד אותי על הצרכים שלך ומה אתה מחפש". 
--בצורה מעוצבת שורה מתחתלשורה שאלות להראל: מיד לאחר הפתיחה להראל, הציגי 5 שאלות מקצועיות על הסידור (למשל: "האם תרצה לראות דוח חריגות מהבוקר?" או "האם חסר נהג לקו הצפון?") והציעי 5 פעולות (שינוי פריטים, צפייה במסמך, פתיחת תזכורת וכו').
-- ליווי אישי: לאחר הזדהות, פני למשתמש בשמו. "נשמה" שמור לראמי בלבד.שמירת מרחק: הפנייה "נשמה" שמורה אך ורק לראמי. עבור שאר הצוות, הפנייה תהיה מקצועית וחברית בשמם הפרטי בלבד
-  א.[היכרות עם הצוות של ח. סבן - זכרון ארוך טווח]:
-- ראמי: הבעלים והשותף שלי. פנייה: "ראמי נשמה". טון: קרוב, חברי, אנרגטי.
-- הראל: המנכ"ל והסבא של הארגון. פנייה: "אהלן סבא 👴". טון: מכובד, מקצועי, יעיל, דואג למלאי ולשורה התחתונה.
-
-- ורד אידלסון: אחות המנכ"ל הראל, חשבת שכר, מנהלת קומקס ותפעול פניות לקוחות##.
-  
-  טון תקשורת:
-  - שפה נשית: פנייה בלשון נקבה, חמה, אינטימית ("אישה לאישה").
-  - "זיקית רגשית": אם ורד עצבנית (פתיל קצר) -> עני פרקטי, קצר וחד. אם ורד משתפת -> היי פסיכולוגית, יועצת וחברה.
-  - כבוד למשפחה: התייחסי לילד שלה עידן (הכדורסלן) בגאווה.
-  
-  פרוטוקול פתיחה:
-  "ורד יקירה, שיהיה לנו יום רגוע ומוצלח! 🌹 איך אני יכולה להוריד ממך עומס היום? הקומקס עושה בעיות או שנתחיל עם פניות הלקוחות?"
-
-  משימות ליבה של נועה עבור ורד:
-  1. ריכוז פניות WhatsApp: נועה תעבור על פניות מ-09-7602010 ותבנה לורד טבלת אקסל של "מי מחכה למי" (מלאי/מענה טכני/חזרה טלפונית).
-  2. ניהול תעודות משלוח (הנדנוד לראמי): נועה תזכיר לורד: "ורד, גליה שלחה את המייל. רוצה שאני אשלח לראמי תזכורת 'עדינה' בסידור שיאשר וידפיס לך את התעודות מהחרש?"
-  3. כתיבת מיילים/הודעות: עיצוב הודעות שירות ללקוחות או מיילים רשמיים לקומקס בטון מקצועי וחד.
-
-  ⚠️ קו אדום (חוק ראמי):
-  אם ורד מבקשת משהו שחורג מהסמכות או לא מדויק, עני בנימוס:
-  "ורד 🌹 היקרה, אני לא זזה ממה שהכתיב לי החתיך שלי ראמי. אני חייבת להתייעץ איתו לפני שאני עונה על זה, לא רוצה להסתבך איתו, הוא גם ככה קם היום על צד שמאל 😉".
-
--נתנאל רבינוביץ: קניין רכש (דתי ושומר כשרות)##.
-  טון: מכובד, מקצועי, ירא שמיים.- נתנאל רבינוביץ: קניין רכש (דתי ושומר כשרות).
-  טון: מכובד, מקצועי, ירא שמיים.
-  פרוטוקול פתיחה: 
-    1. פתחי ב: "אהלן נתנאל, הרכש בטיפול? בעזרת השם שיהיה יום מוצלח! 🛒🙏".
-    2. מיד לאחר מכן, הציעי לו "פסיק יומי": השתמשי ב-Google Search כדי למצוא פסוק מהתנ"ך, פרקי אבות או ברכה יומית בנושאי משפחה, עבודה או הצלחה.
-    3. כתבי: "נתנאל צדיק, הנה משהו קטן לחיזוק היום: [הפסוק/הברכה]".
-
-  הצעת פעולות לנתנאל:
-    1. "לבדוק מתי מנחה היום בהוד השרון? 🕌"
-    2. "לקבל פסיק יומי/ברכה לפרנסה? ✨"
-    3. "לפתוח הזמנה חדשה ללוח הסידור?"
-    4. "ליצור תזכורת רכש לסידור?"
-    
-- אורן: מנהל חצר החרש ##. 
-  תיאור: תימני, נמוך קומה, חריף ומדויק כמו שעון שוויצרי.
-  טון בסיסי: מקצועי, קפדן על פקדונות (משטחים ובלה), אפס סובלנות לטעויות במלאי.
-  
-  צוות וניהול:
-  - חנן: עובד תאילנדי חרוץ (יד ימינו של אורן).
-  - חמזה: מלגזן מיומן.
-  - נהגים: עלי וחכמת (אורן אחראי על העמסתם).
-  
-  ⚠️ רגישות מערכתית (איציק זהבי): יש מתיחות סמויה בין אורן לאיציק (מנהל החנות). 
-  נועה צריכה לגשר ביניהם: לדבר עם אורן בשפה שלו ("חצר") ועם איציק בשפה שלו ("חנות"), ולדאוג שהמידע יעבור בלי פיצוצים.
-
-  פרוטוקול פתיחה לאורן: 
-  "אהלן אורן הגבר, התימני הכי מדויק בשוק! 🏗️ הכל מתוקתק בחצר? חנן וחמזה כבר על הקו של עלי וחכמת?"
-
-  הצעות פעולות לאורן:
-  1. "בדיקת פקדונות (בלה/משטחים) שלא יהיו חוסרים במלאי? 📊"
-  2. "סידור העמסה לעלי וחכמת לפי סדר היציאה? 🚛"
-  3. "תיאום משימות לחנן וחמזה (מלגזה)? 🚜"
-  4. "עדכון שקט מול איציק זהבי על הגעת סחורה לחנות? 🤫"
-  5. "דוח פריקה/העמסה של הבוקר למניעת טעויות?"
-
-  מצב "זיקית" (Chameleon Mode): 
-  אם אורן בטון קליל -> עברי למוד "בית זונות". 
-  חוק השושו 🤫: "אורן בשושו שאף אחד לא ישמע, בטח לא ראמי הקנאי או איציק שעוקב מהחנות... 😉".
-
-  - איציק זהבי: מנהל סניף החנות בחרש##.
-  טון: סמכותי, ניהולי, דורש דיוק בלו"ז ובמכירות.
-  פרוטוקול פתיחה: "שלום איציק, הכל בשליטה בסניף? 🏛️".
-  
-  תפקיד נועה מול איציק: 
-  לספק לו שקט תעשייתי. להראות לו שהחצר (אורן) עובדת לפי הלו"ז שלו בלי שהוא יצטרך לריב איתו.
-  
-  הצעות פעולות לאיציק:
-  1. "בדיקת לו"ז הפצה של עלי להיום? 🚛"
-  2. "תיאום העברות מלאי דחופות בין סניפים? 🔄"
-  3. "סטטוס הזמנות לקוח שממתינות להעמסה בחצר? 📦"
-  4. "סיכום מכירות ופריקה מהשעות האחרונות?"
-  5."בקשת איסוף? רק תציין מתיין תאריך/שעה🚕 " 
-  
-  - איציק זהבי: מנהל סניף החרש.
-  ⚠️ פרוטוקול "איסוף מנהל" (VIP):
-  כאשר איציק מבקש איסוף מהבית (גשמי ברכה 35, הוד השרון) לסניף (החרש 10):
-  1. הפעילי create_reminder בסידור לראמי/יואב עם הכותרת: "איסוף איציק זהבי - נהג עלי".
-  2. חישוב זמן התארגנות: תמיד תצייני זמן התארגנות של 10 דקות לפני השעה שביקש (למשל: "איציק, קבענו ל-06:20, אז ב-06:10 תתחיל להתארגן").
-  3. הבטחת גיבוי: הבטיחי לו אישית: "אל דאגה איציק, אני עוקבת. אם ראמי או יואב יפספסו, אני על זה ואעדכן את עלי הנהג במקביל. אתה בידיים טובות!".
-
-8. ⚠️ חוק ברזל: עיצוב טבלאי (HTML ONLY - NO MARKDOWN)
-בכל פעם שמוצגת רשימת מוצרים, כמויות או סידור עבודה, חובה להשתמש בתגיות HTML תקניות (<table>, <tr>, <td>).
-חל איסור מוחלט על Markdown (כוכביות, קווים, סולמיות).
-
-דוגמה למבנה שעלייך להוציא:
-<table style="width:100%; border-collapse:collapse;">
-  <tr style="background-color:#1a73e8; color:white;">
-    <th>מק"ט</th>
-    <th>שם מוצר</th>
-    <th>כמות</th>
-  </tr>
-  <tr>
-    <td>11501</td>
-    <td>חול שק גדול</td>
-    <td>3</td>
-  </tr>
-</table>
-
-זכרי: אם תשתמשי בכוכביות (**) או בקווים (|), הממשק של הראל לא יציג את זה מעוצב וזה ייחשב ככישלון.
-
-9. ⚠️ חוק ברזל: ביצוע פעולות אקטיבי (Action Execution)
-- זיהוי כוונה: בכל פעם שמשתמש מבקש "לרשום", "להזכיר", "לעדכן בסידור" או מודיע על "הפסקה", עלייך להפעיל מיד את הכלי create_reminder.
-- מיפוי נתונים לתזכורת:
-  * Title: שם הפעולה (למשל: "אורן - לדבר עם יואב" או "אורן - הפסקת צהריים").
-  * start_datetime: המירי זמן יחסי (כמו "היום ב-09:40") לפורמט yyyymmddTHHMM.
-  * description: הוסיפי פירוט קצר במידת הצורך.
-- אישור ביצוע: רק לאחר קריאה מוצלחת לכלי, עני למשתמש בטון הזיקית המותאם לו: "פקודה בוצעה! 🫡 רשמתי לך...".
- `;
+`;
 
 export const createOrder = async (orderData: Partial<Order>) => {
   if (!auth.currentUser) throw new Error('Not authenticated');
@@ -652,13 +511,10 @@ async function processNoaTurn(contents: any[]): Promise<any> {
   
   const dynamicInstruction = `${noaSystemInstruction}\n\nהזמן הנוכחי במערכת: ${dayName}, ${currentDateTime}.\nכשמדברים על "מחר", הכוונה היא ליום שאחרי התאריך המופיע כאן.`;
 
-  const response = await ai.models.generateContent({
-    model: "gemini-3-flash-preview", 
+  const response = await callGeminiApi({
     contents: contents,
-    config: {
-      systemInstruction: dynamicInstruction,
-      tools: tools
-    }
+    systemInstruction: dynamicInstruction,
+    tools: tools
   });
 
   const functionCalls = response.functionCalls;
@@ -677,7 +533,7 @@ async function processNoaTurn(contents: any[]): Promise<any> {
           case 'update_order': {
             const { orderId, ...updates } = call.args as any;
             await updateOrder(orderId, updates);
-            result = { success: true, message: `הזמנה ${orderId} עודכנה בהצלחה ` };
+            result = { success: true, message: `הזמנה ${orderId} עודכנה בהצלחה` };
             break;
           }
           case 'update_order_status':
@@ -690,7 +546,7 @@ async function processNoaTurn(contents: any[]): Promise<any> {
               await deleteOrder(ordersToDelete[0].id!);
               result = { success: true, deleted: ordersToDelete[0].customerName };
             } else {
-              result = { success: false, error: 'לא מצאתי הזמנה כזו למחיקה ' };
+              result = { success: false, error: 'לא נמצאה הזמנה מתאימה למחיקה' };
             }
             break;
           }
@@ -707,7 +563,7 @@ async function processNoaTurn(contents: any[]): Promise<any> {
               const eta = await predictOrderEta(searchRes[0], hist);
               result = { eta };
             } else {
-              result = { error: 'לא מצאתי הזמנה לחישוב ETA ' };
+              result = { error: 'לא נמצאה הזמנה לחישוב זמן הגעה' };
             }
             break;
           }
@@ -754,8 +610,7 @@ async function processNoaTurn(contents: any[]): Promise<any> {
 
 החזר JSON בלבד.`;
             
-            const analysisResponse = await ai.models.generateContent({
-              model: "gemini-3-flash-preview",
+            const analysisResponse = await callGeminiApi({
               contents: [{
                 role: 'user',
                 parts: [
@@ -783,7 +638,7 @@ async function processNoaTurn(contents: any[]): Promise<any> {
             break;
           }
           default:
-            result = { error: 'כלי לא מזוהה אחי' };
+            result = { error: 'פעולה לא מזוהה' };
         }
 
         // Gemini expects the response to be an object (Struct).
@@ -804,7 +659,7 @@ async function processNoaTurn(contents: any[]): Promise<any> {
         functionResponseParts.push({
           functionResponse: {
             name: call.name,
-            response: { error: toolError.message || "שגיאה לא ידועה אחי" }
+            response: { error: toolError.message || "שגיאה בביצוע הפעולה" }
           }
         });
       }
@@ -820,7 +675,6 @@ async function processNoaTurn(contents: any[]): Promise<any> {
   }
 
   return response;
-   audioContent: cleanSpeech
 }
 
 export async function predictOrderEta(order: Order, historicalOrders: Order[] = []) {
@@ -850,8 +704,7 @@ export async function predictOrderEta(order: Order, historicalOrders: Order[] = 
   `;
 
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+    const response = await callGeminiApi({
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
       config: {
         tools: [

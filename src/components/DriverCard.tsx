@@ -164,7 +164,7 @@ export const DriverCard = ({
         {orders.length === 0 ? (
           <div className="bg-white border border-dashed border-gray-200 p-10 rounded-[2rem] text-center">
             <AlertCircle size={32} className="mx-auto text-gray-300 mb-3" />
-            <p className="text-sm font-bold text-gray-400 italic">אין הזמנות מתוכננות לנהג זה להיום אחי</p>
+            <p className="text-sm font-bold text-gray-400 italic">אין הזמנות מתוכננות לנהג זה להיום</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">

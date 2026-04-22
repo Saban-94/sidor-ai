@@ -53,7 +53,7 @@ export const DeliveryImport: React.FC = () => {
     if (!file) return;
 
     setIsProcessing(true);
-    setProgress('קורא את קובץ האקסל אחי...');
+    setProgress('קורא את קובץ האקסל...');
     setError(null);
 
     try {
@@ -66,7 +66,7 @@ export const DeliveryImport: React.FC = () => {
       const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
 
       if (rows.length < 13) {
-        throw new Error('הקובץ קטן מדי או לא בפורמט הנכון אחי. חסרים נתונים.');
+        throw new Error('הקובץ אינו בפורמט הנכון. חסרים נתונים.');
       }
 
       // Logic Extraction:
@@ -79,7 +79,7 @@ export const DeliveryImport: React.FC = () => {
       const contactPerson = rows[10]?.[0]?.toString().trim();
 
       if (!customerName || !customerNumber) {
-        throw new Error('לא מצאתי שם לקוח או מספר לקוח בשורות הצפויות אחי.');
+        throw new Error('לא נמצא שם לקוח או מספר לקוח בשורות הצפויות.');
       }
 
       const items: any[] = [];
@@ -95,7 +95,7 @@ export const DeliveryImport: React.FC = () => {
       }
 
       if (items.length === 0) {
-        throw new Error('לא מצאתי פריטים בטבלה החל משורה 13 אחי.');
+        throw new Error('לא נמצאו פריטים בטבלה החל משורה 13.');
       }
 
       setProgress('בודק אם הלקוח קיים במערכת...');
@@ -151,12 +151,12 @@ export const DeliveryImport: React.FC = () => {
         type: importType
       });
 
-      setProgress('מבקש מנועה לסכם אחי...');
-      const noaMsg = `ראמי נשמה, הקובץ עובד! שייכתי את ה${importType === 'order' ? 'הזמנה' : 'תעודה'} ללקוח ${customer.name}, ${isNew ? 'פתחתי לו תיקייה חדשה בדרייב' : 'תייקתי בתיקייה הקיימת'} ותייקתי את האקסל בתיקיית ה${importType === 'order' ? 'הזמנות' : 'תעודות'}. הכל בשליטה!`;
+      setProgress('מבקש מנועה לסכם את הפעולה...');
+      const noaMsg = `ראמי, הקובץ עובד! שייכתי את ה${importType === 'order' ? 'הזמנה' : 'תעודה'} ללקוח ${customer.name}, ${isNew ? 'פתחתי לו תיקייה חדשה בדרייב' : 'תייקתי בתיקייה הקיימת'} ותייקתי את האקסל בתיקיית ה${importType === 'order' ? 'הזמנות' : 'תעודות'}. הכל מעודכן.`;
       setNoaFeedback(noaMsg);
       
     } catch (err: any) {
-      setError(err.message || 'קרתה תקלה בעיבוד הקובץ אחי.');
+      setError(err.message || 'קרתה תקלה בעיבוד הקובץ.');
       console.error(err);
     } finally {
       setIsProcessing(false);
@@ -178,7 +178,7 @@ export const DeliveryImport: React.FC = () => {
               <FileSpreadsheet size={32} />
               יבוא הזמנות ותעודות (Export.xls)
             </h2>
-            <p className="text-sky-100 font-medium opacity-90">סריקה חכמה, הקמת לקוחות ותיוק אוטומטי בדרייב אחי.</p>
+            <p className="text-sky-100 font-medium opacity-90">סריקה חכמה, הקמת לקוחות ותיוק אוטומטי בדרייב.</p>
           </div>
         </div>
 
@@ -219,7 +219,7 @@ export const DeliveryImport: React.FC = () => {
                 <FileUp size={48} />
               </div>
               <h3 className="text-xl font-black text-gray-900 mb-2">
-                {file ? file.name : 'גרור את הקובץ לכאן אחי'}
+                {file ? file.name : 'גרור את הקובץ לכאן'}
               </h3>
               <p className="text-gray-400 font-bold">תומך בפורמט Export.xls המקורי של המערכת</p>
             </div>
@@ -280,7 +280,7 @@ export const DeliveryImport: React.FC = () => {
                       <div className="flex items-center gap-2 mb-1">
                         <span className="font-black text-gray-900 text-lg">{summary.customerName}</span>
                         {summary.isNewCustomer && (
-                          <span className="bg-emerald-100 text-emerald-600 text-[10px] font-black px-2 py-0.5 rounded-full">לקוח חדש אחי!</span>
+                          <span className="bg-emerald-100 text-emerald-600 text-[10px] font-black px-2 py-0.5 rounded-full">לקוח חדש!</span>
                         )}
                       </div>
                       <p className="text-gray-500 font-bold text-sm">מס' לקוח: {summary.customerNumber}</p>

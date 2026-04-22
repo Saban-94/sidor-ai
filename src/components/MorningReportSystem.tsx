@@ -102,7 +102,7 @@ export default function MorningReportSystem({ onBack, drivers }: { onBack: () =>
     const craneCount = selectedOrdersData.filter(o => drivers.find(d => d.id === o.driverId)?.vehicleType === 'crane').length;
     const truckCount = total - craneCount;
 
-    text += `📊 *סיכום סידור:*\n`;
+    text += `📊 *סיכום לוגיסטי:*\n`;
     text += `סה"כ הזמנות: ${total}\n`;
     text += `📦 מהמחסנים: החרש (${harashCount}) | התלמיד (${talmidCount})\n`;
     text += `🚛 סוגי הובלה: מנוף (${craneCount}) | משאית (${truckCount})\n`;
@@ -128,7 +128,7 @@ export default function MorningReportSystem({ onBack, drivers }: { onBack: () =>
       alert('הדוח נשמר בהצלחה בארכיון! ✅');
     } catch (error) {
       console.error('Error saving report:', error);
-      alert('אופס, הייתה שגיאה בשמירה אחי 😕');
+      alert('חלה שגיאה בשמירת הדוח. אנא נסה שנית.');
     } finally {
       setIsGenerating(false);
     }
@@ -200,7 +200,7 @@ export default function MorningReportSystem({ onBack, drivers }: { onBack: () =>
                         <tr>
                           <td colSpan={5} className="py-20 text-center opacity-30 select-none">
                             <Clock size={48} className="mx-auto mb-4" />
-                            <p className="font-bold text-lg">אין הזמנות פתוחות כרגע אחי</p>
+                            <p className="font-bold text-lg">אין הזמנות פתוחות כרגע</p>
                           </td>
                         </tr>
                       ) : (
@@ -260,7 +260,7 @@ export default function MorningReportSystem({ onBack, drivers }: { onBack: () =>
                   {orders.length === 0 ? (
                     <div className="py-12 text-center opacity-30 select-none">
                       <Clock size={32} className="mx-auto mb-2" />
-                      <p className="font-bold text-sm">אין הזמנות פתוחות אחי</p>
+                      <p className="font-bold text-sm">אין הזמנות פתוחות</p>
                     </div>
                   ) : (
                     orders.map((order) => {
