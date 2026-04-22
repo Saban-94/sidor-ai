@@ -130,6 +130,30 @@ export const saveMessage = async (userId: string, role: string, content: string)
     timestamp: serverTimestamp()
   });
 };
+// שליפת לקוח לפי מספר לקוח (חיוני לייבוא משלוחים)
+export const getCustomerByNumber = async (customerNumber: string) => {
+  const q = query(
+    collection(db, 'customers'), 
+    where('customerNumber', '==', customerNumber), 
+    limit(1)
+  );
+  const snap = await getDocs(q);
+  if (snap.empty) return null;
+  return { id: snap.docs[0].id, ...snap.docs[0].data() } as Customer;
+};
+
+// פונקציית יצירת הזמנה (חיונית לייבוא משלוחים)
+export const createOrder = async (orderData: any) => {
+  if (!auth.currentUser) throw new Error('Not authenticated');
+  const fullOrder = {
+    ...orderData,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+    status: orderData.status || 'pending'
+  };
+  const docRef = await addDoc(collection(db, 'orders'), fullOrder);
+  return { id: docRef.id, ...fullOrder };
+};
 
 export const getChatHistory = async (userId: string) => {
   const q = query(
