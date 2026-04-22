@@ -132,15 +132,12 @@ export const saveMessage = async (userId: string, role: string, content: string)
 };
 // שליפת לקוח לפי מספר לקוח (חיוני לייבוא משלוחים)
 export const getCustomerByNumber = async (customerNumber: string) => {
-  const q = query(
-    collection(db, 'customers'), 
-    where('customerNumber', '==', customerNumber), 
-    limit(1)
-  );
+  const q = query(collection(db, 'customers'), where('customerNumber', '==', customerNumber), limit(1));
   const snap = await getDocs(q);
   if (snap.empty) return null;
   return { id: snap.docs[0].id, ...snap.docs[0].data() } as Customer;
 };
+
 
 // פונקציית יצירת הזמנה (חיונית לייבוא משלוחים)
 export const createOrder = async (orderData: any) => {
