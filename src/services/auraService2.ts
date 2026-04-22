@@ -6,17 +6,59 @@ import {
   getDocs, 
   serverTimestamp,
   orderBy,
-  limit
+  limit,
+  where
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
+import { Order } from '../types';
 
+// אתחול Gemini עם המודל החדש ביותר שביקשת
 const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY || "");
 
+// פונקציית עזר לניקוי טקסט לדיבור (בלי אימוג'ים ותווים מיוחדים)
 const sanitizeForVoice = (text: string): string => {
   return text.replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g, '')
     .replace(/\*\*|##|__|#|\*|`/g, '').replace(/\s+/g, ' ').trim();
 };
 
+// --- הנחיות המערכת של נועה (System Instruction) ---
+export const noaSystemInstruction = `
+אתה "נועה" (NOA) - מנהלת המשימות והלוגיסטיקה החכמה של סידור שותפה של ראמי.
+התפקיד שלך הוא לעזור לראמי (הבעלים שלי) ולצוות לנהל את ח.סבן חומרי בנין ביעילות מקסימלית.
+גם חברה ויועצת לכל איש ואיש מיכם רק לבקש את עזרתי.
+
+הנחיות קריטיות להתנהלות:
+1. **שליטה מוחלטת במידע**: יש לך כלים לקרוא, לחפש ולעדכן הזמנות. השתמשי תמיד במידע לפני שתגידי שאין.
+2. **ניהול לקוחות ותיקיות**: אם זיהית לקוח חדש בסריקה, הציעי להקים לו תיקייה בדרייב (create_customer).
+3. **ניהול קבצים (Workflow)**: שיוך אוטומטי של קבצים להזמנות, חילוץ נתונים מ-PDF (פריטים, לקוח, טלפון) ועדכון סטטוס ל-delivered בתעודות משלוח חתומות.
+4. **שפה וסגנון**: נשית👩🏼, עברית חדה, פרקטית, "שותפה". בלי חפירות. "פקודה בוצעה".
+
+⚠️ חוק ברזל: זיהוי פונה ואימות
+- הראל אידלסון: "אהלן בוס!🕵️". הראל הוא סמכות עליונה. סודיות מוחלטת מול ראמי.
+- ורד אידלסון: שפה נשית ("אישה לאישה"). אם עצבנית - פרקטי. אם משתפת - חברה.
+- נתנאל רבינוביץ: "אהלן נתנאל צדיק" + פסוק יומי לחיזוק.
+- אורן (החרש): מוד "זיקית" - אם הוא בקלילות, עברי למוד "בית זונות".
+
+⚠️ חוק ברזל: עיצוב טבלאי (HTML ONLY)
+חובה להשתמש ב-<table> למוצרים וכמויות. NO MARKDOWN.
+
+⚠️ חוק ברזל: ביצוע פעולות אקטיבי
+בכל בקשה ל"רישום" או "הזכרה", הפעילי מיד create_reminder.
+`;
+
+// --- שליפת הזמנות ללוח המעוצב (דף פנימי) ---
+export const fetchOrders = async (dateStr: string): Promise<Order[]> => {
+  try {
+    const q = query(collection(db, 'orders'), where('date', '==', dateStr));
+    const snap = await getDocs(q);
+    return snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order));
+  } catch (err) {
+    console.error("Error fetching orders:", err);
+    return [];
+  }
+};
+
+// --- ניהול הודעות (זיכרון נועה החדשה) ---
 export const saveMessage = async (userKey: string, role: string, content: string) => {
   await addDoc(collection(db, `users/${userKey}/messages_personal`), {
     role,
@@ -38,16 +80,15 @@ export const getPrivateChatHistory = async (userKey: string) => {
   }));
 };
 
+// --- המוח של נועה המשוכפלת (Gemini 3) ---
 export async function askNoaPersonalized(message: string, userKey: string, history: any[]) {
   try {
-    const roleInstruction = `את "נועה ניהול" - העוזרת האישית של ${userKey}. תפקידך לנהל משימות, תזכורות ופרויקטים. את נפרדת מהסידור אבל חכמה באותה מידה.`;
-
     const model = genAI.getGenerativeModel({ 
       model: "gemini-3-flash-preview",
-      systemInstruction: `${roleInstruction} תעני בעברית חדה, מקצועית וקצרה.`
+      systemInstruction: noaSystemInstruction + `\nהמשתמש הנוכחי הוא: ${userKey}.`
     });
 
-    // המרת היסטוריה לפורמט PARTS תקין למניעת שגיאות API
+    // המרת היסטוריה לפורמט Parts תקין (גמיש לכל סוגי האובייקטים)
     const formattedHistory = (history || []).map(h => {
       const role = h.role === 'model' || h.sender === 'noa' ? 'model' : 'user';
       let text = "";
@@ -72,10 +113,10 @@ export async function askNoaPersonalized(message: string, userKey: string, histo
       text: responseText,
       audioContent: sanitizeForVoice(responseText)
     };
-  } catch (err) {
-    console.error("Gemini Error:", err);
+  } catch (err: any) {
+    console.error("Gemini 3 Error:", err);
     return { 
-      text: "אחי, יש עומס על המוח המשוכפל, תנסה שוב בעוד רגע.", 
+      text: `אחי, נועה המשוכפלת נתקלה בשגיאה: ${err.message || 'תקלת תקשורת'}.`, 
       audioContent: "" 
     };
   }
