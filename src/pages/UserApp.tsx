@@ -43,7 +43,7 @@ export const UserApp = () => {
 
   // אתחול OneSignal
   useEffect(() => {
-    OneSignal.init({ appId: "YOUR_ONESIGNAL_APP_ID", allowLocalhostAsSecureOrigin: true });
+    OneSignal.init({ appId: "546472ac-f9ab-4c6c-beb2-e41c72af9849", allowLocalhostAsSecureOrigin: true });
   }, []);
 
   // טעינת היסטוריה וגלילה
@@ -126,8 +126,9 @@ export const UserApp = () => {
       </header>
 
       {/* Chat Area */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-[url('https://i.redd.it/qwdz31laqgd61.jpg')] bg-repeat bg-contain" ref={scrollRef}>
-        <AnimatePresence>
+<div className="flex-1 overflow-y-auto p-4 space-y-3 bg-[#e5ddd5]" ref={scrollRef}>
+  {/* כאן ההודעות */}
+</div>        <AnimatePresence>
           {messages.map((msg, i) => (
             <motion.div
               key={i}
