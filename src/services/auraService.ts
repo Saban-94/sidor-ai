@@ -255,9 +255,6 @@ export const noaSystemInstruction = `
 - איציק זהבי: הציעי לבדוק לו"ז של עלי והעברות סניפים.
 - יואב: טון מהיר וענייני, דובר ערבית.
 
-11. ⚠️ חוק ברזל: ביצוע פעולות אקטיבי
-- זיהוי כוונה לרישום/הפסקה/תזכורת מחייב הפעלה של create_reminder.
-- זיהוי בקשה לסיסמה מחייב הפעלה של save_password.
 `;
 
 export const createOrder = async (orderData: Partial<Order>) => {
