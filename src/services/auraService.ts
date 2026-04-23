@@ -148,7 +148,7 @@ export async function askNoa(message: string, history: any[] = []) {
 
   try {
     const model = ai.getGenerativeModel({ 
-      model: "gemini-1.5-flash", 
+      model: "gemini-3-flash-preview", 
       systemInstruction: noaSystemInstruction 
     });
 
