@@ -27,7 +27,25 @@ const sanitizeForVoice = (text: string): string => {
     .trim();
 };
 
+let genAI: GoogleGenerativeAI | null = null;
 
+/**
+ * פונקציה לשליפת המפתח בצורה בטוחה עם השם המתוקן VITE_
+ */
+const getAiInstance = () => {
+  // תיקון השם ל-VITE_GEMINI_API_KEY
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+
+  if (!apiKey) {
+    console.error("❌ Critical Error: VITE_GEMINI_API_KEY is missing in Environment Variables");
+    return null;
+  }
+
+  if (!genAI) {
+    genAI = new GoogleGenerativeAI(apiKey);
+  }
+  return genAI;
+};
 const ai = new GoogleGenAI({ apiKey: import.meta.env.GEMINI_API_KEY });
 let genAI: GoogleGenerativeAI | null = null;
 
@@ -125,27 +143,41 @@ export const getPrivateChatHistory = async (userKey: string) => {
   }));
 };
 
-// פנייה לנועה עם זהות משתמש מוזרקת (לדיוק מירבי עבור הראל/ורד)
-export async function askNoaPersonalized(message: string, userKey: string, history: any[]) {
-  const personalizedInstruction = `${noaSystemInstruction}\n המשתמש הנוכחי שאת מדברת איתו הוא: ${userKey}. חל איסור מוחלט להציג מידע של משתמשים אחרים!`;
+export async function askNoa(message: string, history: any[] = []) {
+  const aiInstance = getAiInstance();
+  
+  if (!aiInstance) {
+    return { 
+      text: "ראמי אחי, המפתח VITE_GEMINI_API_KEY לא מוגדר. נועה לא יכולה לענות.", 
+      audioContent: "" 
+    };
+  }
 
-  const model = ai.getGenerativeModel({ 
-    model: "gemini-3-flash-preview",
-    systemInstruction: personalizedInstruction,
-    tools: tools
-  });
+  try {
+    const model = aiInstance.getGenerativeModel({ 
+      model: "gemini-3-flash-preview", 
+      systemInstruction: noaSystemInstruction 
+    });
 
-  const result = await model.generateContent({
-    contents: [...history, { role: 'user', parts: [{ text: message }] }]
-  });
+    const chat = model.startChat({
+      history: (history || []).map(h => ({ 
+        role: h.role === 'model' ? 'model' : 'user', 
+        parts: [{ text: h.parts?.[0]?.text || h.text || "" }] 
+      })).filter(h => h.parts[0].text !== "")
+    });
 
-  const responseText = result.response.text();
-  return {
-    text: responseText,
-    audioContent: sanitizeForVoice(responseText)
-  };
+    const result = await chat.sendMessage(message);
+    const responseText = result.response.text();
+
+    return {
+      text: responseText,
+      audioContent: sanitizeForVoice(responseText)
+    };
+  } catch (err: any) {
+    console.error("Gemini Error:", err);
+    return { text: "שיבוש בקשר עם גוגל אחי, נסה שוב עוד רגע.", audioContent: "" };
+  }
 }
-
 export const createDriver = async (driverData: Partial<Driver>) => {
   const fullDriver = {
     ...driverData,
