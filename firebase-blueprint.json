@@ -64,6 +64,36 @@
         "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["name", "phone", "vehicleType"]
+    },
+    "Customer": {
+      "title": "Customer",
+      "description": "A customer profile in SabanOS",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "customerNumber": { "type": "string" },
+        "contactPerson": { "type": "string" },
+        "phoneNumber": { "type": "string" },
+        "driveFolderId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "customerNumber"]
+    },
+    "Reminder": {
+      "title": "Reminder",
+      "description": "A reminder or task in the system",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "dueDate": { "type": "string", "description": "YYYY-MM-DD" },
+        "dueTime": { "type": "string", "description": "HH:mm" },
+        "isCompleted": { "type": "boolean" },
+        "orderId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "dueDate", "dueTime"]
     }
   },
   "firestore": {
@@ -82,6 +112,18 @@
     "/drivers/{driverId}": {
       "schema": "Driver",
       "description": "Collection of driver profiles"
+    },
+    "/customers/{customerId}": {
+      "schema": "Customer",
+      "description": "Customer profiles and drive folder links"
+    },
+    "/reminders/{reminderId}": {
+      "schema": "Reminder",
+      "description": "System reminders and tasks"
+    },
+    "/users/{userId}/messages/{messageId}": {
+      "schema": "object",
+      "description": "Private chat history for a user"
     }
   }
 }

@@ -101,5 +101,37 @@ service cloud.firestore {
       allow read: if isSignedIn();
       allow write: if isEmailVerified() && isValidDriver(request.resource.data);
     }
+
+    // --- Customer Validation ---
+    function isValidCustomer(data) {
+      return data.keys().hasAll(['name', 'customerNumber'])
+        && data.name is string && data.name.size() <= 200
+        && data.customerNumber is string && data.customerNumber.size() <= 50;
+    }
+
+    match /customers/{customerId} {
+      allow read: if isSignedIn();
+      allow write: if isEmailVerified() && isValidCustomer(request.resource.data);
+    }
+
+    // --- Reminder Validation ---
+    function isValidReminder(data) {
+      return data.keys().hasAll(['title', 'dueDate', 'dueTime'])
+        && data.title is string && data.title.size() <= 200
+        && data.dueDate is string && data.dueDate.size() <= 10
+        && data.dueTime is string && data.dueTime.size() <= 10;
+    }
+
+    match /reminders/{reminderId} {
+      allow read: if isSignedIn();
+      allow create: if isEmailVerified() && isValidReminder(request.resource.data);
+      allow update: if isEmailVerified() && isValidReminder(request.resource.data);
+      allow delete: if isEmailVerified();
+    }
+
+    // --- Chat History ---
+    match /users/{userId}/messages/{messageId} {
+      allow read, write: if isSignedIn() && request.auth.uid == userId;
+    }
   }
 }

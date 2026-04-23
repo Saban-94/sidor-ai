@@ -48,7 +48,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
-import { collection, onSnapshot, query, where, orderBy, deleteDoc, doc, getDocs } from 'firebase/firestore';
+import { collection, onSnapshot, query, where, orderBy, deleteDoc, doc, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
 import { 
   format, 
   addDays, 
@@ -82,6 +82,7 @@ import {
   deleteOrder, 
   askNoa, 
   predictOrderEta,
+  getPrivateChatHistory,
   createDriver,
   createReminder,
   updateReminder,
@@ -486,6 +487,15 @@ export default function App() {
   // Backward compatibility aliases for existing code
   const viewMode = settings.viewMode;
   const setViewMode = (v: any) => setSettings({ viewMode: v });
+
+  // Load chat history from Firestore on login
+  useEffect(() => {
+    if (user && viewMode === 'chat' && chatHistory.length === 0) {
+      getPrivateChatHistory(user.uid).then(history => {
+        if (history.length > 0) setChatHistory(history);
+      });
+    }
+  }, [user, viewMode]);
   const statusFilter = settings.statusFilter;
   const setStatusFilter = (v: any) => setSettings({ statusFilter: v });
   const driverFilter = settings.driverFilter;
@@ -852,39 +862,27 @@ export default function App() {
 
   // --- Aura AI Handlers ---
   const handleAuraAction = async (msg: string) => {
+    if (!user) return;
     const userMsg = { role: 'user', parts: [{ text: msg }] };
     setChatHistory(prev => [...prev, userMsg]);
     
-    try {
-      const result = await askNoa(msg, chatHistory);
-      
-      // Extract text parts carefully to avoid SDK warnings about non-text parts (function calls)
-      const textResponse = result.candidates?.[0]?.content?.parts
-        ?.filter((p: any) => p.text)
-        ?.map((p: any) => p.text)
-        .join('\n');
+    // Save user message to Firestore
+    addDoc(collection(db, `users/${user.uid}/messages`), {
+      role: 'user',
+      content: msg,
+      timestamp: serverTimestamp()
+    });
 
+    try {
+      const result = await askNoa(msg, chatHistory, user?.displayName || user?.email || 'אורח');
+      
       const functionCalls = result.functionCalls;
 
       if (functionCalls) {
         for (const call of functionCalls) {
           if (call.name === 'create_order') {
             const args = call.args as any;
-            await createOrder(args);
             sendOrderNotification('הזמנה חדשה! 🚛', `${args.customerName} - ${args.items}`);
-          } else if (call.name === 'update_order') {
-            const { orderId, ...rest } = call.args as any;
-            await updateOrder(orderId, rest);
-          } else if (call.name === 'update_order_status') {
-            const { orderId, status } = call.args as any;
-            await handleStatusUpdate(orderId, status);
-          } else if (call.name === 'delete_order_by_customer') {
-            const { customerName } = call.args as any;
-            const q = query(collection(db, 'orders'), where('customerName', '==', customerName));
-            const snap = await getDocs(q);
-            for (const d of snap.docs) {
-              await deleteOrder(d.id);
-            }
           } else if (call.name === 'search_orders') {
             const { query: qStr } = call.args as any;
             setSearchQuery(qStr);
@@ -897,33 +895,15 @@ export default function App() {
               (customerName && o.customerName.includes(customerName))
             );
             
-            // If not in current view, try fetching from DB
-            if (!targetOrder) {
-              const q = query(collection(db, 'orders'), where('customerName', '>=', customerName), where('customerName', '<=', customerName + '\uf8ff'));
-              const snap = await getDocs(q);
-              if (!snap.empty) {
-                targetOrder = { id: snap.docs[0].id, ...snap.docs[0].data() } as Order;
-              }
-            }
-
             if (targetOrder) {
-              addToast('חיזוי הגעה', `מחשבת צפי הגעה ל-${targetOrder.customerName}...`, 'info');
-              const eta = await predictOrderEta(targetOrder, orders);
+              const eta = await predictOrderEta(targetOrder, orders.filter(o => o.status === 'delivered'));
               if (eta) {
                 await updateOrder(targetOrder.id!, { eta });
-                const etaMsg = { role: 'model', parts: [{ text: `הצפי להגעה ל-${targetOrder.customerName} הוא בערך ב-${eta}.` }] };
-                setChatHistory(prev => [...prev, etaMsg]);
-                addToast('צפי עודכן', `הצפי ל-${targetOrder.customerName} הוא ${eta}`, 'success');
-              } else {
-                setChatHistory(prev => [...prev, { role: 'model', parts: [{ text: "ניסיתי לחשב צפי עבורך, אך לא הצלחתי להתחבר למפות כרגע." }] }]);
+                addToast('צפי עודכן', `צפי הגעה ל-${targetOrder.customerName}: ${eta}`, 'success');
               }
-            } else {
-              setChatHistory(prev => [...prev, { role: 'model', parts: [{ text: `לא נמצאה הזמנה עבור ${customerName}.` }] }]);
             }
-          } else if (call.name === 'update_driver') {
-            const { driverId, ...rest } = call.args as any;
-            await updateDriver(driverId, rest);
-            addToast('עדכון נהג', `פרטי הנהג עודכנו בהצלחה`, 'success');
+          } else if (call.name === 'create_reminder') {
+            addToast('תזכורת נוצרה', 'הפעולה נרשמה בסידור ✅', 'success');
           } else if (call.name === 'search_drivers') {
             const { query: qStr } = call.args as any;
             setSearchQuery(qStr);
@@ -933,11 +913,25 @@ export default function App() {
         }
       }
 
-      const auraResponse = { role: 'model', parts: [{ text: textResponse || "בוצע." }] };
-      setChatHistory(prev => [...prev, auraResponse]);
-    } catch (err) {
-      console.error(err);
-      setChatHistory(prev => [...prev, { role: 'model', parts: [{ text: "משהו לא הסתדר, אנא נסה שנית." }] }]);
+      setChatHistory(prev => [...prev, { 
+        role: 'model', 
+        parts: [{ text: result.text }] 
+      }]);
+
+      // Save AI response to Firestore
+      addDoc(collection(db, `users/${user.uid}/messages`), {
+        role: 'model',
+        content: result.text,
+        timestamp: serverTimestamp()
+      });
+    } catch (error: any) {
+      console.error(error);
+      const errorMsg = "משהו השתבש בתקשורת עם נועה. נסה שוב בעוד רגע.";
+      if (error.message?.includes('404')) {
+        addToast('שגיאת תקשורת', 'השרת לא מגיב. וודא שהמערכת פועלת.', 'warning');
+      } else {
+        addToast('שגיאה', error.message || errorMsg, 'warning');
+      }
     }
   };
 
