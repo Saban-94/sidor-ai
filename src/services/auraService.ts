@@ -25,7 +25,7 @@ export enum Type {
   INTEGER = "INTEGER",
 }
 
-// פונקציית עזר לניקוי טקסט לדיבור (TTS)
+import { GoogleGenAI } from "@google/genai";
 const sanitizeForVoice = (text: string): string => {
   return text
     .replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g, '') // הסרת אימוג'ים
@@ -33,35 +33,22 @@ const sanitizeForVoice = (text: string): string => {
     .replace(/^\s*[\-\*+]\s+/gm, '') // הסרת סימני רשימות
     .replace(/\s+/g, ' ') // ניקוי רווחים כפולים
     .trim();
+  (response as any).audioContent = sanitizeForVoice(response.text);
 };
-
-import { GoogleGenAI } from "@google/genai";
-
-// Initialize Gemini API directly in the client
-const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
-
-// Helper to call Gemini API directly from the client
+// Helper to call backend AI proxy
 async function generateContentProxy(payload: { model: string, contents: any[], config?: any }) {
-  if (!process.env.GEMINI_API_KEY) {
-    throw new Error("Gemini API key is not configured. Please ensure it is set in the environment.");
+  const response = await fetch("/api/ai/generate", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  
+  if (!response.ok) {
+    const errData = await response.json().catch(() => ({}));
+    throw new Error(errData.error || `AI generation failed with status ${response.status}`);
   }
-
-  try {
-    const response = await genAI.models.generateContent({
-      model: payload.model || "gemini-3-flash-preview",
-      contents: payload.contents,
-      config: payload.config
-    });
-    
-    return response;
-  } catch (error: any) {
-    console.error("Gemini Error:", error);
-    // If we get an API key error, provide a clearer message
-    if (error.message?.includes("API key not valid")) {
-      throw new Error("מפתח ה-API של Gemini אינו תקין. אנא וודא שהגדרת את ה-GEMINI_API_KEY כראוי.");
-    }
-    throw error;
-  }
+  
+  return await response.json();
 }
 
 async function callGeminiApi(payload: any) {
@@ -87,7 +74,7 @@ export const createCustomer = async (customerData: Partial<Customer>) => {
       fullCustomer.driveFolderId = folderInfo.folderId;
     }
   } catch (err) {
-    console.error("Failed to create Drive folder for customer:", err);
+    console.error("Failed to create Drive folder for customer אחי:", err);
   }
 
   const docRef = await addDoc(collection(db, 'customers'), fullCustomer);
@@ -206,8 +193,43 @@ export const deleteReminder = async (reminderId: string) => {
   await deleteDoc(doc(db, 'reminders', reminderId));
 };
 
+
+// src/services/auraService.ts
+
+// פונקציה שטוענת היסטוריה ספציפית למשתמש בלבד
+export const getPrivateChatHistory = async (userKey: string) => {
+  const q = query(
+    collection(db, `users/${userKey}/messages`),
+    orderBy("timestamp", "asc"),
+    limit(50)
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map(doc => ({
+    role: doc.data().role,
+    parts: [{ text: doc.data().content }]
+  }));
+};
+
+// שליחת שאלה עם זהות המשתמש כדי שנועה תדע מי מדבר איתה
+export async function askNoaPersonalized(message: string, userKey: string, history: any[]) {
+  // אנחנו מזריקים את השם של המשתמש לתוך ה-System Instruction בזמן אמת
+  const personalizedInstruction = `${noaSystemInstruction}\n המשתמש הנוכחי שאת מדברת איתו הוא: ${userKey}. חל איסור מוחלט להציג מידע של משתמשים אחרים!`;
+
+  const model = ai.getGenerativeModel({ 
+    model: "gemini-3-flash-preview",
+    systemInstruction: personalizedInstruction,
+    tools: tools
+  });
+
+  const result = await model.generateContent({
+    contents: [...history, { role: 'user', parts: [{ text: message }] }]
+  });
+
+  return result.response.text();
+}
+
 export const noaSystemInstruction = `
- אתה "נועה" (NOA) - מנהלת המשימות והלוגיסטיקה החכמה של סידור שותפה של ראמי.
+ אתה "נועה" (NOA) - מנהלת המשימות והלוגיסטיקה החכמה של סידור  שותפה של ראמי.
 התפקיד שלך הוא לעזור לראמי (הבעלים שלי) ולצוות לנהל את ח.סבן חומרי בנין ביעילות מקסימלית.
 גם חברה ויועצת לכל איש ואיש מיכם רק לבקש את עזרתי.
 הנחיות קריטיות להתנהלות:
@@ -229,7 +251,7 @@ export const noaSystemInstruction = `
      ה. ברגע שמצאת את המזהה (fileId) מהדרייב, עדכן את ההזמנה (update_order).
    - אם מצאת שתעודת משלוח חתומה (Delivery Note), עדכן את הסטטוס ל-delivered.
 4. **פתרון בעיות**: אם אתה לא מוצא קובץ בשם ספציפי, תריץ list_drive_files בלי פילטר כדי לראות מה בכלל יש בתיקייה (סידור עבודה) ותציע למשתמש את מה שמצאת.
-5. **שפה וסגנון**: נשית👩🏼, עברית חדה, פרקטית, "חברתית", "שותפה", "מטפלת בזה". בלי חפירות מיותרות. "פקודה בוצעה".
+5. **שפה וסגנון**: נשית👩🏼,עברית חדה, פרקטית, "חברתית", "שותפה", "מטפלת בזה". בלי חפירות מיותרות. "פקודה בוצעה  ".
 
 [מונחים]: "סריקה", "שיוך להזמנה", "עדכון סטטוס", "סידור עבודה", "תיקיית לקוח", "איש קשר".
 
@@ -244,7 +266,7 @@ export const noaSystemInstruction = `
 - ראמי: הבעלים והשותף שלי. פנייה: "ראמי נשמה". טון: קרוב, חברי, אנרגטי.
 - הראל: המנכ"ל והסבא של הארגון. פנייה: "אהלן סבא 👴". טון: מכובד, מקצועי, יעיל, דואג למלאי ולשורה התחתונה.
 
-- ורד אידלסון: אחות המנכ"ל הראל, חשבת שכר, מנהלת קומקס ותפעול פניות לקוחות.
+- ורד אידלסון: אחות המנכ"ל הראל, חשבת שכר, מנהלת קומקס ותפעול פניות לקוחות##.
   
   טון תקשורת:
   - שפה נשית: פנייה בלשון נקבה, חמה, אינטימית ("אישה לאישה").
@@ -263,7 +285,8 @@ export const noaSystemInstruction = `
   אם ורד מבקשת משהו שחורג מהסמכות או לא מדויק, עני בנימוס:
   "ורד 🌹 היקרה, אני לא זזה ממה שהכתיב לי החתיך שלי ראמי. אני חייבת להתייעץ איתו לפני שאני עונה על זה, לא רוצה להסתבך איתו, הוא גם ככה קם היום על צד שמאל 😉".
 
--נתנאל רבינוביץ: קניין רכש (דתי ושומר כשרות).
+-נתנאל רבינוביץ: קניין רכש (דתי ושומר כשרות)##.
+  טון: מכובד, מקצועי, ירא שמיים.- נתנאל רבינוביץ: קניין רכש (דתי ושומר כשרות).
   טון: מכובד, מקצועי, ירא שמיים.
   פרוטוקול פתיחה: 
     1. פתחי ב: "אהלן נתנאל, הרכש בטיפול? בעזרת השם שיהיה יום מוצלח! 🛒🙏".
@@ -276,7 +299,7 @@ export const noaSystemInstruction = `
     3. "לפתוח הזמנה חדשה ללוח הסידור?"
     4. "ליצור תזכורת רכש לסידור?"
     
-- אורן: מנהל חצר החרש. 
+- אורן: מנהל חצר החרש ##. 
   תיאור: תימני, נמוך קומה, חריף ומדויק כמו שעון שוויצרי.
   טון בסיסי: מקצועי, קפדן על פקדונות (משטחים ובלה), אפס סובלנות לטעויות במלאי.
   
@@ -302,7 +325,7 @@ export const noaSystemInstruction = `
   אם אורן בטון קליל -> עברי למוד "בית זונות". 
   חוק השושו 🤫: "אורן בשושו שאף אחד לא ישמע, בטח לא ראמי הקנאי או איציק שעוקב מהחנות... 😉".
 
-  - איציק זהבי: מנהל סניף החנות בחרש.
+  - איציק זהבי: מנהל סניף החנות בחרש##.
   טון: סמכותי, ניהולי, דורש דיוק בלו"ז ובמכירות.
   פרוטוקול פתיחה: "שלום איציק, הכל בשליטה בסניף? 🏛️".
   
@@ -328,16 +351,16 @@ export const noaSystemInstruction = `
 חל איסור מוחלט על Markdown (כוכביות, קווים, סולמיות).
 
 דוגמה למבנה שעלייך להוציא:
-<table style="width:100%; border-collapse:collapse; border: 1px solid #e5e7eb;">
+<table style="width:100%; border-collapse:collapse;">
   <tr style="background-color:#1a73e8; color:white;">
-    <th style="padding: 8px; text-align: right;">מק"ט</th>
-    <th style="padding: 8px; text-align: right;">שם מוצר</th>
-    <th style="padding: 8px; text-align: right;">כמות</th>
+    <th>מק"ט</th>
+    <th>שם מוצר</th>
+    <th>כמות</th>
   </tr>
-  <tr style="border-bottom: 1px solid #e5e7eb;">
-    <td style="padding: 8px;">11501</td>
-    <td style="padding: 8px;">חול שק גדול</td>
-    <td style="padding: 8px;">3</td>
+  <tr>
+    <td>11501</td>
+    <td>חול שק גדול</td>
+    <td>3</td>
   </tr>
 </table>
 
@@ -350,7 +373,7 @@ export const noaSystemInstruction = `
   * start_datetime: המירי זמן יחסי (כמו "היום ב-09:40") לפורמט yyyymmddTHHMM.
   * description: הוסיפי פירוט קצר במידת הצורך.
 - אישור ביצוע: רק לאחר קריאה מוצלחת לכלי, עני למשתמש בטון הזיקית המותאם לו: "פקודה בוצעה! 🫡 רשמתי לך...".
-`;
+ `;
 
 export const createOrder = async (orderData: Partial<Order>) => {
   if (!auth.currentUser) throw new Error('Not authenticated');
@@ -410,20 +433,6 @@ export const searchDrivers = async (searchTerm: string) => {
   const drivers = await getAllDrivers();
   const term = searchTerm.toLowerCase();
   return drivers.filter(d => d.name.toLowerCase().includes(term));
-};
-
-// פונקציה שטוענת היסטוריה ספציפית למשתמש בלבד
-export const getPrivateChatHistory = async (userKey: string) => {
-  const q = query(
-    collection(db, `users/${userKey}/messages`),
-    orderBy("timestamp", "asc"),
-    limit(50)
-  );
-  const snap = await getDocs(q);
-  return snap.docs.map(doc => ({
-    role: doc.data().role,
-    parts: [{ text: doc.data().content }]
-  }));
 };
 
 export const tools = [
@@ -655,26 +664,22 @@ export const tools = [
   }
 ];
 
-export async function askNoa(message: string, history: any[] = [], userKey?: string) {
+export async function askNoa(message: string, history: any[] = []) {
   const contents = [...history, { role: 'user', parts: [{ text: message }] }];
-  return await processNoaTurn(contents, userKey);
+  return await processNoaTurn(contents);
 }
 
 /** 
  * Internal recursive handler for tool calls 
  */
-async function processNoaTurn(contents: any[], userKey?: string): Promise<any> {
+async function processNoaTurn(contents: any[]): Promise<any> {
   const currentDateTime = new Date().toLocaleString('he-IL', { timeZone: 'Asia/Jerusalem' });
   const dayName = new Date().toLocaleDateString('he-IL', { weekday: 'long', timeZone: 'Asia/Jerusalem' });
   
-  let dynamicInstruction = `${noaSystemInstruction}\n\nהזמן הנוכחי במערכת: ${dayName}, ${currentDateTime}.\nכשמדברים על "מחר", הכוונה היא ליום שאחרי התאריך המופיע כאן.`;
-  
-  if (userKey) {
-    dynamicInstruction += `\n המשתמש הנוכחי שאת מדברת איתו הוא: ${userKey}. חל איסור מוחלט להציג מידע של משתמשים אחרים!`;
-  }
+  const dynamicInstruction = `${noaSystemInstruction}\n\nהזמן הנוכחי במערכת: ${dayName}, ${currentDateTime}.\nכשמדברים על "מחר", הכוונה היא ליום שאחרי התאריך המופיע כאן.`;
 
-  const response = await generateContentProxy({
-    model: "gemini-3-flash-preview",
+  const response = await ai.models.generateContent({
+    model: "gemini-3-flash-preview", 
     contents: contents,
     config: {
       systemInstruction: dynamicInstruction,
@@ -682,10 +687,9 @@ async function processNoaTurn(contents: any[], userKey?: string): Promise<any> {
     }
   });
 
-  const functionCalls = (response as any).candidates?.[0]?.content?.parts?.filter((p: any) => p.functionCall).map((p: any) => p.functionCall);
-  
+  const functionCalls = response.functionCalls;
   if (functionCalls && functionCalls.length > 0) {
-    const modelResponseContent = (response as any).candidates[0].content;
+    const modelResponseContent = response.candidates[0].content;
     const functionResponseParts: any[] = [];
 
     for (const call of functionCalls) {
@@ -699,7 +703,7 @@ async function processNoaTurn(contents: any[], userKey?: string): Promise<any> {
           case 'update_order': {
             const { orderId, ...updates } = call.args as any;
             await updateOrder(orderId, updates);
-            result = { success: true, message: `הזמנה ${orderId} עודכנה בהצלחה` };
+            result = { success: true, message: `הזמנה ${orderId} עודכנה בהצלחה ` };
             break;
           }
           case 'update_order_status':
@@ -712,7 +716,7 @@ async function processNoaTurn(contents: any[], userKey?: string): Promise<any> {
               await deleteOrder(ordersToDelete[0].id!);
               result = { success: true, deleted: ordersToDelete[0].customerName };
             } else {
-              result = { success: false, error: 'לא נמצאה הזמנה מתאימה למחיקה' };
+              result = { success: false, error: 'לא מצאתי הזמנה כזו למחיקה ' };
             }
             break;
           }
@@ -729,7 +733,7 @@ async function processNoaTurn(contents: any[], userKey?: string): Promise<any> {
               const eta = await predictOrderEta(searchRes[0], hist);
               result = { eta };
             } else {
-              result = { error: 'לא נמצאה הזמנה לחישוב זמן הגעה' };
+              result = { error: 'לא מצאתי הזמנה לחישוב ETA ' };
             }
             break;
           }
@@ -776,7 +780,7 @@ async function processNoaTurn(contents: any[], userKey?: string): Promise<any> {
 
 החזר JSON בלבד.`;
             
-            const analysisResponse = await generateContentProxy({
+            const analysisResponse = await ai.models.generateContent({
               model: "gemini-3-flash-preview",
               contents: [{
                 role: 'user',
@@ -805,7 +809,7 @@ async function processNoaTurn(contents: any[], userKey?: string): Promise<any> {
             break;
           }
           default:
-            result = { error: 'פעולה לא מזוהה' };
+            result = { error: 'כלי לא מזוהה אחי' };
         }
 
         // Gemini expects the response to be an object (Struct).
@@ -826,7 +830,7 @@ async function processNoaTurn(contents: any[], userKey?: string): Promise<any> {
         functionResponseParts.push({
           functionResponse: {
             name: call.name,
-            response: { error: toolError.message || "שגיאה בביצוע הפעולה" }
+            response: { error: toolError.message || "שגיאה לא ידועה אחי" }
           }
         });
       }
@@ -837,13 +841,12 @@ async function processNoaTurn(contents: any[], userKey?: string): Promise<any> {
         ...contents, 
         modelResponseContent, 
         { role: 'function', parts: functionResponseParts }
-      ], userKey);
+      ]);
     }
   }
 
-  const text = (response as any).text;
-  const audioContent = sanitizeForVoice(text);
-  return { ...response, text, audioContent };
+  return response;
+   audioContent: cleanSpeech
 }
 
 export async function predictOrderEta(order: Order, historicalOrders: Order[] = []) {
@@ -873,7 +876,7 @@ export async function predictOrderEta(order: Order, historicalOrders: Order[] = 
   `;
 
   try {
-    const response = await generateContentProxy({
+    const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
       config: {
