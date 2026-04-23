@@ -55,6 +55,19 @@ export const getPrivateChatHistory = async (userKey: string) => {
   } catch (err) { return []; }
 };
 
+// פונקציה קריטית עבור DeliveryImport
+export const getCustomerByNumber = async (customerNumber: string) => {
+  const q = query(collection(db, 'customers'), where('customerNumber', '==', customerNumber), limit(1));
+  const snap = await getDocs(q);
+  return snap.empty ? null : { id: snap.docs[0].id, ...snap.docs[0].data() } as Customer;
+};
+
+export const createCustomer = async (customerData: Partial<Customer>) => {
+  const fullCustomer = { ...customerData, createdAt: serverTimestamp(), updatedAt: serverTimestamp() } as Customer;
+  const docRef = await addDoc(collection(db, 'customers'), fullCustomer);
+  return { id: docRef.id, ...fullCustomer };
+};
+
 export const createOrder = async (orderData: Partial<Order>) => {
   const fullOrder = { ...orderData, status: 'pending', createdAt: serverTimestamp() } as Order;
   const docRef = await addDoc(collection(db, 'orders'), fullOrder);
@@ -82,6 +95,18 @@ export const updateDriver = async (driverId: string, updates: Partial<Driver>) =
   await updateDoc(docRef, { ...updates, updatedAt: serverTimestamp() });
 };
 
+export const createDriver = async (driverData: Partial<Driver>) => {
+  const fullDriver = { ...driverData, status: driverData.status || 'active', createdAt: serverTimestamp() };
+  const docRef = await addDoc(collection(db, 'drivers'), fullDriver);
+  return { id: docRef.id, ...fullDriver };
+};
+
+export const getAllDrivers = async () => {
+  const q = query(collection(db, 'drivers'), orderBy('name', 'asc'));
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Driver[];
+};
+
 export const createReminder = async (reminderData: Partial<Reminder>) => {
   const fullReminder = { ...reminderData, isCompleted: false, createdAt: serverTimestamp() } as Reminder;
   const docRef = await addDoc(collection(db, 'reminders'), fullReminder);
@@ -90,30 +115,7 @@ export const createReminder = async (reminderData: Partial<Reminder>) => {
 
 // --- לוגיקת נועה AI ---
 
-export const noaSystemInstruction = `
-אתה "נועה" (NOA) - מנהלת הלוגיסטיקה של ח.סבן. שותפה של ראמי. 
-שפה: נשית, עברית חדה, פרקטית. חוק ברזל: טבלאות HTML בלבד למוצרים.
-`;
-
-export const tools = [
-  {
-    functionDeclarations: [
-      {
-        name: "create_order",
-        description: "צור הזמנה חדשה",
-        parameters: {
-          type: Type.OBJECT,
-          properties: {
-            date: { type: Type.STRING },
-            customerName: { type: Type.STRING },
-            items: { type: Type.STRING }
-          },
-          required: ["date", "customerName", "items"]
-        }
-      }
-    ]
-  }
-];
+export const noaSystemInstruction = `אתה נועה, עוזרת לוגיסטית חכמה בסידור של ח.סבן. שפה נשית, חדה ופרקטית.`;
 
 export async function askNoa(message: string, history: any[] = []) {
   const ai = getAiInstance();
@@ -140,7 +142,6 @@ export async function askNoa(message: string, history: any[] = []) {
       audioContent: sanitizeForVoice(responseText)
     };
   } catch (err) {
-    console.error(err);
     return { text: "תקלה בתקשורת עם נועה", audioContent: "" };
   }
 }
