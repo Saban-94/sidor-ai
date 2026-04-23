@@ -220,33 +220,54 @@ export async function askNoa(message: string, history: any[] = []) {
         tools: tools 
       });
 
-      const chat = model.startChat();
+      const chat = model.startChat({
+        history: history.map(h => ({
+          role: h.role === 'model' ? 'model' : 'user',
+          parts: [{ text: h.parts?.[0]?.text || h.text || "" }]
+        }))
+      });
+
+      // שלב 1: שליחת ההודעה למודל
       const result = await chat.sendMessage(message);
       let response = result.response;
-      const call = response.functionCalls()?.[0];
+      
+      // שלב 2: בדיקה אם המודל רוצה להפעיל כלי (Function Call)
+      const calls = response.functionCalls();
+      
+      if (calls && calls.length > 0) {
+        const functionResponses = [];
+        
+        for (const call of calls) {
+          // שליפה אמיתית מהמאגר לפי שם הכלי
+          const toolData = await handleToolCall(call); 
+          
+          functionResponses.push({
+            functionResponse: {
+              name: call.name,
+              response: { content: toolData } // הזרקת הנתונים האמיתיים מה-DB!
+            }
+          });
+        }
 
-      if (call) {
-        const toolData = await handleToolCall(call);
-        const secondResult = await chat.sendMessage([{ 
-          functionResponse: { name: call.name, response: { content: toolData } } 
-        }]);
-        response = secondResult.response;
+        // שלב 3: שליחת הנתונים האמיתיים חזרה לנועה כדי שתנסח תשובה
+        const finalResult = await chat.sendMessage(functionResponses);
+        response = finalResult.response;
       }
 
-      const finalTech = response.text();
-      return { text: finalTech, audioContent: sanitizeForVoice(finalTech) };
+      const finalContent = response.text();
+      return {
+        text: finalContent,
+        audioContent: sanitizeForVoice(finalContent)
+      };
 
     } catch (err: any) {
-      if (err.message?.includes('429') || err.message?.includes('503') || err.message?.includes('quota')) {
-        console.warn(`🔄 מודל ${modelName} עמוס, עובר לבא בתור...`);
-        continue;
-      }
+      if (err.message?.includes('429') || err.message?.includes('503')) continue;
+      console.error(`Error in ${modelName}:`, err);
       break;
     }
   }
-  return { text: "נועה בהפסקת קפה קצרה, נסה שוב עוד דקה.", audioContent: "" };
+  return { text: "נועה לא מצליחה לגשת למאגר, בדוק חיבור אינטרנט.", audioContent: "" };
 }
-
 export async function predictOrderEta(order: Order) {
   const ai = getAiInstance();
   if (!ai) return "N/A";
