@@ -85,11 +85,23 @@ export const NoaChat = ({
     }
   }, [chatHistory.length]);
 
-  const dynamicSuggestions = [
+const dynamicSuggestions = [
     { label: 'כניסת מנכ"ל (הראל) 👴', action: 'שלום, אני הראל.' },
-    { label: 'דוח בוקר ☀️', action: 'נועה, תכיני להראל דוח בוקר בטבלה.' },
+    { label: 'כניסת רכש (נתנאל) 🧔', action: 'שלום נועה, זה נתנאל רבינוביץ.' },
+    { label: 'זמני תפילה (נתנאל) 🕌', action: 'נועה, מתי מנחה וערבית היום בהוד השרון?' },
+    { label: 'כניסת מחסן (אורן) 🏗️', action: 'זה אורן מהמחסן.' },
     { label: 'בקשת איסוף (איציק) 🚕', action: 'נועה, אני צריך איסוף מהבית לסניף מחר ב-06:10.'},
+    { label: 'סריקת מסמך 📂', action: 'תסרקי את הקובץ האחרון בתיקייה.' },
+    { label: 'דוח בוקר ☀️', action: 'נועה, תכיני להראל דוח בוקר בטבלה.' },
+    { label: 'מוצרים שיצאו 📊', action: 'מה המוצרים שיצאו היום?' },
     { label: 'סטטוס נהגים 🚛', action: 'סטטוס נהגים חכמת ועלי.' },
+    ...orders
+      .filter(o => o.status === 'preparing')
+      .slice(0, 2)
+      .map(o => ({
+        label: `צפי ל${o.customerName.split(' ')[0]} ⏱️`,
+        action: `מה ה-ETA של ${o.customerName}?`
+      }))
   ];
 
   return (
