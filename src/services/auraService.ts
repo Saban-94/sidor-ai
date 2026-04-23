@@ -1,3 +1,4 @@
+import { GoogleGenAI, Type } from "@google/genai";
 import { 
   collection, 
   addDoc, 
@@ -16,16 +17,7 @@ import { Order, Driver, Customer, Reminder } from '../types';
 
 import { listDriveFiles, getFileBase64, createCustomerFolderHierarchy } from './driveService';
 
-export enum Type {
-  OBJECT = "OBJECT",
-  STRING = "STRING",
-  NUMBER = "NUMBER",
-  BOOLEAN = "BOOLEAN",
-  ARRAY = "ARRAY",
-  INTEGER = "INTEGER",
-}
-
-import { GoogleGenAI } from "@google/genai";
+// פונקציית עזר לניקוי טקסט לדיבור (TTS)
 const sanitizeForVoice = (text: string): string => {
   return text
     .replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g, '') // הסרת אימוג'ים
@@ -35,25 +27,7 @@ const sanitizeForVoice = (text: string): string => {
     .trim();
   (response as any).audioContent = sanitizeForVoice(response.text);
 };
-// Helper to call backend AI proxy
-async function generateContentProxy(payload: { model: string, contents: any[], config?: any }) {
-  const response = await fetch("/api/ai/generate", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  
-  if (!response.ok) {
-    const errData = await response.json().catch(() => ({}));
-    throw new Error(errData.error || `AI generation failed with status ${response.status}`);
-  }
-  
-  return await response.json();
-}
-
-async function callGeminiApi(payload: any) {
-  return generateContentProxy(payload);
-}
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 export const INVENTORY_RULES = [];
 
@@ -74,7 +48,7 @@ export const createCustomer = async (customerData: Partial<Customer>) => {
       fullCustomer.driveFolderId = folderInfo.folderId;
     }
   } catch (err) {
-    console.error("Failed to create Drive folder for customer:", err);
+    console.error("Failed to create Drive folder for customer אחי:", err);
   }
 
   const docRef = await addDoc(collection(db, 'customers'), fullCustomer);
@@ -193,6 +167,40 @@ export const deleteReminder = async (reminderId: string) => {
   await deleteDoc(doc(db, 'reminders', reminderId));
 };
 
+
+// src/services/auraService.ts
+
+// פונקציה שטוענת היסטוריה ספציפית למשתמש בלבד
+export const getPrivateChatHistory = async (userKey: string) => {
+  const q = query(
+    collection(db, `users/${userKey}/messages`),
+    orderBy("timestamp", "asc"),
+    limit(50)
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map(doc => ({
+    role: doc.data().role,
+    parts: [{ text: doc.data().content }]
+  }));
+};
+
+// שליחת שאלה עם זהות המשתמש כדי שנועה תדע מי מדבר איתה
+export async function askNoaPersonalized(message: string, userKey: string, history: any[]) {
+  // אנחנו מזריקים את השם של המשתמש לתוך ה-System Instruction בזמן אמת
+  const personalizedInstruction = `${noaSystemInstruction}\n המשתמש הנוכחי שאת מדברת איתו הוא: ${userKey}. חל איסור מוחלט להציג מידע של משתמשים אחרים!`;
+
+  const model = ai.getGenerativeModel({ 
+    model: "gemini-3-flash-preview",
+    systemInstruction: personalizedInstruction,
+    tools: tools
+  });
+
+  const result = await model.generateContent({
+    contents: [...history, { role: 'user', parts: [{ text: message }] }]
+  });
+
+  return result.response.text();
+}
 
 export const noaSystemInstruction = `
  אתה "נועה" (NOA) - מנהלת המשימות והלוגיסטיקה החכמה של סידור  שותפה של ראמי.
@@ -644,8 +652,8 @@ async function processNoaTurn(contents: any[]): Promise<any> {
   
   const dynamicInstruction = `${noaSystemInstruction}\n\nהזמן הנוכחי במערכת: ${dayName}, ${currentDateTime}.\nכשמדברים על "מחר", הכוונה היא ליום שאחרי התאריך המופיע כאן.`;
 
-  const response = await generateContentProxy({
-    model: "gemini-3-flash-preview",
+  const response = await ai.models.generateContent({
+    model: "gemini-3-flash-preview", 
     contents: contents,
     config: {
       systemInstruction: dynamicInstruction,
@@ -653,10 +661,9 @@ async function processNoaTurn(contents: any[]): Promise<any> {
     }
   });
 
-  const functionCalls = (response as any).candidates?.[0]?.content?.parts?.filter((p: any) => p.functionCall).map((p: any) => p.functionCall);
-  
+  const functionCalls = response.functionCalls;
   if (functionCalls && functionCalls.length > 0) {
-    const modelResponseContent = (response as any).candidates[0].content;
+    const modelResponseContent = response.candidates[0].content;
     const functionResponseParts: any[] = [];
 
     for (const call of functionCalls) {
@@ -670,7 +677,7 @@ async function processNoaTurn(contents: any[]): Promise<any> {
           case 'update_order': {
             const { orderId, ...updates } = call.args as any;
             await updateOrder(orderId, updates);
-            result = { success: true, message: `הזמנה ${orderId} עודכנה בהצלחה` };
+            result = { success: true, message: `הזמנה ${orderId} עודכנה בהצלחה ` };
             break;
           }
           case 'update_order_status':
@@ -683,7 +690,7 @@ async function processNoaTurn(contents: any[]): Promise<any> {
               await deleteOrder(ordersToDelete[0].id!);
               result = { success: true, deleted: ordersToDelete[0].customerName };
             } else {
-              result = { success: false, error: 'לא נמצאה הזמנה מתאימה למחיקה' };
+              result = { success: false, error: 'לא מצאתי הזמנה כזו למחיקה ' };
             }
             break;
           }
@@ -700,7 +707,7 @@ async function processNoaTurn(contents: any[]): Promise<any> {
               const eta = await predictOrderEta(searchRes[0], hist);
               result = { eta };
             } else {
-              result = { error: 'לא נמצאה הזמנה לחישוב זמן הגעה' };
+              result = { error: 'לא מצאתי הזמנה לחישוב ETA ' };
             }
             break;
           }
@@ -747,7 +754,7 @@ async function processNoaTurn(contents: any[]): Promise<any> {
 
 החזר JSON בלבד.`;
             
-            const analysisResponse = await generateContentProxy({
+            const analysisResponse = await ai.models.generateContent({
               model: "gemini-3-flash-preview",
               contents: [{
                 role: 'user',
@@ -776,7 +783,7 @@ async function processNoaTurn(contents: any[]): Promise<any> {
             break;
           }
           default:
-            result = { error: 'פעולה לא מזוהה' };
+            result = { error: 'כלי לא מזוהה אחי' };
         }
 
         // Gemini expects the response to be an object (Struct).
@@ -797,7 +804,7 @@ async function processNoaTurn(contents: any[]): Promise<any> {
         functionResponseParts.push({
           functionResponse: {
             name: call.name,
-            response: { error: toolError.message || "שגיאה בביצוע הפעולה" }
+            response: { error: toolError.message || "שגיאה לא ידועה אחי" }
           }
         });
       }
@@ -813,6 +820,7 @@ async function processNoaTurn(contents: any[]): Promise<any> {
   }
 
   return response;
+   audioContent: cleanSpeech
 }
 
 export async function predictOrderEta(order: Order, historicalOrders: Order[] = []) {
@@ -842,7 +850,7 @@ export async function predictOrderEta(order: Order, historicalOrders: Order[] = 
   `;
 
   try {
-    const response = await generateContentProxy({
+    const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
       config: {
