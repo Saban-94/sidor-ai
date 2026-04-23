@@ -1,4 +1,3 @@
-import { GoogleGenAI, Type } from "@google/genai";
 import { 
   collection, 
   addDoc, 
@@ -17,7 +16,16 @@ import { Order, Driver, Customer, Reminder } from '../types';
 
 import { listDriveFiles, getFileBase64, createCustomerFolderHierarchy } from './driveService';
 
-// פונקציית עזר לניקוי טקסט לדיבור (TTS)
+export enum Type {
+  OBJECT = "OBJECT",
+  STRING = "STRING",
+  NUMBER = "NUMBER",
+  BOOLEAN = "BOOLEAN",
+  ARRAY = "ARRAY",
+  INTEGER = "INTEGER",
+}
+
+import { GoogleGenAI } from "@google/genai";
 const sanitizeForVoice = (text: string): string => {
   return text
     .replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g, '') // הסרת אימוג'ים
@@ -27,7 +35,25 @@ const sanitizeForVoice = (text: string): string => {
     .trim();
   (response as any).audioContent = sanitizeForVoice(response.text);
 };
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+// Helper to call backend AI proxy
+async function generateContentProxy(payload: { model: string, contents: any[], config?: any }) {
+  const response = await fetch("/api/ai/generate", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  
+  if (!response.ok) {
+    const errData = await response.json().catch(() => ({}));
+    throw new Error(errData.error || `AI generation failed with status ${response.status}`);
+  }
+  
+  return await response.json();
+}
+
+async function callGeminiApi(payload: any) {
+  return generateContentProxy(payload);
+}
 
 export const INVENTORY_RULES = [];
 
