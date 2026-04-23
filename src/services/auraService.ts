@@ -29,8 +29,9 @@ const getAiInstance = () => {
 const MODEL_PRIORITY = [
   "gemini-3.1-pro-preview",       // הכי חכם
   "gemini-3.1-flash-lite-preview", // הכי נדיב (4,000 ביום)
-  "gemini-2.0-flash"              // הכי יציב
-];
+  "gemini-2.0-flash"
+  "deep-research-preview-04-2026"
+  ];
 
 const sanitizeForVoice = (text: string): string => {
   return text
