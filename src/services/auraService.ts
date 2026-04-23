@@ -28,7 +28,22 @@ const sanitizeForVoice = (text: string): string => {
 };
 
 
-const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
+const ai = new GoogleGenAI({ apiKey: import.meta.env.GEMINI_API_KEY });
+let genAI: GoogleGenerativeAI | null = null;
+
+function getAiInstance() {
+  const apiKey = import.meta.env.GEMINI_API_KEY;
+  
+  if (!apiKey) {
+    throw new Error("מפתח API של Gemini חסר! וודא שהגדרת GEMINI_API_KEY ב-Vercel.");
+  }
+
+  if (!genAI) {
+    genAI = new GoogleGenerativeAI(apiKey);
+  }
+  return genAI;
+}
+
 
 export const INVENTORY_RULES = [];
 
