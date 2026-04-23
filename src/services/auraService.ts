@@ -7,7 +7,7 @@ import { Order, Driver, Customer, Reminder } from '../types';
 import { listDriveFiles, getFileBase64, createCustomerFolderHierarchy } from './driveService';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-// --- הגדרות סוגים לכלים ---
+// --- הגדרות סוגים ---
 export enum Type {
   OBJECT = "OBJECT",
   STRING = "STRING",
@@ -17,7 +17,6 @@ export enum Type {
   INTEGER = "INTEGER",
 }
 
-// --- ניהול Instance של AI ---
 let genAIInstance: GoogleGenerativeAI | null = null;
 const getAiInstance = () => {
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
@@ -26,17 +25,16 @@ const getAiInstance = () => {
   return genAIInstance;
 };
 
-// רשימת רוטציה: מהחכם ביותר לנדיב ביותר (גיבוי)
+// רוטציה חכמה למניעת ניתוקים
 const MODEL_PRIORITY = [
-  "gemini-3.1-pro-preview",       // הכי חכם (מכסה קטנה - 50 ביום)
-  "gemini-3.1-flash-lite-preview", // הכי נדיב (4,000 ביום - מהיר בטירוף)
-  "gemini-1.5-flash"              // המאבטח (הכי יציב בעולם)
+  "gemini-3.1-pro-preview",       // הכי חכם
+  "gemini-3.1-flash-lite-preview", // הכי נדיב (4,000 ביום)
+  "gemini-1.5-flash"              // הכי יציב
 ];
 
-// --- חוקי הדיבור (TTS) ---
 const sanitizeForVoice = (text: string): string => {
   return text
-    .replace(/<[^>]*>?/gm, '') // ניקוי HTML מהקול
+    .replace(/<[^>]*>?/gm, '') 
     .replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g, '') 
     .replace(/\*\*|##|__|#|\*|`/g, '') 
     .replace(/\s+/g, ' ') 
@@ -48,12 +46,12 @@ export const noaSystemInstruction = `
 אתה "נועה" (NOA) - מנהלת המשימות והלוגיסטיקה החכמה של סידור, שותפה של ראמי בחברת ח.סבן.
 
 ⚠️ חוקי ברזל:
-1. איסור המצאה: חל איסור מוחלט להמציא נתונים! השתמשי תמיד ב-tools לפני תשובה על הזמנות/נהגים/לקוחות.
+1. איסור המצאה: חל איסור מוחלט להמציא נתונים! השתמשי תמיד ב-tools.
 2. זיהוי פונה: אל תנחשי שזה ראמי. שאלי לשם אם לא ידוע. "נשמה" שמור רק לראמי.
-3. הראל (המנכ"ל): פנייה "אהלן סבא 👴". הציגי לו 5 שאלות מקצועיות ו-5 פעולות דחופות מיד בפתיחה.
-4. אורן (מחסן): פנייה "אהלן אורן הגבר🏗️". בטון קליל עברי ל"מוד בית זונות" ולחשי ב"מוד שושו"🤫.
-5. חוק הדיבור: אל תקריאי כותרות כמו "מק"ט" או "כמות". אמרי: "חמישה שקים של חול".
-6. עיצוב: רשימות מוצרים וסידור עבודה יוצגו בטבלת HTML (<table>) נקייה בלבד. בלי Markdown!
+3. הראל: פנייה "אהלן סבא 👴". הציגי לו 5 שאלות מקצועיות ו-5 פעולות מיד בפתיחה.
+4. אורן: פנייה "אהלן אורן הגבר🏗️". במוד קליל עברי ל"בית זונות" ולחשי ב"שושו" 😉.
+5. הקראה (TTS): אל תקריאי כותרות כמו "מק"ט". אמרי: "חמישה שקים של חול".
+6. עיצוב: רשימות וסידור עבודה בטבלת HTML (<table>) בלבד.
 
 [מונחים]: "סריקה", "שיוך להזמנה", "סידור עבודה", "תיקיית לקוח".
 `;
@@ -78,7 +76,7 @@ export const tools = [{
     },
     {
       name: "create_reminder",
-      description: "צור תזכורת או משימה בסידור (למשל: הפסקת צהריים, שיחה ללקוח)",
+      description: "צור תזכורת או משימה בסידור",
       parameters: { 
         type: Type.OBJECT, 
         properties: { title: { type: Type.STRING }, dueDate: { type: Type.STRING }, dueTime: { type: Type.STRING } }, 
@@ -88,7 +86,13 @@ export const tools = [{
   ]
 }];
 
-// --- פונקציות Firestore ---
+// --- פונקציות Firestore (עם כל ה-Exports הנדרשים) ---
+
+export const getPrivateChatHistory = async (userKey: string) => {
+  const q = query(collection(db, `users/${userKey}/messages`), orderBy("timestamp", "asc"), limit(50));
+  const snap = await getDocs(q);
+  return snap.docs.map(doc => ({ role: doc.data().role, parts: [{ text: doc.data().content || "" }] }));
+};
 
 export const fetchOrders = async (date?: string) => {
   let q = query(collection(db, 'orders'), orderBy('time', 'asc'));
@@ -105,32 +109,57 @@ export const searchOrders = async (searchTerm: string) => {
     .filter(o => o.customerName.toLowerCase().includes(term) || o.destination.toLowerCase().includes(term));
 };
 
-export const searchCustomers = async (searchTerm: string) => {
-  const q = query(collection(db, 'customers'), orderBy('name', 'asc'));
-  const snapshot = await getDocs(q);
-  const term = searchTerm.toLowerCase();
-  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any))
-    .filter(c => c.name.toLowerCase().includes(term) || c.phoneNumber?.includes(term));
+export const createOrder = async (orderData: Partial<Order>) => {
+  const docRef = await addDoc(collection(db, 'orders'), { ...orderData, createdAt: serverTimestamp() });
+  return { id: docRef.id, ...orderData };
+};
+
+export const updateOrder = async (id: string, updates: Partial<Order>) => {
+  await updateDoc(doc(db, 'orders', id), { ...updates, updatedAt: serverTimestamp() });
+};
+
+export const deleteOrder = async (id: string) => {
+  await deleteDoc(doc(db, 'orders', id));
+};
+
+export const updateDriver = async (id: string, updates: Partial<Driver>) => {
+  await updateDoc(doc(db, 'drivers', id), { ...updates, updatedAt: serverTimestamp() });
 };
 
 export const createReminder = async (data: any) => {
-  const full = { ...data, isCompleted: false, createdAt: serverTimestamp(), userId: auth.currentUser?.uid };
-  const docRef = await addDoc(collection(db, 'reminders'), full);
-  return { id: docRef.id, ...full };
+  const docRef = await addDoc(collection(db, 'reminders'), { ...data, isCompleted: false, createdAt: serverTimestamp() });
+  return { id: docRef.id, ...data };
 };
 
-// פונקציות תשתית שנדרשות על ידי App.tsx
-export const getPrivateChatHistory = async (userKey: string) => {
-  const q = query(collection(db, `users/${userKey}/messages`), orderBy("timestamp", "asc"), limit(50));
+export const updateReminder = async (id: string, updates: any) => {
+  await updateDoc(doc(db, 'reminders', id), { ...updates, updatedAt: serverTimestamp() });
+};
+
+export const deleteReminder = async (id: string) => {
+  await deleteDoc(doc(db, 'reminders', id));
+};
+
+// תיקון: ייצוא הפונקציה שחסרה ל-DeliveryImport
+export const getCustomerByNumber = async (customerNumber: string) => {
+  const q = query(collection(db, 'customers'), where('customerNumber', '==', customerNumber), limit(1));
   const snap = await getDocs(q);
-  return snap.docs.map(doc => ({ role: doc.data().role, parts: [{ text: doc.data().content || "" }] }));
+  return snap.empty ? null : { id: snap.docs[0].id, ...snap.docs[0].data() };
 };
 
-export const updateOrder = async (id: string, updates: any) => await updateDoc(doc(db, 'orders', id), updates);
-export const deleteOrder = async (id: string) => await deleteDoc(doc(db, 'orders', id));
-export const updateDriver = async (id: string, updates: any) => await updateDoc(doc(db, 'drivers', id), updates);
+export const createCustomer = async (data: any) => {
+  const docRef = await addDoc(collection(db, 'customers'), { ...data, createdAt: serverTimestamp() });
+  return { id: docRef.id, ...data };
+};
 
-// --- לוגיקת הרוטציה של נועה ---
+export const searchCustomers = async (searchTerm: string) => {
+  const q = query(collection(db, 'customers'), orderBy('name', 'asc'));
+  const snap = await getDocs(q);
+  const term = searchTerm.toLowerCase();
+  return snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as any))
+    .filter(c => c.name.toLowerCase().includes(term) || c.phoneNumber?.includes(term));
+};
+
+// --- לוגיקת הרוטציה והטיפול בכלים ---
 
 async function handleToolCall(call: any) {
   switch (call.name) {
@@ -168,21 +197,17 @@ export async function askNoa(message: string, history: any[] = []) {
       }
 
       const finalTech = response.text();
-      return {
-        text: finalTech,
-        audioContent: sanitizeForVoice(finalTech)
-      };
+      return { text: finalTech, audioContent: sanitizeForVoice(finalTech) };
 
     } catch (err: any) {
       if (err.message?.includes('429') || err.message?.includes('503') || err.message?.includes('quota')) {
-        console.warn(`⚠️ מודל ${modelName} ברוטציה נכשל, עובר לבא בתור...`);
+        console.warn(`🔄 מודל ${modelName} עמוס, עובר לבא בתור...`);
         continue;
       }
-      console.error(`❌ שגיאה במודל ${modelName}:`, err);
       break;
     }
   }
-  return { text: "ראמי נשמה, גוגל עמוסים בטירוף כרגע. נסה שוב עוד דקה.", audioContent: "" };
+  return { text: "נועה בהפסקת קפה קצרה, נסה שוב עוד דקה.", audioContent: "" };
 }
 
 export async function predictOrderEta(order: Order) {
