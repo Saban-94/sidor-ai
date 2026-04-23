@@ -9,15 +9,15 @@ import {
   getDocs, 
   serverTimestamp,
   orderBy,
-  limit
+  limit 
 } from 'firebase/firestore';
 import { db, auth } from '../lib/firebase';
 import { Order, Driver, Customer, Reminder } from '../types';
 import { listDriveFiles, getFileBase64, createCustomerFolderHierarchy } from './driveService';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-// אתחול Gemini
-const API_KEY = import.meta.env.GEMINI_API_KEY || "";
+// אתחול Gemini - וודא שהגדרת VITE_GEMINI_API_KEY בוורסל
+const API_KEY = import.meta.env.VITE_GEMINI_API_KEY || "";
 const genAI = new GoogleGenerativeAI(API_KEY);
 
 export enum Type {
@@ -39,7 +39,7 @@ const sanitizeForVoice = (text: string): string => {
     .trim();
 };
 
-// --- פונקציות Firestore ---
+// --- פונקציות לקוחות (Customers) ---
 
 export const createCustomer = async (customerData: Partial<Customer>) => {
   const fullCustomer = {
@@ -64,6 +64,18 @@ export const createCustomer = async (customerData: Partial<Customer>) => {
   return { id: docRef.id, ...fullCustomer };
 };
 
+// הוספת הפונקציה שהייתה חסרה ל-DeliveryImport
+export const getCustomerByNumber = async (customerNumber: string) => {
+  const q = query(
+    collection(db, 'customers'), 
+    where('customerNumber', '==', customerNumber), 
+    limit(1)
+  );
+  const snap = await getDocs(q);
+  if (snap.empty) return null;
+  return { id: snap.docs[0].id, ...snap.docs[0].data() } as Customer;
+};
+
 export const updateCustomer = async (customerId: string, updates: Partial<Customer>) => {
   const docRef = doc(db, 'customers', customerId);
   await updateDoc(docRef, { ...updates, updatedAt: serverTimestamp() });
@@ -83,6 +95,8 @@ export const searchCustomers = async (searchTerm: string) => {
     ) as Customer[];
 };
 
+// --- פונקציות נהגים (Drivers) ---
+
 export const createDriver = async (driverData: Partial<Driver>) => {
   const fullDriver = {
     ...driverData,
@@ -100,6 +114,8 @@ export const getAllDrivers = async () => {
   const snapshot = await getDocs(q);
   return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Driver[];
 };
+
+// --- פונקציות הזמנות (Orders) ---
 
 export const createOrder = async (orderData: Partial<Order>) => {
   if (!auth.currentUser) throw new Error('Not authenticated');
@@ -143,59 +159,13 @@ export const searchOrders = async (searchTerm: string) => {
     }) as Order[];
 };
 
-export const createReminder = async (reminderData: Partial<Reminder>) => {
-  if (!auth.currentUser) throw new Error('Not authenticated');
-  const fullReminder = {
-    ...reminderData,
-    isCompleted: false,
-    userId: auth.currentUser.uid,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-  } as Reminder;
-  const docRef = await addDoc(collection(db, 'reminders'), fullReminder);
-  return { id: docRef.id, ...fullReminder };
-};
-
-// --- לוגיקת נועה (Aura Service) ---
+// --- לוגיקת נועה (Aura AI) ---
 
 export const noaSystemInstruction = `
 אתה "נועה" (NOA) - מנהלת המשימות והלוגיסטיקה החכמה של סידור. שותפה של ראמי.
 התפקיד שלך הוא לעזור לראמי ולצוות לנהל את ח.סבן חומרי בנין ביעילות מקסימלית.
 שפה: נשית👩🏼, עברית חדה, פרקטית, "שותפה". חוקי ברזל: HTML בלבד לטבלאות, בלי Markdown.
 `;
-
-export const tools = [
-  {
-    functionDeclarations: [
-      {
-        name: "create_order",
-        description: "צור הזמנה חדשה במערכת",
-        parameters: {
-          type: Type.OBJECT,
-          properties: {
-            date: { type: Type.STRING },
-            time: { type: Type.STRING },
-            driverId: { type: Type.STRING },
-            customerName: { type: Type.STRING },
-            destination: { type: Type.STRING },
-            items: { type: Type.STRING }
-          },
-          required: ["date", "time", "driverId", "customerName", "destination", "items"]
-        }
-      },
-      {
-        name: "search_orders",
-        description: "חפש הזמנות",
-        parameters: {
-          type: Type.OBJECT,
-          properties: { query: { type: Type.STRING } },
-          required: ["query"]
-        }
-      }
-      // ניתן להוסיף כאן עוד הגדרות כלים לפי הצורך
-    ]
-  }
-];
 
 export async function askNoa(message: string, history: any[] = []) {
   const model = genAI.getGenerativeModel({ 
