@@ -1,21 +1,22 @@
 import { 
-  collection, addDoc, updateDoc, deleteDoc, doc, 
-  query, where, getDocs, serverTimestamp, orderBy, limit 
+  collection, 
+  addDoc, 
+  updateDoc, 
+  deleteDoc, 
+  doc, 
+  query, 
+  where, 
+  getDocs, 
+  serverTimestamp,
+  orderBy,
+  limit 
 } from 'firebase/firestore';
 import { db, auth } from '../lib/firebase';
 import { Order, Driver, Customer, Reminder } from '../types';
 import { listDriveFiles, getFileBase64, createCustomerFolderHierarchy } from './driveService';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-// --- אתחול Gemini ---
-let genAIInstance: GoogleGenerativeAI | null = null;
-const getAiInstance = () => {
-  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-  if (!apiKey) return null;
-  if (!genAIInstance) genAIInstance = new GoogleGenerativeAI(apiKey);
-  return genAIInstance;
-};
-
+// --- הגדרות סוגים לכלים ---
 export enum Type {
   OBJECT = "OBJECT",
   STRING = "STRING",
@@ -25,21 +26,46 @@ export enum Type {
   INTEGER = "INTEGER",
 }
 
-const sanitizeForVoice = (text: string): string => {
-  return text.replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g, '') 
-    .replace(/\*\*|##|__|#|\*|`/g, '').replace(/\s+/g, ' ').trim();
+// --- ניהול Instance של AI ---
+let genAIInstance: GoogleGenerativeAI | null = null;
+
+const getAiInstance = () => {
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  if (!apiKey) {
+    console.error("❌ VITE_GEMINI_API_KEY missing");
+    return null;
+  }
+  if (!genAIInstance) {
+    genAIInstance = new GoogleGenerativeAI(apiKey);
+  }
+  return genAIInstance;
 };
 
-// --- היסטוריית צ'אט ---
+// פונקציית עזר לניקוי טקסט לדיבור
+const sanitizeForVoice = (text: string): string => {
+  return text
+    .replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g, '') 
+    .replace(/\*\*|##|__|#|\*|`/g, '') 
+    .replace(/^\s*[\-\*+]\s+/gm, '') 
+    .replace(/\s+/g, ' ') 
+    .trim();
+};
+
+// --- פונקציות Firestore (Chat & History) ---
+
 export const getPrivateChatHistory = async (userKey: string) => {
   try {
     const q = query(collection(db, `users/${userKey}/messages`), orderBy("timestamp", "asc"), limit(50));
     const snap = await getDocs(q);
-    return snap.docs.map(doc => ({ role: doc.data().role, parts: [{ text: doc.data().content || "" }] }));
+    return snap.docs.map(doc => ({
+      role: doc.data().role,
+      parts: [{ text: doc.data().content || "" }]
+    }));
   } catch (err) { return []; }
 };
 
-// --- לקוחות ---
+// --- פונקציות לקוחות (Customers) ---
+
 export const createCustomer = async (customerData: Partial<Customer>) => {
   const fullCustomer = { ...customerData, createdAt: serverTimestamp(), updatedAt: serverTimestamp() } as Customer;
   const docRef = await addDoc(collection(db, 'customers'), fullCustomer);
@@ -52,7 +78,8 @@ export const getCustomerByNumber = async (customerNumber: string) => {
   return snap.empty ? null : { id: snap.docs[0].id, ...snap.docs[0].data() } as Customer;
 };
 
-// --- נהגים ---
+// --- פונקציות נהגים (Drivers) ---
+
 export const createDriver = async (driverData: Partial<Driver>) => {
   const fullDriver = { ...driverData, status: driverData.status || 'active', createdAt: serverTimestamp() };
   const docRef = await addDoc(collection(db, 'drivers'), fullDriver);
@@ -70,7 +97,8 @@ export const getAllDrivers = async () => {
   return snap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Driver[];
 };
 
-// --- הזמנות ---
+// --- פונקציות הזמנות (Orders) ---
+
 export const createOrder = async (orderData: Partial<Order>) => {
   const fullOrder = { ...orderData, status: 'pending', createdAt: serverTimestamp() } as Order;
   const docRef = await addDoc(collection(db, 'orders'), fullOrder);
@@ -93,7 +121,8 @@ export const fetchOrders = async (date?: string) => {
   return snap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Order[];
 };
 
-// --- תזכורות (Reminders) - התיקון הקריטי ל-Build ---
+// --- פונקציות תזכורות (Reminders) - התיקון ל-Build ---
+
 export const createReminder = async (reminderData: Partial<Reminder>) => {
   const fullReminder = { ...reminderData, isCompleted: false, createdAt: serverTimestamp() } as Reminder;
   const docRef = await addDoc(collection(db, 'reminders'), fullReminder);
@@ -109,21 +138,37 @@ export const deleteReminder = async (reminderId: string) => {
   await deleteDoc(doc(db, 'reminders', reminderId));
 };
 
-// --- נועה AI ---
+// --- לוגיקת נועה AI ---
+
 export const noaSystemInstruction = `אתה נועה, עוזרת לוגיסטית חכמה בסידור של ח.סבן. שפה נשית, חדה ופרקטית.`;
 
 export async function askNoa(message: string, history: any[] = []) {
   const ai = getAiInstance();
   if (!ai) return { text: "שגיאת מפתח API", audioContent: "" };
+
   try {
-    const model = ai.getGenerativeModel({ model: "gemini-3-flash-preview", systemInstruction: noaSystemInstruction });
-    const chat = model.startChat({
-      history: (history || []).map(h => ({ role: h.role === 'model' ? 'model' : 'user', parts: [{ text: h.parts?.[0]?.text || h.text || "" }] })).filter(h => h.parts[0].text !== "")
+    const model = ai.getGenerativeModel({ 
+      model: "gemini-3-flash-preview", 
+      systemInstruction: noaSystemInstruction 
     });
+
+    const chat = model.startChat({
+      history: (history || []).map(h => ({
+        role: h.role === 'model' ? 'model' : 'user',
+        parts: [{ text: h.parts?.[0]?.text || h.text || "" }]
+      })).filter(h => h.parts[0].text !== "")
+    });
+
     const result = await chat.sendMessage(message);
     const responseText = result.response.text();
-    return { text: responseText, audioContent: sanitizeForVoice(responseText) };
-  } catch (err) { return { text: "תקלה בתקשורת", audioContent: "" }; }
+
+    return {
+      text: responseText,
+      audioContent: sanitizeForVoice(responseText)
+    };
+  } catch (err) {
+    return { text: "תקלה בתקשורת עם נועה", audioContent: "" };
+  }
 }
 
 export async function predictOrderEta(order: Order) {
