@@ -207,7 +207,13 @@ async function handleToolCall(call: any) {
     default: return { error: "כלי לא מזוהה" };
   }
 }
-
+async function handleToolCall(call: any) {
+  console.log(`🚀 נועה מפעילה כלי: ${call.name}`, call.args);
+  if (call.name === 'get_orders_by_date') return await fetchOrders(call.args.date);
+  if (call.name === 'search_customers') return await searchCustomers(call.args.query);
+  if (call.name === 'create_reminder') return await createReminder(call.args);
+  return { error: "כלי לא נמצא" };
+}
 export async function askNoa(message: string, history: any[] = []) {
   const ai = getAiInstance();
   if (!ai) return { text: "שגיאת מפתח API", audioContent: "" };
