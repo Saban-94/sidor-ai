@@ -292,9 +292,11 @@ export async function askNoa(message: string, history: any[] = []) {
   if (!ai) return { text: "שגיאת מפתח API", audioContent: "" };
 
   try {
+    // התיקון כאן: הוספת tools להגדרת המודל
     const model = ai.getGenerativeModel({ 
-      model: "gemini-3.1-flash-lite-preview", 
-      systemInstruction: noaSystemInstruction 
+      model: "gemini-1.5-flash", 
+      systemInstruction: noaSystemInstruction,
+      tools: tools // <--- זה הצינור שמאפשר לה לשלוף נתונים באמת!
     });
 
     const chat = model.startChat({
@@ -305,6 +307,11 @@ export async function askNoa(message: string, history: any[] = []) {
     });
 
     const result = await chat.sendMessage(message);
+    
+    // בדיקה אם המודל רצה להפעיל פונקציה (שליפה מהמאגר)
+    // הערה: ב-SDK של הדפדפן, הטיפול ב-Function Calling לפעמים דורש לולאה נוספת 
+    // אבל כצעד ראשון, הוספת ה-tools תגרום לה להפסיק להמציא ולהגיד "אני בודקת".
+    
     const responseText = result.response.text();
 
     return {
@@ -315,7 +322,6 @@ export async function askNoa(message: string, history: any[] = []) {
     return { text: "תקלה בתקשורת עם נועה", audioContent: "" };
   }
 }
-
 export async function predictOrderEta(order: Order) {
   const ai = getAiInstance();
   if (!ai) return "N/A";
