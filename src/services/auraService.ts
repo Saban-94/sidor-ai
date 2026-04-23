@@ -26,7 +26,15 @@ export enum Type {
 }
 
 import { GoogleGenAI } from "@google/genai";
-
+const sanitizeForVoice = (text: string): string => {
+  return text
+    .replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g, '') // הסרת אימוג'ים
+    .replace(/\*\*|##|__|#|\*|`/g, '') // הסרת סימני Markdown
+    .replace(/^\s*[\-\*+]\s+/gm, '') // הסרת סימני רשימות
+    .replace(/\s+/g, ' ') // ניקוי רווחים כפולים
+    .trim();
+  (response as any).audioContent = sanitizeForVoice(response.text);
+};
 // Helper to call backend AI proxy
 async function generateContentProxy(payload: { model: string, contents: any[], config?: any }) {
   const response = await fetch("/api/ai/generate", {
