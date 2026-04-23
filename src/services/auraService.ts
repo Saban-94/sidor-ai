@@ -294,7 +294,7 @@ export async function askNoa(message: string, history: any[] = []) {
   try {
     // התיקון כאן: הוספת tools להגדרת המודל
     const model = ai.getGenerativeModel({ 
-      model: "gemini-1.5-flash", 
+      model: "gemini-3.1-flash-lite-preview", 
       systemInstruction: noaSystemInstruction,
       tools: tools // <--- זה הצינור שמאפשר לה לשלוף נתונים באמת!
     });
