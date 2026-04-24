@@ -1,17 +1,18 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { User, MapPin, Package, Hash, Search as SearchIcon } from 'lucide-react';
-import { Order } from '../types';
+import { User, MapPin, Package, Hash, Search as SearchIcon, AlertTriangle } from 'lucide-react';
+import { Order, InventoryItem } from '../types';
 import { highlightText } from '../lib/utils';
 
 interface SearchSuggestionsProps {
   orders: Order[];
+  inventoryItems?: InventoryItem[];
   searchQuery: string;
   isVisible: boolean;
   onSelect: (value: string) => void;
 }
 
-export const SearchSuggestions = ({ orders, searchQuery, isVisible, onSelect }: SearchSuggestionsProps) => {
+export const SearchSuggestions = ({ orders, inventoryItems = [], searchQuery, isVisible, onSelect }: SearchSuggestionsProps) => {
   if (!isVisible || searchQuery.length < 2) return null;
 
   const query = searchQuery.toLowerCase();
@@ -27,19 +28,49 @@ export const SearchSuggestions = ({ orders, searchQuery, isVisible, onSelect }: 
     orders: Array.from(new Set(orders
       .filter(o => o.orderNumber?.toLowerCase().includes(query))
       .map(o => o.orderNumber))).slice(0, 3),
-    items: Array.from(new Set(orders
-      .filter(o => o.items.toLowerCase().includes(query))
-      .flatMap(o => o.items.split(',').map(i => i.trim()))
-      .filter(i => i.toLowerCase().includes(query)))).slice(0, 3)
+    items: Array.from(new Set([
+      ...orders
+        .filter(o => o.items.toLowerCase().includes(query))
+        .flatMap(o => o.items.split(/[,|\n]/).map(i => i.trim()))
+        .filter(i => i.toLowerCase().includes(query)),
+      ...inventoryItems
+        .filter(i => i.name.toLowerCase().includes(query))
+        .map(i => i.name)
+    ]))
+      .filter(val => val.length > 0)
+      .slice(0, 5),
+    skus: Array.from(new Set([
+      ...orders
+        .filter(o => {
+          const skus = o.items.match(/\b\d{5}\b/g);
+          return skus?.some(s => s.includes(query));
+        })
+        .flatMap(o => o.items.match(/\b\d{5}\b/g) || [])
+        .filter(s => s.includes(query)),
+      ...inventoryItems
+        .filter(i => i.sku.toLowerCase().includes(query))
+        .map(i => i.sku)
+    ]))
+      .slice(0, 3)
   };
 
   const hasAnySuggestions = 
     suggestions.customers.length > 0 || 
     suggestions.destinations.length > 0 || 
     suggestions.orders.length > 0 || 
-    suggestions.items.length > 0;
+    suggestions.items.length > 0 ||
+    suggestions.skus.length > 0;
 
-  if (!hasAnySuggestions) return null;
+  // Add "Did you mean" if no results and query is somewhat long
+  const corrections = !hasAnySuggestions && query.length >= 3 ? inventoryItems
+    .filter(i => {
+      // Simple logic: if query is a prefix or contains parts of the name
+      const parts = query.split(' ');
+      return parts.some(p => p.length >= 3 && i.name.toLowerCase().includes(p));
+    })
+    .slice(0, 2) : [];
+
+  if (!hasAnySuggestions && corrections.length === 0) return null;
 
   return (
     <motion.div
@@ -50,6 +81,26 @@ export const SearchSuggestions = ({ orders, searchQuery, isVisible, onSelect }: 
       dir="rtl"
     >
       <div className="p-4 space-y-4">
+        {!hasAnySuggestions && corrections.length > 0 && (
+          <div className="bg-sky-50/50 p-3 rounded-2xl border border-sky-100 mb-2">
+            <div className="flex items-center gap-2 mb-1">
+              <AlertTriangle size={14} className="text-sky-600" />
+              <span className="text-xs font-bold text-sky-800">לא נמצאו תוצאות מדויקות. האם התכוונת ל:</span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {corrections.map(item => (
+                <button 
+                  key={item.id}
+                  onClick={() => onSelect(item.name)}
+                  className="bg-white px-3 py-1.5 rounded-xl border border-sky-200 text-sm font-bold text-sky-700 hover:bg-sky-600 hover:text-white transition-all shadow-sm"
+                >
+                  {item.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {suggestions.customers.length > 0 && (
           <div>
             <div className="flex items-center gap-2 px-3 mb-2">
@@ -128,6 +179,26 @@ export const SearchSuggestions = ({ orders, searchQuery, isVisible, onSelect }: 
                 >
                   <span>{highlightText(val, searchQuery)}</span>
                   <SearchIcon size={14} className="opacity-0 group-hover:opacity-100 text-pink-400 transition-opacity" />
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        {suggestions.skus.length > 0 && (
+          <div>
+            <div className="flex items-center gap-2 px-3 mb-2">
+              <Hash size={12} className="text-emerald-500" />
+              <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">מק"טים (SKU)</span>
+            </div>
+            <div className="space-y-1">
+              {suggestions.skus.map((val) => (
+                <button
+                  key={val}
+                  onClick={() => onSelect(val)}
+                  className="w-full text-right px-3 py-2 rounded-xl hover:bg-emerald-50 transition-colors text-sm font-bold text-gray-700 flex items-center justify-between group"
+                >
+                  <span>{highlightText(val, searchQuery)}</span>
+                  <SearchIcon size={14} className="opacity-0 group-hover:opacity-100 text-emerald-400 transition-opacity" />
                 </button>
               ))}
             </div>

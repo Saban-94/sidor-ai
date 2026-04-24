@@ -26,11 +26,11 @@ interface KanbanBoardProps {
 }
 
 const statusConfig = [
-  { status: 'pending', label: 'ממתין', icon: Clock, color: 'text-amber-600', bg: 'bg-amber-100/50', border: 'border-amber-200', ripple: 'bg-amber-500/10' },
-  { status: 'preparing', label: 'בהכנה', icon: Truck, color: 'text-sky-600', bg: 'bg-sky-100/50', border: 'border-sky-200', ripple: 'bg-sky-500/10' },
-  { status: 'ready', label: 'מוכן למשלוח', icon: CheckCircle2, color: 'text-emerald-600', bg: 'bg-emerald-100/50', border: 'border-emerald-200', ripple: 'bg-emerald-500/10' },
-  { status: 'delivered', label: 'סופק בהצלחה', icon: CheckCircle, color: 'text-green-700', bg: 'bg-green-100/50', border: 'border-green-200', ripple: 'bg-green-500/10' },
-  { status: 'cancelled', label: 'בוטל / נדחה', icon: AlertCircle, color: 'text-rose-600', bg: 'bg-rose-100/50', border: 'border-rose-200', ripple: 'bg-rose-500/10' },
+  { status: 'pending', label: 'ממתין לאישור', icon: Clock, color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-100', accent: 'bg-amber-500' },
+  { status: 'preparing', label: 'בהכנה במחסן', icon: Truck, color: 'text-sky-600', bg: 'bg-sky-50', border: 'border-sky-100', accent: 'bg-sky-500' },
+  { status: 'ready', label: 'מוכן להפצה', icon: CheckCircle2, color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-100', accent: 'bg-emerald-500' },
+  { status: 'delivered', label: 'סופק בהצלחה', icon: CheckCircle, color: 'text-green-700', bg: 'bg-green-50', border: 'border-green-100', accent: 'bg-green-500' },
+  { status: 'cancelled', label: 'בוטל / נדחה', icon: AlertCircle, color: 'text-rose-600', bg: 'bg-rose-50', border: 'border-rose-100', accent: 'bg-rose-500' },
 ] as const;
 
 export const KanbanBoard: React.FC<KanbanBoardProps> = ({
@@ -78,21 +78,19 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
           return (
             <div 
               key={col.status} 
-              className="flex-shrink-0 w-[320px] flex flex-col snap-start"
+              className="flex-shrink-0 w-[300px] flex flex-col h-full snap-start"
             >
               {/* Column Header */}
-              <div className={`p-4 rounded-t-[2rem] border-x border-t flex items-center justify-between shadow-sm backdrop-blur-sm sticky top-0 z-20 ${col.bg} ${col.border}`}>
+              <div className={`p-4 rounded-xl border flex items-center justify-between shadow-sm bg-white mb-3 sticky top-0 z-20`}>
                 <div className="flex items-center gap-3">
-                  <div className={`p-2 rounded-xl bg-white shadow-md ring-4 ring-white/50 ${col.color}`}>
-                    <Icon size={16} strokeWidth={3} />
-                  </div>
+                  <div className={`w-1.5 h-8 rounded-full ${col.accent}`} />
                   <div className="flex flex-col">
-                    <span className="font-black text-gray-900 text-sm tracking-tight">{col.label}</span>
-                    <span className="text-[9px] font-black uppercase text-gray-400 tracking-widest">{colOrders.length} הזמנות</span>
+                    <span className="font-bold text-gray-900 text-sm tracking-tight">{col.label}</span>
+                    <span className="text-[10px] font-medium text-gray-400 capitalize">{colOrders.length} הזמנות</span>
                   </div>
                 </div>
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${col.ripple}`}>
-                  <span className={`text-xs font-black ${col.color}`}>{colOrders.length}</span>
+                <div className={`w-6 h-6 rounded-lg flex items-center justify-center bg-gray-50 border border-gray-100`}>
+                  <span className={`text-[10px] font-bold text-gray-500`}>{colOrders.length}</span>
                 </div>
               </div>
 
@@ -102,9 +100,9 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                   <div 
                     {...provided.droppableProps}
                     ref={provided.innerRef}
-                    className={`flex-1 space-y-4 p-3 border-x border-b rounded-b-[2rem] transition-colors duration-300 overflow-y-auto scrollbar-none ${
-                      snapshot.isDraggingOver ? 'bg-sky-50/30' : 'bg-gray-50/20'
-                    } ${col.border.replace('border-', 'border-b-')}`}
+                    className={`flex-1 space-y-3 p-1 transition-all duration-300 rounded-xl ${
+                      snapshot.isDraggingOver ? 'bg-sky-50/50 ring-2 ring-sky-100 ring-inset' : 'bg-transparent'
+                    }`}
                     style={{ minHeight: '100px' }}
                   >
                     <AnimatePresence mode="popLayout">

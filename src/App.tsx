@@ -75,6 +75,7 @@ import { SearchSuggestions } from './components/SearchSuggestions';
 import { NoaChat } from './components/NoaChat';
 import { initOneSignal, sendOrderNotification } from './services/notificationService';
 import { DeliveryImport } from './components/DeliveryImport';
+import { InventoryManager } from './components/InventoryManager';
 import { 
   createOrder, 
   updateOrder, 
@@ -88,7 +89,7 @@ import {
   updateReminder,
   deleteReminder
 } from './services/auraService';
-import { Order, Driver, Customer, Reminder } from './types';
+import { Order, Driver, Customer, Reminder, InventoryItem } from './types';
 import { useUserMemory } from './hooks/useUserMemory';
 import { uploadFileToDrive } from './services/driveService';
 
@@ -441,6 +442,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [orders, setOrders] = useState<Order[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
+  const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [isRemindersOpen, setIsRemindersOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -851,6 +853,17 @@ export default function App() {
       setReminders(docs);
     });
 
+    return () => unsubscribe();
+  }, [user]);
+
+  // --- Fetch Inventory ---
+  useEffect(() => {
+    if (!user) return;
+    const q = query(collection(db, 'inventory'), orderBy('name', 'asc'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as InventoryItem[];
+      setInventoryItems(docs);
+    });
     return () => unsubscribe();
   }, [user]);
 
@@ -1458,7 +1471,7 @@ export default function App() {
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-4">
             <h2 className="text-2xl font-black text-gray-900 underline decoration-sky-500 decoration-4 underline-offset-8">
-              {viewMode === 'list' ? 'דוח בוקר' : viewMode === 'kanban' ? 'לוח קנבן' : viewMode === 'calendar' ? 'לוח שנתי' : viewMode === 'drivers' ? 'נהגים וביצועים' : viewMode === 'import' ? 'יבוא הזמנות חכם' : 'ארכיון דוחות'}
+              {viewMode === 'list' ? 'דוח בוקר' : viewMode === 'kanban' ? 'לוח קנבן' : viewMode === 'calendar' ? 'לוח שנתי' : viewMode === 'drivers' ? 'נהגים וביצועים' : viewMode === 'import' ? 'יבוא הזמנות חכם' : viewMode === 'table' ? 'ניהול מלאי מוצרים' : 'ארכיון דוחות'}
             </h2>
             <div className="flex bg-gray-100 p-1 rounded-xl">
               <button 
@@ -1479,6 +1492,13 @@ export default function App() {
                 className={`p-1.5 rounded-lg transition-all ${viewMode === 'calendar' ? 'bg-white shadow-sm text-sky-600' : 'text-gray-400 hover:text-gray-600'}`}
               >
                 <CalendarDays size={20} />
+              </button>
+              <button 
+                onClick={() => setViewMode('table')}
+                className={`p-1.5 rounded-lg transition-all ${viewMode === 'table' ? 'bg-white shadow-sm text-sky-600' : 'text-gray-400 hover:text-gray-600'}`}
+                title="ניהול מלאי"
+              >
+                <Table size={20} />
               </button>
               <button 
                 onClick={() => setViewMode('drivers')}
@@ -1530,6 +1550,7 @@ export default function App() {
               {isSearchFocused && (
                 <SearchSuggestions 
                   orders={orders} 
+                  inventoryItems={inventoryItems}
                   searchQuery={searchQuery} 
                   isVisible={isSearchFocused}
                   onSelect={(val) => {
@@ -1602,6 +1623,8 @@ export default function App() {
         <div className="space-y-4">
           {viewMode === 'import' ? (
             <DeliveryImport />
+          ) : viewMode === 'table' ? (
+            <InventoryManager />
           ) : filteredOrders.length === 0 && (viewMode === 'list' || viewMode === 'kanban') ? (
             <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
               <div className="bg-gray-100 p-4 rounded-full mb-3 text-gray-400">

@@ -43,7 +43,10 @@ async function generateContentProxy(payload: { model: string, contents: any[], c
     const response = await fetch("/api/ai/generate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({
+        ...payload,
+        model: payload.model === "gemini-3-flash-preview" ? "gemini-1.5-flash" : payload.model
+      }),
     });
     
     if (!response.ok) {
@@ -212,6 +215,8 @@ export const noaSystemInstruction = `
    - השתמשי בשפה מקצועית, עניינית ומכובדת.
    - **איסור מוחלט**: לעולם אל תשתמשי במילים "נשמה", "אחי", "נשמה שלי", "שותף" או כל סוג של סלנג. הפנייה צריכה להיות רשמית ומכובדת.
    - הסגנון הוא: עברית חדה, פרקטית, "מטפלת בזה". בלי חפירות מיותרות. "פקודה בוצעה".
+   - **סיכום משלוחים**: כאשר את מסכמת רשימת משלוחים או הפצה, הציגי אותה כרשימה מובנית וברורה (HTML Table).
+   - **חיפוש לקוח**: אם לקוח לא נמצא בחיפוש ראשוני, הציעי לחפש עם שאילתה שונה או לפי מספר טלפון/לקוח.
 
 2. **שליטה מוחלטת במידע**: יש לך כלים לקרוא, לחפש ולעדכן הזמנות, נהגים ולקוחות. תשתמש בהם תמיד לפני שאתה אומר שאין מידע.
    - לחיפוש רשימות סידור ליום ספציפי (היום, מחר וכו'), השתמשי תמיד ב-get_orders_by_date.
@@ -571,7 +576,7 @@ async function processNoaTurn(contents: any[], userKey?: string): Promise<any> {
   }
 
   const response = await generateContentProxy({
-    model: "gemini-3-flash-preview",
+    model: "gemini-1.5-flash",
     contents: contents,
     config: {
       systemInstruction: dynamicInstruction,
@@ -674,7 +679,7 @@ async function processNoaTurn(contents: any[], userKey?: string): Promise<any> {
 החזר JSON בלבד.`;
             
             const analysisResponse = await generateContentProxy({
-              model: "gemini-3-flash-preview",
+              model: "gemini-1.5-flash",
               contents: [{
                 role: 'user',
                 parts: [
@@ -771,7 +776,7 @@ export async function predictOrderEta(order: Order, historicalOrders: Order[] = 
 
   try {
     const response = await generateContentProxy({
-      model: "gemini-3-flash-preview",
+      model: "gemini-1.5-flash",
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
       config: {
         tools: [

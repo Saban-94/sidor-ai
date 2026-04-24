@@ -29,7 +29,7 @@ async function startServer() {
 
       const { model, contents, config } = req.body;
       const response = await genAI.models.generateContent({
-        model: model || "gemini-3-flash-preview",
+        model: model || "gemini-1.5-flash",
         contents: contents,
         config: config
       });

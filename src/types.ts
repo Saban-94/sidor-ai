@@ -58,3 +58,28 @@ export interface Reminder {
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
 }
+
+export interface InventoryItem {
+  id?: string;
+  sku: string;
+  name: string;
+  description?: string;
+  unit: string;
+  currentStock: number;
+  minStock: number;
+  price?: number;
+  category?: string;
+  createdAt?: Timestamp;
+  updatedAt?: Timestamp;
+}
+
+export interface SaleRecord {
+  id?: string;
+  itemId: string;
+  orderId?: string;
+  customerName: string;
+  quantity: number;
+  date: string;
+  priceAtSale?: number;
+  createdAt?: Timestamp;
+}
