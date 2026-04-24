@@ -1658,6 +1658,7 @@ export default function App() {
                 <DriverCard
                   key={driver.id}
                   driver={driver}
+                  inventoryItems={inventoryItems}
                   orders={orders.filter(o => o.driverId === driver.id && (isRangeMode || isSameDay(new Date(o.date), selectedDate)))}
                   allOrders={orders}
                   searchQuery={searchQuery}
@@ -1675,6 +1676,7 @@ export default function App() {
             <KanbanBoard
               orders={filteredOrders}
               drivers={drivers}
+              inventoryItems={inventoryItems}
               searchQuery={searchQuery}
               onOrderEdit={setEditingOrder}
               onOrderUpdateStatus={handleStatusUpdate}

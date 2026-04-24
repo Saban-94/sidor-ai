@@ -17,6 +17,7 @@ interface DriverCardProps {
   onOrderRepeat: (o: Order) => void;
   onAddToast: (title: string, msg: string, type?: any) => void;
   onUploadDoc?: (file: File, orderId?: string, documentType?: any) => Promise<void>;
+  inventoryItems?: any[];
   isExpanded?: boolean;
   key?: React.Key;
 }
@@ -33,6 +34,7 @@ export const DriverCard = ({
   onOrderRepeat,
   onAddToast,
   onUploadDoc,
+  inventoryItems = [],
   isExpanded = true
 }: DriverCardProps) => {
   const [showReport, setShowReport] = React.useState(false);
@@ -182,6 +184,7 @@ export const DriverCard = ({
                 onRepeat={onOrderRepeat}
                 onAddToast={onAddToast}
                 onUploadDoc={onUploadDoc}
+                inventoryItems={inventoryItems}
               />
             ))}
           </div>

@@ -356,6 +356,7 @@ const DocumentSheet = ({
 export const OrderCard = ({ 
   order, 
   drivers,
+  inventoryItems = [],
   onEdit, 
   onUpdateStatus, 
   onUpdateEta,

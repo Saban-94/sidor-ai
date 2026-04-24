@@ -23,6 +23,7 @@ interface KanbanBoardProps {
   onOrderRepeat: (o: Order) => void;
   onAddToast: (title: string, msg: string, type?: any) => void;
   onUploadDoc: (file: File, orderId?: string, documentType?: any) => Promise<void>;
+  inventoryItems?: any[];
 }
 
 const statusConfig = [
@@ -43,7 +44,8 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   onOrderDelete,
   onOrderRepeat,
   onAddToast,
-  onUploadDoc
+  onUploadDoc,
+  inventoryItems = []
 }) => {
   const onDragEnd = (result: DropResult) => {
     const { destination, source, draggableId } = result;
@@ -148,6 +150,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                                     onRepeat={onOrderRepeat}
                                     onAddToast={onAddToast}
                                     onUploadDoc={onUploadDoc}
+                                    inventoryItems={inventoryItems}
                                     isCompact={true}
                                   />
                                 </motion.div>
