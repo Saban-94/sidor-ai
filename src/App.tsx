@@ -1001,13 +1001,13 @@ export default function App() {
         order.destination.toLowerCase().includes(searchQuery.toLowerCase()) ||
         order.items.toLowerCase().includes(searchQuery.toLowerCase());
       
-      const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
+      const matchesStatus = viewMode === 'kanban' ? true : (statusFilter === 'all' || order.status === statusFilter);
       const matchesDriver = driverFilter === 'all' || order.driverId === driverFilter;
       const matchesWarehouse = warehouseFilter === 'all' || order.warehouse === warehouseFilter;
       
-      // Feature: Hide delivered from main board, keep in reports
+      // Feature: Hide delivered from main board, keep in reports and kanban
       const isDelivered = order.status === 'delivered';
-      const shouldHideDelivered = viewMode !== 'reports' && isDelivered && statusFilter === 'all';
+      const shouldHideDelivered = viewMode !== 'reports' && viewMode !== 'kanban' && isDelivered && statusFilter === 'all';
       
       return matchesSearch && matchesStatus && matchesDriver && matchesWarehouse && !shouldHideDelivered;
     })
