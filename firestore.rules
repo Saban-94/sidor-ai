@@ -72,7 +72,10 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return isSignedIn() && (request.auth.token.email == 'hsaban2025@gmail.com');
+      return isSignedIn() && 
+        request.auth.token.keys().contains('email') &&
+        (request.auth.token.email.lower() == 'hsaban2025@gmail.com' ||
+         request.auth.token.email == 'hsaban2025@gmail.com');
     }
 
     // --- Inventory Rules Validation ---
@@ -83,13 +86,14 @@ service cloud.firestore {
 
     match /inventoryRules/{ruleId} {
       allow read: if isSignedIn();
-      allow write: if isEmailVerified(); // Keep it simple for rules management
+      allow create, update: if isSignedIn() && (isAdmin() || isEmailVerified()) && isValidInventoryRule(request.resource.data);
+      allow delete: if isSignedIn() && (isAdmin() || isEmailVerified());
     }
 
     // --- Driver Validation ---
     function isValidDriver(data) {
       return data.keys().hasAll(['name'])
-        && data.name is string && data.name.size() <= 200
+        && data.name is string
         && (!data.keys().contains('phone') || data.phone is string)
         && (!data.keys().contains('vehicleType') || data.vehicleType in ['crane', 'truck'])
         && (!data.keys().contains('totalDeliveries') || data.totalDeliveries is number)
@@ -99,45 +103,46 @@ service cloud.firestore {
 
     match /drivers/{driverId} {
       allow read: if isSignedIn();
-      allow write: if isEmailVerified() && isValidDriver(request.resource.data);
+      allow create, update: if isSignedIn() && (isAdmin() || isEmailVerified()) && isValidDriver(request.resource.data);
+      allow delete: if isSignedIn() && (isAdmin() || isEmailVerified());
     }
 
     // --- Customer Validation ---
     function isValidCustomer(data) {
       return data.keys().hasAll(['name', 'customerNumber'])
-        && data.name is string && data.name.size() <= 200
-        && data.customerNumber is string && data.customerNumber.size() <= 50;
+        && data.name is string
+        && data.customerNumber is string;
     }
 
     match /customers/{customerId} {
       allow read: if isSignedIn();
-      allow write: if isEmailVerified() && isValidCustomer(request.resource.data);
+      allow create, update: if isSignedIn() && (isAdmin() || isEmailVerified()) && isValidCustomer(request.resource.data);
+      allow delete: if isSignedIn() && (isAdmin() || isEmailVerified());
     }
 
     // --- Reminder Validation ---
     function isValidReminder(data) {
       return data.keys().hasAll(['title', 'dueDate', 'dueTime'])
-        && data.title is string && data.title.size() <= 200
-        && data.dueDate is string && data.dueDate.size() <= 10
-        && data.dueTime is string && data.dueTime.size() <= 10;
+        && data.title is string
+        && data.dueDate is string
+        && data.dueTime is string;
     }
 
     match /reminders/{reminderId} {
       allow read: if isSignedIn();
-      allow create: if isEmailVerified() && isValidReminder(request.resource.data);
-      allow update: if isEmailVerified() && isValidReminder(request.resource.data);
-      allow delete: if isEmailVerified();
+      allow create, update: if isSignedIn() && (isAdmin() || isEmailVerified()) && isValidReminder(request.resource.data);
+      allow delete: if isSignedIn() && (isAdmin() || isEmailVerified());
     }
 
     // --- Inventory Item Validation ---
     function isValidInventoryItem(data) {
       return data.keys().hasAll(['sku', 'name', 'unit', 'currentStock'])
-        && data.sku is string && data.sku.size() <= 100
-        && data.name is string && data.name.size() <= 200
-        && data.unit is string && data.unit.size() <= 50
+        && data.sku is string
+        && data.name is string
+        && data.unit is string
         && data.currentStock is number
-        && (!data.keys().contains('description') || (data.description is string && data.description.size() <= 1000))
-        && (!data.keys().contains('imageUrl') || (data.imageUrl is string && data.imageUrl.size() <= 2000))
+        && (!data.keys().contains('description') || data.description is string)
+        && (!data.keys().contains('imageUrl') || data.imageUrl is string)
         && (!data.keys().contains('minStock') || data.minStock is number)
         && (!data.keys().contains('price') || data.price is number)
         && (!data.keys().contains('category') || data.category is string)
@@ -147,16 +152,17 @@ service cloud.firestore {
 
     match /inventory/{itemId} {
       allow read: if isSignedIn();
-      allow write: if isSignedIn() && (isAdmin() || isEmailVerified()) && isValidInventoryItem(request.resource.data);
+      allow create, update: if isSignedIn() && (isAdmin() || isEmailVerified()) && isValidInventoryItem(request.resource.data);
+      allow delete: if isSignedIn() && (isAdmin() || isEmailVerified());
     }
 
     // --- Sale Record Validation ---
     function isValidSaleRecord(data) {
       return data.keys().hasAll(['itemId', 'customerName', 'quantity', 'date'])
         && data.itemId is string
-        && data.customerName is string && data.customerName.size() <= 200
+        && data.customerName is string
         && data.quantity is number
-        && data.date is string && data.date.size() <= 10
+        && data.date is string
         && (!data.keys().contains('orderId') || data.orderId is string)
         && (!data.keys().contains('priceAtSale') || data.priceAtSale is number)
         && (!data.keys().contains('createdAt') || data.createdAt is timestamp);
@@ -164,8 +170,8 @@ service cloud.firestore {
 
     match /sales/{saleId} {
       allow read: if isSignedIn();
-      allow create: if isEmailVerified() && isValidSaleRecord(request.resource.data);
-      allow update, delete: if isEmailVerified() && isAdmin();
+      allow create: if isSignedIn() && (isAdmin() || isEmailVerified()) && isValidSaleRecord(request.resource.data);
+      allow update, delete: if isSignedIn() && (isAdmin() || isEmailVerified());
     }
 
     // --- Chat History ---

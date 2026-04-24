@@ -33,6 +33,18 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
+  // Serve manifest.json explicitly with correct content type
+  app.get('/manifest.json', (req, res) => {
+    res.sendFile(path.join(process.cwd(), 'public', 'manifest.json'), {
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+  });
+
+  // Serve static assets from public folder
+  app.use(express.static(path.join(process.cwd(), 'public')));
+
   app.use(express.json({ limit: '50mb' }));
 
   // AI generation proxy
@@ -79,14 +91,6 @@ async function startServer() {
     }
   });
 
-  // Serve public folder assets explicitly (backup for Vite)
-  app.use(express.static(path.resolve('public'), {
-    setHeaders: (res, path) => {
-      if (path.endsWith('.json')) {
-        res.setHeader('Content-Type', 'application/json');
-      }
-    }
-  }));
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
