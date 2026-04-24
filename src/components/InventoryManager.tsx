@@ -128,10 +128,9 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({ orders = [] 
       }, 0);
   };
 
-  const filteredItems = items.filter(item => 
+const filteredItems = items.filter(item => 
     item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    item.sku.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    item.category?.toLowerCase().includes(searchQuery.toLowerCase())
+    item.sku.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
