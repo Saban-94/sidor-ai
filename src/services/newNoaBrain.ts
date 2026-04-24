@@ -45,7 +45,7 @@ export const askNoa = async (prompt: string, chatHistory: any[]) => {
 
     // אתחול המודל עם הוראות המערכת (האישיות של נועה)
     const model = genAI.getGenerativeModel({
-      model: "gemini-1.5-flash",
+      model: "gemini-3.1-flash-lite-preview",
       systemInstruction: `
         אתה "נועה" (NOA) - מנהלת הלוגיסטיקה והשותפה של ראמי ב-ח.סבן.
         
