@@ -13,7 +13,7 @@ import {
 } from 'firebase/firestore';
 import { db, auth } from '../lib/firebase';
 import { Order, Driver, Customer, Reminder } from '../types';
-
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { listDriveFiles, getFileBase64, createCustomerFolderHierarchy } from './driveService';
 
 export enum Type {
@@ -35,38 +35,58 @@ const sanitizeForVoice = (text: string): string => {
     .trim();
 };
 
-import { GoogleGenAI } from "@google/genai";
 
-// Helper to call Gemini API via server proxy
-async function generateContentProxy(payload: { model: string, contents: any[], config?: any }) {
+/**
+ * SabanOS - NOA Brain PRO (Direct SDK Version)
+ * פתרון סופי לשגיאות Proxy 500 ו-410
+ */
+
+const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+const genAI = new GoogleGenerativeAI(API_KEY);
+
+async function getSabanContext() {
   try {
-    const response = await fetch("/api/ai/generate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ...payload,
-        model: payload.model === "gemini-3-flash-preview" ? "gemini-1.5-flash" : payload.model
-      }),
-    });
+    const invSnap = await getDocs(collection(db, "inventory"));
+    const inventory = invSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const drySnap = await getDocs(collection(db, "drivers"));
+    const drivers = drySnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     
-    if (!response.ok) {
-      const errData = await response.json().catch(() => ({}));
-      throw new Error(errData.error || `AI generation failed with status ${response.status}`);
-    }
-    
-    return await response.json();
-  } catch (error: any) {
-    console.error("Gemini Proxy Error:", error);
-    if (error.message?.includes("not configured on the server")) {
-      throw new Error("מפתח ה-API של Gemini אינו מוגדר בשרת. אנא וודא שהגדרת את ה-GEMINI_API_KEY בהגדרות המערכת.");
-    }
-    throw error;
+    return {
+      inventoryStats: { total: inventory.length },
+      driversList: drivers.map((d: any) => d.name || d.id).join(", ")
+    };
+  } catch (e) {
+    return { inventoryStats: { total: 0 }, driversList: "עלי, חכמת" };
   }
 }
 
-async function callGeminiApi(payload: any) {
-  return generateContentProxy(payload);
-}
+export const askNoa = async (prompt: string, chatHistory: any[]) => {
+  if (!API_KEY) throw new Error("API_KEY_MISSING: הגדר VITE_GEMINI_API_KEY בורסל");
+
+  try {
+    const context = await getSabanContext();
+    const model = genAI.getGenerativeModel({ 
+      model: "gemini-1.5-flash",
+      systemInstruction: `אתה "נועה", השותפה של ראמי ב-ח.סבן. 
+      נהגים: ${context.driversList}. מוצרים: ${context.inventoryStats.total}.
+      חוקים: טבלאות HTML בלבד, פנייה ב"ראמי נשמה", סיום ב"פקודה בוצעה! 🫡".`
+    });
+
+    const chat = model.startChat({
+      history: chatHistory.map(msg => ({
+        role: msg.role === 'user' ? 'user' : 'model',
+        parts: [{ text: msg.content || "" }],
+      })),
+    });
+
+    const result = await chat.sendMessage(prompt);
+    const response = await result.response;
+    return response.text();
+  } catch (error: any) {
+    console.error("Noa Direct Error:", error);
+    throw error;
+  }
+};
 
 export const INVENTORY_RULES = [];
 
