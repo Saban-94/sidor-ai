@@ -233,14 +233,20 @@ export const syncInventoryOnDelivery = async (order: Order) => {
   for (const item of items) {
     const qty = parseInt(item.quantity) || 1;
     
+    // First, lookup the item to get the price
+    const q = query(collection(db, 'inventory'), where('sku', '==', item.sku), limit(1));
+    const snap = await getDocs(q);
+    const invItem = !snap.empty ? snap.docs[0].data() as InventoryItem : null;
+    const priceAtSale = invItem?.price || 0;
+
     // 1. Record the sale
     await recordSale({
-      itemId: item.sku, // Store SKU as ID for now or lookup ID
+      itemId: item.sku, // Store SKU as ID for now
       orderId: order.id,
       customerName: order.customerName,
       quantity: qty,
       date: order.date,
-      priceAtSale: 0 // Could be enhanced in the future
+      priceAtSale: priceAtSale
     });
 
     // 2. Decrement Stock if SKU matches

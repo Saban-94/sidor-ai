@@ -330,7 +330,7 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({ orders = [] 
               </div>
             ) : (
               sales.map(sale => {
-                const item = items.find(i => i.id === sale.itemId);
+                const item = items.find(i => i.sku === sale.itemId);
                 return (
                   <div key={sale.id} className="flex items-center justify-between p-4 rounded-2xl bg-gray-50 border border-gray-100 hover:border-emerald-200 transition-all">
                     <div className="flex items-center gap-4">
@@ -338,10 +338,15 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({ orders = [] 
                         <Package className="text-emerald-600" size={20} />
                       </div>
                       <div>
-                        <h4 className="font-bold text-gray-900">{item?.name || 'מוצר לא ידוע'}</h4>
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-bold text-gray-900">{item?.name || 'מוצר ללא שם'}</h4>
+                          <span className="text-[10px] font-mono text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">
+                            {sale.itemId}
+                          </span>
+                        </div>
                         <div className="flex items-center gap-3 mt-0.5">
                           <span className="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-black">
-                            {sale.quantity} יחידות
+                            {sale.quantity} {item?.unit || 'יחידות'}
                           </span>
                           <span className="text-[10px] text-gray-400 flex items-center gap-1">
                             <User size={10} />
@@ -351,7 +356,7 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({ orders = [] 
                       </div>
                     </div>
                     <div className="text-left">
-                      <p className="text-sm font-black text-emerald-600">₪{(sale.priceAtSale || 0).toFixed(2)}</p>
+                      <p className="text-sm font-black text-emerald-600">₪{((sale.priceAtSale || item?.price || 0) * (sale.quantity || 1)).toFixed(2)}</p>
                       <p className="text-[10px] text-gray-400 flex items-center justify-end gap-1 font-medium">
                         <Calendar size={10} />
                         {sale.date}
