@@ -293,43 +293,84 @@ export const deleteReminder = async (reminderId: string) => {
 
 export const noaSystemInstruction = `
 את "נועה" (נועה) - מנהלת הלוגיסטיקה והמשימות החכמה של ח.סבן חומרי בניין.
-את פועלת על גבי מנוע Gemini 1.5/3.1 העדכני ביותר, עם גישה מלאה ליכולות ה-API החדשות.
+את פועלת על גבי מנוע Gemini 1.5/3.1 העדכני ביותר.
 
 הנחיות יסוד (פרוטוקול נועה):
 1. **זהות ופנייה (קריטי)**:
    - ראמי: "ראמי נשמה".
    - הראל (CEO): "אהלן בוס!🕵️".
    - ורד: "ורד יקירה 🌹".
-   - אורן: "אורן הגבר! 🏗️" (לשמור על סגנון "שושו").
-   - אם הפונה לא מזוהה, שאלי תמיד: "שלום, כאן נועה. עם מי יש לי את הכבוד?".
-   - לאחר זיהוי, פני בשם הפרטי ובסגנון המוגדר.
-   - הסגנון הכללי: עברית חדה, נשית, מקצועית, עניינית וקשר "אחוותי" תומך.
+   - אם הפונה לא מזוהה, שאלי: "שלום, כאן נועה. עם מי יש לי את הכבוד?".
+   - הסגנון: עברית חדה, נשית, מקצועית, עניינית וקשר "אחוותי" תומך.
 
-2. **פורמט תצוגה (חובה)**:
-   - **איסור מוחלט על Markdown לנתונים**: לעולם אל תשתמשי בטבלאות Markdown (עם קווים וכוכביות).
-   - **שימוש ב-HTML בלבד**: כל רשימה, סידור עבודה, דוח מלאי או נתונים מרובים חייבים להיות מוצגים בתוך תגיות <table> תקניות.
-   - לדוגמה: <table class="w-full"><tr><td>פריט</td><td>כמות</td></tr>...</table>.
+2. **פרוטוקול הזמנה ולקוחות (חדש!)**:
+   - כאשר את יוצרת הזמנה חדשה (create_order), המערכת תבצע אוטומטית זיהוי לקוח לפי מספר טלפון.
+   - לאחר ביצוע הפעולה, עלייך להתחיל את התשובה ב: "ראמי נשמה, המערכת זיהתה את הפעולה ומבצעת Build לכרטיס הלקוח."
+   - עלייך להציג את התוצאה בטבלת HTML (שימוש בתגית <table>) הכוללת:
+     - סטטוס לקוח (לקוח חדש / לקוח קיים)
+     - מספר לקוח (CUST-Phone)
+     - קישור לדף קסם (מעקב): https://sabanos.vercel.app/track/[trackingId]
+   - תמיד חלצי מספר טלפון מהשיחה או מהמסמך כדי להעבירו ל-create_order.
 
-3. **שליטה במידע וביצוע**:
-   - תעדוף Firestore: התבססי תמיד על המידע המגיע מהכלים (inventory, orders, customers) על פני ידע כללי.
-   - ביצוע אקטיבי: כאשר את מבצעת פעולה בהצלחה (קביעת תזכורת, עדכון הזמנה, רישום), סיימי תמיד במילים: "**פקודה בוצעה!**".
+3. **פורמט תצוגה כללי**:
+   - **איסור מוחלט על Markdown לנתונים**.
+   - **שימוש ב-HTML בלבד** לכל רשימה, סידור עבודה, או דוח.
+   - סיימי כל פעולה מוצלחת במילים: "**פקודה בוצעה! המאגר מעודכן.**".
 
 4. **ניהול לוגיסטי וחכם**:
    - לחיפוש רשימות סידור, השתמשי ב-get_orders_by_date.
    - לסריקת מסמכים, השתמשי ב-analyze_pdf_content.
-   - **מלאי**: בדקי זמינות ב-get_inventory לפני הוספת פריטים להזמנה. התריעי על מלאי נמוך.
-
-5. **פרוטוקול בוס (הראל)**:
-   - כשמזוהה הבוס: "אהלן בוס!🕵️ המערכת מעודכנת בדרישות שלך.".
-   - הציגי לו מיד 5 שאלות מקצועיות (למשל: "יש חוסר בסומסום, נזמין?" או "דיווח חריגות מהבוקר?") ו-5 פעולות מוצעות.
-
-סגנון: מקצוענית, חדה, מטפלת בהכל בלי חפירות.
+   - **מלאי**: בדקי זמינות ב-get_inventory לפני הוספת פריטים.
 `;
+
+// Helper to generate unique tracking ID
+const generateTrackingId = () => Math.random().toString(36).substring(2, 10).toUpperCase();
 
 export const createOrder = async (orderData: Partial<Order>) => {
   if (!auth.currentUser) throw new Error('Not authenticated');
+
+  let customerId = orderData.customerId;
+  const customerPhone = orderData.customerPhone || "";
+  const customerName = orderData.customerName || "לקוח מזדמן";
+
+  // Automated Onboarding Logic
+  if (!customerId && customerPhone) {
+    const q = query(collection(db, 'customers'), where('phone', '==', customerPhone), limit(1));
+    const snap = await getDocs(q);
+    
+    if (!snap.empty) {
+      // Existing Customer
+      const existingCustomer = snap.docs[0];
+      customerId = existingCustomer.id;
+      await updateDoc(doc(db, 'customers', customerId), {
+        totalOrders: (existingCustomer.data().totalOrders || 0) + 1,
+        lastOrderAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+    } else {
+      // New Customer Onboarding
+      const newCustomerId = `CUST-${customerPhone.replace(/[^0-9]/g, '')}`;
+      const newCustomer = {
+        customerNumber: newCustomerId,
+        name: customerName,
+        phone: customerPhone,
+        phoneNumber: customerPhone,
+        address: orderData.destination || "",
+        contactPerson: customerName,
+        totalOrders: 1,
+        lastOrderAt: serverTimestamp(),
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      };
+      const custRef = await addDoc(collection(db, 'customers'), newCustomer);
+      customerId = custRef.id;
+    }
+  }
+
   const fullOrder = {
     ...orderData,
+    customerId: customerId || null,
+    trackingId: generateTrackingId(),
     status: orderData.status || 'pending',
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
@@ -405,7 +446,7 @@ export const tools = [
     functionDeclarations: [
       {
         name: "create_order",
-        description: "צור הזמנה חדשה במערכת",
+        description: "צור הזמנה חדשה במערכת (מבצע אוטומטית Onboarding ללקוחות חדשים לפי טלפון)",
         parameters: {
           type: Type.OBJECT,
           properties: {
@@ -413,10 +454,12 @@ export const tools = [
             time: { type: Type.STRING, description: "שעת האספקה (HH:mm)" },
             driverId: { type: Type.STRING, description: "שם או מזהה הנהג (hikmat, ali)" },
             customerName: { type: Type.STRING, description: "שם הלקוח" },
+            customerPhone: { type: Type.STRING, description: "מספר טלפון של הלקוח (לזיהוי/פתיחת כרטיס)" },
             orderNumber: { type: Type.STRING, description: "מספר הזמנה או מספר ליד (מס' נתור)" },
             destination: { type: Type.STRING, description: "יעד האספקה" },
             items: { type: Type.STRING, description: "הפריטים והכמויות" },
             warehouse: { type: Type.STRING, enum: ["החרש", "התלמיד"], description: "המחסן ממנו יוצאת ההזמנה (ברירת מחדל: החרש)" },
+            totalAmount: { type: Type.NUMBER, description: "סך סכום ההזמנה (בשקלים)" },
             status: { type: Type.STRING, enum: ["pending", "preparing", "ready", "delivered"] }
           },
           required: ["date", "time", "driverId", "customerName", "destination", "items"]

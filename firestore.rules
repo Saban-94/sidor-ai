@@ -33,13 +33,17 @@ service cloud.firestore {
         && data.driverId is string && data.driverId.size() <= 100
         && data.customerName is string && data.customerName.size() <= 200
         && data.destination is string && data.destination.size() <= 500
-        && data.items is string && data.items.size() <= 1000
+        && data.items is string && data.items.size() <= 2000
         && data.warehouse in ['החרש', 'התלמיד']
         && data.status in ['pending', 'preparing', 'ready', 'delivered', 'cancelled']
         && data.createdAt is timestamp
         && data.updatedAt is timestamp
         && data.createdBy is string
         && (!data.keys().contains('orderNumber') || data.orderNumber is string)
+        && (!data.keys().contains('trackingId') || (data.trackingId is string && data.trackingId.size() <= 20))
+        && (!data.keys().contains('customerId') || (data.customerId is string || data.customerId == null))
+        && (!data.keys().contains('customerPhone') || data.customerPhone is string)
+        && (!data.keys().contains('totalAmount') || data.totalAmount is number)
         && (!data.keys().contains('eta') || data.eta is string);
     }
 
@@ -111,7 +115,14 @@ service cloud.firestore {
     function isValidCustomer(data) {
       return data.keys().hasAll(['name', 'customerNumber'])
         && data.name is string
-        && data.customerNumber is string;
+        && data.customerNumber is string
+        && (!data.keys().contains('phone') || data.phone is string)
+        && (!data.keys().contains('phoneNumber') || data.phoneNumber is string)
+        && (!data.keys().contains('address') || data.address is string)
+        && (!data.keys().contains('totalOrders') || data.totalOrders is number)
+        && (!data.keys().contains('lastOrderAt') || data.lastOrderAt is timestamp)
+        && (!data.keys().contains('updatedAt') || data.updatedAt is timestamp)
+        && (!data.keys().contains('createdAt') || data.createdAt is timestamp);
     }
 
     match /customers/{customerId} {

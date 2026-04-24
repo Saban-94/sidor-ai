@@ -3,16 +3,20 @@ import { Timestamp } from 'firebase/firestore';
 export interface Order {
   id?: string;
   orderNumber?: string;
+  trackingId?: string;
+  customerId?: string;
   date: string;
   time: string;
   driverId: string;
   customerName: string;
+  customerPhone?: string;
   destination: string;
   items: string;
   warehouse: 'החרש' | 'התלמיד';
   status: 'pending' | 'preparing' | 'ready' | 'delivered' | 'cancelled';
   orderFormId?: string;
   deliveryNoteId?: string;
+  totalAmount?: number;
   eta?: string;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
@@ -41,6 +45,10 @@ export interface Customer {
   name: string;
   contactPerson: string;
   phoneNumber: string;
+  phone?: string; // Standardized field
+  address?: string;
+  totalOrders?: number;
+  lastOrderAt?: Timestamp;
   driveFolderId?: string;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
