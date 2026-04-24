@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   MessageSquare, 
   Send, 
@@ -8,7 +8,10 @@ import {
   VolumeX,
   Speaker,
   Settings,
-  Waves
+  Waves,
+  Sparkles,
+  Zap,
+  Terminal
 } from 'lucide-react';
 import { Order } from '../types';
 import { parseItems } from '../lib/utils';
@@ -19,26 +22,41 @@ interface NoaChatProps {
   onBack: () => void;
   onAction: (action: string) => void;
   orders: Order[];
+  isLoading?: boolean;
 }
+
+// קומפוננטה פנימית לרינדור נתונים חכם (טבלאות/רשימות) בתוך הודעה
+const SmartContent = ({ text }: { text: string }) => {
+  // בדיקה אם הטקסט מכיל מבנה של טבלה או רשימת מלאי
+  if (text.includes('|') || text.includes('sku:')) {
+    return (
+      <div className="overflow-x-auto my-3 rounded-xl border border-sky-100/30 bg-white/5 backdrop-blur-md">
+        <div className="p-3 text-xs font-mono whitespace-pre text-sky-900 leading-relaxed">
+          {text}
+        </div>
+      </div>
+    );
+  }
+  return <p className="leading-relaxed whitespace-pre-wrap">{text}</p>;
+};
 
 export const NoaChat = ({ 
   chatHistory, 
   chatScrollRef, 
   onBack, 
   onAction,
-  orders 
+  orders,
+  isLoading = false
 }: NoaChatProps) => {
   const [isAutoVoice, setIsAutoVoice] = useState(() => localStorage.getItem('noa_auto_voice') === 'true');
   const [currentlySpeaking, setCurrentlySpeaking] = useState<number | null>(null);
   const synthRef = useRef<SpeechSynthesis | null>(window.speechSynthesis);
 
-  // Persistence of auto voice setting
   useEffect(() => {
     localStorage.setItem('noa_auto_voice', String(isAutoVoice));
   }, [isAutoVoice]);
 
   const cleanTextForSpeech = (text: string) => {
-    // 1. Detect if it's an item list
     const items = parseItems(text);
     if (items.length > 0) {
       let speech = "הנה הפריטים שנמצאו: ";
@@ -47,12 +65,7 @@ export const NoaChat = ({
       });
       return speech;
     }
-
-    // 2. Regular cleaning
-    return text
-      .replace(/[*_#]/g, '') // remove markdown
-      .replace(/[^\u0590-\u05FF0-9\s,.?!]/g, ' ') // keep hebrew, numbers, basic punctuation
-      .trim();
+    return text.replace(/[*_#|]/g, '').trim();
   };
 
   const stopSpeaking = () => {
@@ -64,203 +77,194 @@ export const NoaChat = ({
 
   const speak = (text: string, index: number) => {
     if (!synthRef.current) return;
-
-    // If already speaking this message, stop
-    if (currentlySpeaking === index) {
-      stopSpeaking();
-      return;
-    }
-
-    // Stop anything else
+    if (currentlySpeaking === index) { stopSpeaking(); return; }
     stopSpeaking();
 
     const utterance = new SpeechSynthesisUtterance(cleanTextForSpeech(text));
     const voices = synthRef.current.getVoices();
-    const hebrewVoice = voices.find(v => v.lang.includes('he')) || voices[0];
-    
-    utterance.voice = hebrewVoice;
+    utterance.voice = voices.find(v => v.lang.includes('he')) || voices[0];
     utterance.lang = 'he-IL';
-    utterance.rate = 1.0;
-    utterance.pitch = 1.0;
+    utterance.rate = 1.1;
 
     utterance.onstart = () => setCurrentlySpeaking(index);
     utterance.onend = () => setCurrentlySpeaking(null);
-    utterance.onerror = () => setCurrentlySpeaking(null);
-
     synthRef.current.speak(utterance);
   };
 
-  // Auto-voice effect
-  useEffect(() => {
-    if (isAutoVoice && chatHistory.length > 0) {
-      const lastMessage = chatHistory[chatHistory.length - 1];
-      if (lastMessage.role === 'model' || lastMessage.role === 'assistant') {
-        speak(lastMessage.parts[0].text, chatHistory.length - 1);
-      }
-    }
-  }, [chatHistory.length]);
-
   const dynamicSuggestions = [
-    { label: 'סנכרון דרייב 📂', action: 'סרוק את תיקיית SabanOS ותחלץ נתונים מהקובץ האחרון' },
-    { label: 'הזמנה חדשה ✍️', action: 'הזמנה חדשה' },
-    { label: 'סטטוס הפצה 📊', action: 'מה סטטוס ההפצה כרגע?' },
-    { label: 'דוח בוקר 📋', action: 'תכיני לי דוח בוקר 📋' },
-    { label: 'סטטוס נהגים 🚛', action: 'סטטוס נהגים 🚛' },
-    { label: 'חריגות בטון/ריצופית ⚠️', action: 'חריגות בטון/ריצופית ⚠️' },
-    { label: 'סיכום עמוסים 📈', action: 'סיכום עמוסים' },
-    { label: 'תיעוד מסירה 📜', action: 'תיעוד מסירה' },
-    ...orders.filter(o => o.status === 'preparing').slice(0, 2).map(o => ({
-      label: `צפי ל${o.customerName.split(' ')[0]} ⏱️`,
-      action: `מה ה-ETA של ${o.customerName}?`
+    { label: 'סנכרון מלאי 🔄', action: 'בצע סנכרון מלאי' },
+    { label: 'דוח בוקר 📋', action: 'תכיני לי דוח בוקר' },
+    { label: 'סטטוס נהגים 🚚', action: 'מה מצב הנהגים?' },
+    { label: 'חריגות ⚠️', action: 'הצג חריגות בטון' },
+    ...orders.filter(o => o.status === 'preparing').slice(0, 1).map(o => ({
+      label: `ETA ל${o.customerName.split(' ')[0]}`,
+      action: `מה הצפי הגעה ל${o.customerName}?`
     }))
   ];
 
   return (
-    <div className="h-[100dvh] bg-white flex flex-col md:flex-row overflow-hidden" dir="rtl">
-      {/* Left Sidebar for Desktop (Quick Info) */}
-      <div className="hidden md:flex w-72 bg-gray-50 border-l border-gray-100 flex-col p-6 overflow-y-auto shrink-0">
-        <div className="flex items-center gap-3 mb-8">
-          <button onClick={onBack} className="p-2 hover:bg-gray-200 rounded-xl transition-colors">
-            <ChevronRight size={20} />
-          </button>
-          <h1 className="text-xl font-bold">נועה (SabanOS)</h1>
-        </div>
+    <div className="fixed inset-0 h-screen w-screen bg-[#f8fafc] flex flex-col md:flex-row overflow-hidden font-assistant" dir="rtl">
+      
+      {/* Sidebar - Desktop */}
+      <div className="hidden md:flex w-80 bg-white/70 backdrop-blur-2xl border-l border-white/20 flex-col p-8 shrink-0 z-50 shadow-2xl relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-b from-sky-100/20 to-transparent pointer-events-none" />
         
-          <div className="space-y-6">
-            <div>
-              <p className="text-[10px] font-black text-gray-400 mb-2 uppercase tracking-widest text-right">סטטוס מערכת</p>
-              <div className="bg-white p-4 rounded-2xl border border-gray-100 flex items-center gap-3">
-                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(34,197,94,0.5)]"></div>
-                <span className="text-sm font-bold">זמינה לראמי</span>
-              </div>
-            </div>
-
-            <div>
-              <p className="text-[10px] font-black text-gray-400 mb-2 uppercase tracking-widest text-right">הגדרות קול</p>
-              <div className="bg-white p-4 rounded-2xl border border-gray-100 flex flex-col gap-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-gray-600">נועה מדברת</span>
-                  <button 
-                    onClick={() => setIsAutoVoice(!isAutoVoice)}
-                    className={`relative w-10 h-5 rounded-full transition-colors ${isAutoVoice ? 'bg-sky-600' : 'bg-gray-200'}`}
-                  >
-                    <motion.div 
-                      animate={{ x: isAutoVoice ? 20 : 2 }}
-                      className="absolute top-1 left-0 w-3 h-3 bg-white rounded-full shadow-sm"
-                    />
-                  </button>
-                </div>
-                <p className="text-[9px] text-gray-400 leading-tight">במצב פעיל, נועה תקריא כל תשובה חדשה באופן אוטומטי.</p>
-              </div>
+        <div className="flex items-center gap-4 mb-12 relative">
+          <button onClick={onBack} className="p-3 bg-white hover:bg-sky-50 rounded-2xl shadow-sm transition-all border border-sky-100">
+            <ChevronRight size={20} className="text-sky-600" />
+          </button>
+          <div>
+            <h1 className="text-2xl font-black text-slate-900">נועה <span className="text-sky-500">AI</span></h1>
+            <div className="flex items-center gap-1.5 mt-1">
+              <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">SabanOS Engine</span>
             </div>
           </div>
+        </div>
+
+        <div className="space-y-8 relative">
+          <div className="p-5 rounded-3xl bg-white/50 border border-white/40 shadow-inner">
+            <p className="text-[10px] font-black text-slate-400 mb-3 uppercase tracking-widest">מצב נועה</p>
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-bold text-slate-700">הקראה אוטומטית</span>
+              <button 
+                onClick={() => setIsAutoVoice(!isAutoVoice)}
+                className={`w-12 h-6 rounded-full transition-all flex items-center px-1 ${isAutoVoice ? 'bg-sky-600' : 'bg-slate-300'}`}
+              >
+                <motion.div animate={{ x: isAutoVoice ? 24 : 0 }} className="w-4 h-4 bg-white rounded-full shadow-lg" />
+              </button>
+            </div>
+          </div>
+
+          <div className="p-5 rounded-3xl bg-slate-900 text-white shadow-2xl">
+            <div className="flex items-center gap-2 mb-3">
+              <Sparkles size={16} className="text-sky-400" />
+              <span className="text-xs font-bold uppercase tracking-widest">טיפ חכם</span>
+            </div>
+            <p className="text-xs leading-relaxed opacity-80 font-medium">
+              "ראמי, אתמול חכמת הגיע לברקאי באיחור. כדאי להוציא אותו מוקדם יותר היום."
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col h-full bg-white relative overflow-hidden">
-        <header className="p-4 border-b border-gray-100 flex items-center justify-between md:hidden bg-white/80 backdrop-blur-md z-30 shrink-0">
-          <div className="flex items-center gap-3">
-             <button onClick={onBack} className="p-2 hover:bg-gray-100 rounded-xl transition-colors">
-               <ChevronRight size={20} />
-             </button>
-             <h1 className="font-black text-lg text-gray-900 italic font-sans">נועה AI</h1>
-          </div>
+      <div className="flex-1 flex flex-col h-full relative overflow-hidden bg-white">
+        {/* Diamond Polishing Overlays */}
+        <div className="absolute top-0 right-0 w-96 h-96 bg-sky-200/20 blur-[120px] rounded-full -translate-y-1/2 translate-x-1/2" />
+        <div className="absolute bottom-0 left-0 w-80 h-80 bg-blue-100/30 blur-[100px] rounded-full translate-y-1/2 -translate-x-1/2" />
+
+        {/* Mobile Header */}
+        <header className="p-5 border-b border-slate-100/50 flex items-center justify-between md:hidden bg-white/70 backdrop-blur-xl z-30 shrink-0">
           <div className="flex items-center gap-4">
-             <button 
-               onClick={() => setIsAutoVoice(!isAutoVoice)}
-               className={`p-2 rounded-xl transition-all ${isAutoVoice ? 'bg-sky-50 text-sky-600' : 'text-gray-400'}`}
-             >
-               <Speaker size={18} />
-             </button>
-             <div className="flex items-center gap-1.5">
-               <div className="w-2 h-2 bg-green-500 rounded-full" />
-               <span className="text-[10px] font-black text-gray-400 uppercase">ONLINE</span>
+            <button onClick={onBack} className="p-2 hover:bg-sky-50 rounded-xl transition-colors">
+              <ChevronRight size={22} className="text-sky-600" />
+            </button>
+            <h1 className="font-black text-xl text-slate-900 tracking-tighter italic">Noa AI</h1>
+          </div>
+          <div className="flex items-center gap-3">
+             <div className="px-3 py-1 bg-green-50 rounded-full flex items-center gap-2 border border-green-100">
+               <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
+               <span className="text-[10px] font-black text-green-600 uppercase">Live</span>
              </div>
           </div>
         </header>
 
-        {/* Message List */}
+        {/* Messages Container */}
         <div 
           ref={chatScrollRef}
-          className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 max-w-full md:max-w-4xl mx-auto w-full scroll-smooth"
+          className="flex-1 overflow-y-auto p-6 space-y-8 max-w-5xl mx-auto w-full z-10 scroll-smooth pb-32"
         >
-          {chatHistory.length === 0 && (
-            <div className="text-center py-20 px-4">
-              <div className="bg-sky-50 w-24 h-24 rounded-[3rem] flex items-center justify-center mx-auto mb-6 shadow-inner">
-                 <MessageSquare className="text-sky-600" size={48} />
-              </div>
-              <h2 className="text-2xl font-black mb-2 italic">שלום ראמי</h2>
-              <p className="text-sm font-bold text-gray-400 mb-8 max-w-[250px] mx-auto">"תפתחי הזמנה חדשה לחכמת לשעה 9 ליעד ברקאי"</p>
-              
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-md mx-auto">
-                 {dynamicSuggestions.slice(0, 6).map(suggestion => (
-                   <button 
-                     key={suggestion.label}
-                     onClick={() => onAction(suggestion.action)}
-                     className="p-4 bg-gray-50 rounded-2xl border border-gray-100 text-xs font-bold text-gray-600 hover:bg-sky-50 hover:border-sky-100 transition-all text-right shadow-sm flex items-center justify-between group"
-                   >
-                     <span>{suggestion.label}</span>
-                     <ChevronRight size={14} className="opacity-0 group-hover:opacity-100 transition-opacity" />
-                   </button>
-                 ))}
-              </div>
-            </div>
-          )}
-          
-          {chatHistory.map((chat, idx) => (
-            <motion.div 
-              key={idx} 
-              initial={{ opacity: 0, scale: 0.95, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              className={`flex w-full ${chat.role === 'user' ? 'justify-start' : 'justify-end'}`}
-            >
-              <div className={`max-w-[90%] md:max-w-md p-5 rounded-[2.5rem] text-sm md:text-base font-bold leading-relaxed shadow-xl backdrop-blur-md relative group/msg ${
-                chat.role === 'user' 
-                  ? 'bg-sky-600 text-white rounded-tr-none shadow-sky-600/10' 
-                  : 'bg-white/95 text-gray-800 rounded-tl-none border-2 border-sky-50'
-              }`}>
-                {chat.parts[0].text}
-                
-                {chat.role !== 'user' && (
-                  <div className="flex items-center gap-2 mt-3 pt-2 border-t border-sky-50/50">
-                    <button 
-                      onClick={() => speak(chat.parts[0].text, idx)}
-                      className={`p-2 rounded-xl transition-all ${currentlySpeaking === idx ? 'bg-sky-100 text-sky-600' : 'hover:bg-gray-100 text-gray-400'}`}
-                    >
-                      {currentlySpeaking === idx ? <VolumeX size={16} /> : <Volume2 size={16} />}
-                    </button>
-                    
-                    {currentlySpeaking === idx && (
-                      <div className="flex items-center gap-0.5 h-4">
-                        {[1, 2, 3, 4, 3, 2, 1].map((h, i) => (
-                          <motion.div 
-                            key={i}
-                            animate={{ height: [4, h * 4, 4] }}
-                            transition={{ duration: 0.5, repeat: Infinity, delay: i * 0.1 }}
-                            className="w-0.5 bg-sky-400 rounded-full"
-                          />
-                        ))}
-                      </div>
-                    )}
+          <AnimatePresence>
+            {chatHistory.length === 0 && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center justify-center min-h-[60vh] text-center">
+                <div className="relative mb-8">
+                  <div className="w-24 h-24 bg-sky-600 rounded-[2.5rem] flex items-center justify-center shadow-2xl relative z-10">
+                    <Zap className="text-white fill-white" size={40} />
                   </div>
-                )}
-              </div>
-            </motion.div>
-          ))}
+                  <div className="absolute inset-0 bg-sky-400 rounded-[2.5rem] blur-2xl opacity-20 scale-125" />
+                </div>
+                <h2 className="text-4xl font-black text-slate-900 mb-4 tracking-tight italic">איך נתקדם, ראמי?</h2>
+                <div className="grid grid-cols-2 md:grid-cols-2 gap-3 w-full max-w-md">
+                  {dynamicSuggestions.map(s => (
+                    <button 
+                      key={s.label}
+                      onClick={() => onAction(s.action)}
+                      className="p-5 glass rounded-[2rem] border border-sky-100 text-sm font-bold text-slate-700 hover:bg-sky-600 hover:text-white transition-all shadow-sm active:scale-95"
+                    >
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+
+            {chatHistory.map((chat, idx) => (
+              <motion.div 
+                key={idx} 
+                initial={{ opacity: 0, x: chat.role === 'user' ? 20 : -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className={`flex w-full ${chat.role === 'user' ? 'justify-start' : 'justify-end'}`}
+              >
+                <div className={`relative max-w-[85%] md:max-w-2xl p-6 md:p-7 rounded-[2.5rem] text-sm md:text-lg font-bold shadow-2xl backdrop-blur-xl ${
+                  chat.role === 'user' 
+                    ? 'bg-slate-900 text-white rounded-tr-none' 
+                    : 'bg-white/80 text-slate-800 rounded-tl-none border border-white/50 ring-1 ring-sky-100/50'
+                }`}>
+                  <SmartContent text={chat.parts[0].text} />
+                  
+                  {chat.role !== 'user' && (
+                    <div className="flex items-center gap-4 mt-4 pt-3 border-t border-slate-100/30">
+                      <button 
+                        onClick={() => speak(chat.parts[0].text, idx)}
+                        className={`p-2.5 rounded-full transition-all ${currentlySpeaking === idx ? 'bg-sky-600 text-white shadow-lg' : 'bg-sky-50 text-sky-400'}`}
+                      >
+                        {currentlySpeaking === idx ? <VolumeX size={18} /> : <Volume2 size={18} />}
+                      </button>
+                      {currentlySpeaking === idx && (
+                        <div className="flex gap-1 h-5 items-end">
+                          {[1,2,3,4,3,2,1].map((h, i) => (
+                            <motion.div 
+                              key={i}
+                              animate={{ height: [4, h * 4, 4] }}
+                              transition={{ duration: 0.5, repeat: Infinity, delay: i * 0.1 }}
+                              className="w-1 bg-sky-500 rounded-full"
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            ))}
+
+            {isLoading && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-end w-full">
+                <div className="bg-white/80 p-6 rounded-[2.5rem] rounded-tl-none shadow-xl border border-sky-50 flex items-center gap-3">
+                  <div className="flex gap-1.5">
+                    <motion.div animate={{ scale: [1, 1.5, 1] }} transition={{ repeat: Infinity, duration: 0.6 }} className="w-2 h-2 bg-sky-400 rounded-full" />
+                    <motion.div animate={{ scale: [1, 1.5, 1] }} transition={{ repeat: Infinity, duration: 0.6, delay: 0.2 }} className="w-2 h-2 bg-sky-500 rounded-full" />
+                    <motion.div animate={{ scale: [1, 1.5, 1] }} transition={{ repeat: Infinity, duration: 0.6, delay: 0.4 }} className="w-2 h-2 bg-sky-600 rounded-full" />
+                  </div>
+                  <span className="text-sm font-black text-sky-600 italic uppercase tracking-tighter">נועה חושבת...</span>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
-        {/* Input Area */}
-        <div className="bg-gradient-to-t from-white via-white to-transparent pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))] md:pb-6 px-4 md:px-6 z-20 shrink-0 border-t border-gray-50/50">
-          <div className="max-w-full md:max-w-4xl mx-auto space-y-4">
-            {/* Quick Actions Scrollable */}
-            <div className="flex gap-2 overflow-x-auto no-scrollbar py-2 scroll-smooth">
-              {dynamicSuggestions.map((btn, i) => (
+        {/* Input Dock */}
+        <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-white via-white/95 to-transparent pt-10 pb-8 px-6 z-40">
+          <div className="max-w-4xl mx-auto">
+            <div className="flex gap-2 overflow-x-auto no-scrollbar mb-4">
+              {dynamicSuggestions.map((s) => (
                 <button 
-                  key={i}
-                  onClick={() => onAction(btn.action)}
-                  className="whitespace-nowrap bg-white/95 backdrop-blur-md hover:bg-sky-600 hover:text-white text-sky-950 text-[11px] font-black px-4 py-3 rounded-full transition-all border border-sky-100 shadow-md hover:shadow-sky-200 active:scale-95 flex items-center gap-2"
+                  key={s.label}
+                  onClick={() => onAction(s.action)}
+                  className="whitespace-nowrap bg-sky-50 text-sky-600 text-xs font-black px-5 py-2.5 rounded-full border border-sky-100 hover:bg-sky-600 hover:text-white transition-all shadow-sm"
                 >
-                  {btn.label}
+                  {s.label}
                 </button>
               ))}
             </div>
@@ -270,24 +274,23 @@ export const NoaChat = ({
                 e.preventDefault();
                 const form = e.target as HTMLFormElement;
                 const input = form.elements.namedItem('message') as HTMLInputElement;
-                const val = input.value;
-                if (!val) return;
-                onAction(val);
+                if (!input.value.trim()) return;
+                onAction(input.value);
                 input.value = '';
               }}
-              className="flex gap-3 items-center"
+              className="relative flex items-center"
             >
               <input 
                 name="message"
                 autoComplete="off"
-                placeholder="כיצד אוכל לעזור?"
-                className="flex-1 bg-white/90 backdrop-blur-md border-[3px] border-sky-100 rounded-[2.5rem] px-5 md:px-8 py-3.5 md:py-4 text-sm md:text-base focus:border-sky-600 transition-all outline-none shadow-2xl font-bold"
+                placeholder="דבר עם נועה... (מלאי, נהגים, הזמנות)"
+                className="w-full bg-white border-2 border-slate-100 rounded-[3rem] pl-20 pr-8 py-5 text-lg font-bold focus:border-sky-600 transition-all outline-none shadow-2xl placeholder:text-slate-300"
               />
               <button 
                 type="submit"
-                className="bg-gray-900 text-white p-3.5 md:p-4 rounded-full hover:bg-sky-600 transition-all shadow-2xl hover:scale-105 active:scale-95 flex items-center justify-center shrink-0"
+                className="absolute left-3 p-4 bg-slate-900 text-white rounded-full hover:bg-sky-600 transition-all shadow-xl active:scale-90"
               >
-                <Send size={20} className="md:w-6 md:h-6" strokeWidth={2.5} />
+                <Send size={24} strokeWidth={2.5} />
               </button>
             </form>
           </div>
