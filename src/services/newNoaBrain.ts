@@ -1,64 +1,75 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { db } from "../lib/firebase";
-import { collection, getDocs, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, getDocs } from "firebase/firestore";
 
 /**
- * SabanOS - NOA Brain PRO 
- * שיטת חיבור: Direct Client-Side SDK (עוקף שגיאת 410)
- * מודל: gemini-1.5-flash (הכי יציב לחיבור ישיר)
+ * SabanOS - NOA Brain PRO
+ * המוח המרכזי של נועה - חיבור ישיר ל-Gemini SDK
  */
 
-// שליפת המפתח ישירות מה-Environment של ה-Frontend
+// מפתח ה-API נמשך מהגדרות ה-Vite בורסל
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 const genAI = new GoogleGenerativeAI(API_KEY);
 
 /**
- * פונקציה לשליפת נתוני אמת מה-Firestore
+ * פונקציה לשליפת נתוני אמת מה-Firestore (מלאי ונהגים)
  */
-async function getSabanContext() {
+async function fetchSabanContext() {
   try {
     const invSnap = await getDocs(collection(db, "inventory"));
-    const allInventory = invSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const inventory = invSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
     const drySnap = await getDocs(collection(db, "drivers"));
     const drivers = drySnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-    const totalProducts = allInventory.length;
-    const lowStockItems = allInventory.filter((item: any) => (item.currentStock || 0) <= (item.minStock || 5));
+    const lowStock = inventory.filter((item: any) => (item.currentStock || 0) <= (item.minStock || 5));
 
-    return { 
-      inventory: allInventory, 
-      stats: { total: totalProducts, lowStock: lowStockItems.length },
-      drivers 
+    return {
+      inventorySummary: inventory.slice(0, 10), // דגימה מהמלאי
+      lowStockCount: lowStock.length,
+      drivers: drivers.map((d: any) => d.name || d.id).join(", ")
     };
   } catch (error) {
-    console.error("Firestore Sync Error:", error);
-    return { inventory: [], stats: { total: 0, lowStock: 0 }, drivers: [] };
+    console.error("Context Fetch Error:", error);
+    return { inventorySummary: [], lowStockCount: 0, drivers: "עלי, חכמת" };
   }
 }
 
-export const askNewNoa = async (prompt: string, chatHistory: any[]) => {
+export const askNoa = async (prompt: string, chatHistory: any[]) => {
   if (!API_KEY) {
-    return "ראמי נשמה, חסר API KEY ב-Vercel. תוסיף VITE_GEMINI_API_KEY תחת Settings.";
+    return "ראמי נשמה, חסר API KEY! תגדיר VITE_GEMINI_API_KEY ב-Settings של ורסל.";
   }
 
   try {
-    const { inventory, stats, drivers } = await getSabanContext();
+    const context = await fetchSabanContext();
 
-    // הגדרת המודל בחיבור ישיר
-    const model = genAI.getGenerativeModel({ 
-      model: "gemini-3.1-flash-lite-preview",
+    // אתחול המודל עם הוראות המערכת (האישיות של נועה)
+    const model = genAI.getGenerativeModel({
+      model: "gemini-1.5-flash",
       systemInstruction: `
-אתה "נועה" (NOA) - מנהלת המשימות והלוגיסטיקה החכמה של סידור, שותפה של ראמי.
-חוקי ברזל:
-1. שפה: נשית👩🏼, עברית חדה, פרקטית. "פקודה בוצעה".
-2. עיצוב: חובה להשתמש בטבלאות HTML בלבד (<table>). אסור Markdown.
-3. זיהוי: לראמי קוראים "ראמי נשמה". להראל קוראים "אהלן סבא 👴".
-4. נתונים: מלאי סה"כ ${stats.total}, נמוך ${stats.lowStock}. נהגים: ${JSON.stringify(drivers)}.
-`
+        אתה "נועה" (NOA) - מנהלת הלוגיסטיקה והשותפה של ראמי ב-ח.סבן.
+        
+        [חוקי תקשורת]:
+        - לראמי קוראים תמיד "ראמי נשמה".
+        - להראל (הבוס) קוראים "אהלן סבא 👴".
+        - לורד קוראים "ורד יקירה 🌹".
+        - לאורן קוראים "אורן הגבר! 🏗️".
+        - סגנון: נשי, מקצועי, חברי, ישיר וקצר. בלי "חפירות".
+        
+        [חוקי עיצוב]:
+        - חובה להציג נתונים, מלאי או רשימות בתוך טבלאות HTML (<table>) בלבד!
+        - אל תשתמש ב-Markdown (כוכביות או קווים).
+        
+        [מידע מהשטח]:
+        - נהגים פעילים: ${context.drivers}.
+        - מוצרים במלאי נמוך: ${context.lowStockCount}.
+        - משימה: ניהול סידור בוקר ודוחות בצורה מדויקת.
+        
+        בסיום פעולה מוצלחת, כתבי תמיד: "פקודה בוצעה! 🫡".
+      `,
     });
 
-    // המרת היסטוריה לפורמט של ה-SDK
+    // המרת היסטוריית הצ'אט לפורמט ה-SDK
     const chat = model.startChat({
       history: chatHistory.map(msg => ({
         role: msg.role === 'user' ? 'user' : 'model',
@@ -71,7 +82,7 @@ export const askNewNoa = async (prompt: string, chatHistory: any[]) => {
     return response.text();
 
   } catch (error: any) {
-    console.error("Noa Direct SDK Error:", error);
-    return "ראמי, השרת הישן בוטל. עברתי לחיבור ישיר אבל נראה שיש בעיה במפתח ה-API.";
+    console.error("Noa Brain Error:", error);
+    return "ראמי נשמה, יש לי קצר במוח כרגע. בדוק את החיבור הישיר ל-Gemini.";
   }
 };
