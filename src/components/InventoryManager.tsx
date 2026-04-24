@@ -47,6 +47,7 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({ orders = [] 
   const [sales, setSales] = useState<SaleRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [salesSearchQuery, setSalesSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<'inventory' | 'sales'>('inventory');
   const [isAddingItem, setIsAddingItem] = useState(false);
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
@@ -147,6 +148,15 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({ orders = [] 
     item.sku.toLowerCase().includes(searchQuery.toLowerCase()) ||
     item.category?.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const filteredSales = sales.filter(sale => {
+    const searchLower = salesSearchQuery.toLowerCase();
+    return (
+      sale.customerName?.toLowerCase().includes(searchLower) ||
+      sale.date?.includes(searchLower) ||
+      sale.itemId?.toLowerCase().includes(searchLower)
+    );
+  });
 
   return (
     <div className="space-y-6" dir="rtl">
@@ -342,26 +352,39 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({ orders = [] 
         </>
       ) : (
         /* Sales Tab */
-        <div className="bg-white rounded-[2rem] border border-gray-100 shadow-sm overflow-hidden p-6">
-          <div className="flex items-center justify-between mb-8">
-            <h3 className="text-xl font-black text-gray-900 flex items-center gap-3">
-              <History className="text-emerald-500" />
-              מכירות אחרונות מהשטח
-            </h3>
-            <button className="flex items-center gap-2 text-sky-600 text-sm font-bold hover:underline">
-              <Download size={18} />
-              ייצא דוח אקסל
-            </button>
+        <div className="space-y-6">
+          {/* Sales Search Bar */}
+          <div className="relative">
+            <Search className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+            <input 
+              type="text"
+              placeholder="חפש לפי שם לקוח, תאריך (YYYY-MM-DD) או מק'ט..."
+              value={salesSearchQuery}
+              onChange={(e) => setSalesSearchQuery(e.target.value)}
+              className="w-full bg-white border border-gray-100 rounded-2xl py-4 pr-12 pl-4 text-sm focus:ring-2 focus:ring-sky-600 outline-none shadow-sm transition-all"
+            />
           </div>
 
-          <div className="space-y-4">
-            {sales.length === 0 ? (
-              <div className="text-center py-20">
-                <TrendingUp size={48} className="mx-auto text-gray-200 mb-4" />
-                <p className="text-gray-400 font-bold">טרם נרשמו מכירות במערכת</p>
-              </div>
-            ) : (
-              sales.map(sale => {
+          <div className="bg-white rounded-[2rem] border border-gray-100 shadow-sm overflow-hidden p-6">
+            <div className="flex items-center justify-between mb-8">
+              <h3 className="text-xl font-black text-gray-900 flex items-center gap-3">
+                <History className="text-emerald-500" />
+                מכירות אחרונות מהשטח
+              </h3>
+              <button className="flex items-center gap-2 text-sky-600 text-sm font-bold hover:underline">
+                <Download size={18} />
+                ייצא דוח אקסל
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {filteredSales.length === 0 ? (
+                <div className="text-center py-20">
+                  <TrendingUp size={48} className="mx-auto text-gray-200 mb-4" />
+                  <p className="text-gray-400 font-bold">לא נמצאו מכירות תואמות</p>
+                </div>
+              ) : (
+                filteredSales.map(sale => {
                 const item = items.find(i => i.sku === sale.itemId);
                 return (
                   <div key={sale.id} className="flex items-center justify-between p-4 rounded-2xl bg-gray-50 border border-gray-100 hover:border-emerald-200 transition-all">
@@ -400,7 +423,8 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({ orders = [] 
             )}
           </div>
         </div>
-      )}
+      </div>
+    )}
 
       {/* Add / Edit Modal */}
       <AnimatePresence>
