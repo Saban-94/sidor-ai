@@ -94,6 +94,40 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["title", "dueDate", "dueTime"]
+    },
+    "InventoryItem": {
+      "title": "Inventory Item",
+      "description": "A product or material in the company warehouse",
+      "type": "object",
+      "properties": {
+        "sku": { "type": "string", "description": "SKU or Catalog number" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "imageUrl": { "type": "string", "description": "URL to product image" },
+        "unit": { "type": "string", "description": "Unit of measurement (e.g. pcs, meters)" },
+        "currentStock": { "type": "number" },
+        "minStock": { "type": "number" },
+        "price": { "type": "number" },
+        "category": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["sku", "name", "unit", "currentStock"]
+    },
+    "SaleRecord": {
+      "title": "Sale Record",
+      "description": "A record of an item leaving inventory (sale or workshop use)",
+      "type": "object",
+      "properties": {
+        "itemId": { "type": "string", "description": "ID of the inventory item" },
+        "orderId": { "type": "string", "description": "Associated order ID if any" },
+        "customerName": { "type": "string" },
+        "quantity": { "type": "number" },
+        "date": { "type": "string", "description": "YYYY-MM-DD" },
+        "priceAtSale": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["itemId", "customerName", "quantity", "date"]
     }
   },
   "firestore": {
@@ -108,6 +142,14 @@
     "/inventoryRules/{ruleId}": {
       "schema": "InventoryRule",
       "description": "Item-specific business logic rules"
+    },
+    "/inventory/{itemId}": {
+      "schema": "InventoryItem",
+      "description": "Master inventory collection"
+    },
+    "/sales/{saleId}": {
+      "schema": "SaleRecord",
+      "description": "History of inventory transactions"
     },
     "/drivers/{driverId}": {
       "schema": "Driver",

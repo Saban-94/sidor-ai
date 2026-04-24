@@ -129,6 +129,44 @@ service cloud.firestore {
       allow delete: if isEmailVerified();
     }
 
+    // --- Inventory Item Validation ---
+    function isValidInventoryItem(data) {
+      return data.keys().hasAll(['sku', 'name', 'unit', 'currentStock'])
+        && data.sku is string && data.sku.size() <= 100
+        && data.name is string && data.name.size() <= 200
+        && data.unit is string && data.unit.size() <= 50
+        && data.currentStock is number
+        && (!data.keys().contains('imageUrl') || (data.imageUrl is string && data.imageUrl.size() <= 2000))
+        && (!data.keys().contains('minStock') || data.minStock is number)
+        && (!data.keys().contains('price') || data.price is number)
+        && (!data.keys().contains('category') || data.category is string)
+        && (!data.keys().contains('createdAt') || data.createdAt is timestamp)
+        && (!data.keys().contains('updatedAt') || data.updatedAt is timestamp);
+    }
+
+    match /inventory/{itemId} {
+      allow read: if isSignedIn();
+      allow write: if isEmailVerified() && isValidInventoryItem(request.resource.data);
+    }
+
+    // --- Sale Record Validation ---
+    function isValidSaleRecord(data) {
+      return data.keys().hasAll(['itemId', 'customerName', 'quantity', 'date'])
+        && data.itemId is string
+        && data.customerName is string && data.customerName.size() <= 200
+        && data.quantity is number
+        && data.date is string && data.date.size() <= 10
+        && (!data.keys().contains('orderId') || data.orderId is string)
+        && (!data.keys().contains('priceAtSale') || data.priceAtSale is number)
+        && (!data.keys().contains('createdAt') || data.createdAt is timestamp);
+    }
+
+    match /sales/{saleId} {
+      allow read: if isSignedIn();
+      allow create: if isEmailVerified() && isValidSaleRecord(request.resource.data);
+      allow update, delete: if isEmailVerified() && isAdmin();
+    }
+
     // --- Chat History ---
     match /users/{userId}/messages/{messageId} {
       allow read, write: if isSignedIn() && request.auth.uid == userId;
