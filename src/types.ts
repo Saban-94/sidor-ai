@@ -77,6 +77,7 @@ export interface InventoryItem {
 export interface SaleRecord {
   id?: string;
   itemId: string;
+  itemName?: string;
   orderId?: string;
   customerName: string;
   quantity: number;

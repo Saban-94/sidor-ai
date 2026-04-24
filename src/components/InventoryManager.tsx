@@ -377,51 +377,74 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({ orders = [] 
               </button>
             </div>
 
-            <div className="space-y-4">
-              {filteredSales.length === 0 ? (
-                <div className="text-center py-20">
-                  <TrendingUp size={48} className="mx-auto text-gray-200 mb-4" />
-                  <p className="text-gray-400 font-bold">לא נמצאו מכירות תואמות</p>
-                </div>
-              ) : (
-                filteredSales.map(sale => {
-                const item = items.find(i => i.sku === sale.itemId);
-                return (
-                  <div key={sale.id} className="flex items-center justify-between p-4 rounded-2xl bg-gray-50 border border-gray-100 hover:border-emerald-200 transition-all">
-                    <div className="flex items-center gap-4">
-                      <div className="bg-white p-3 rounded-xl shadow-sm">
-                        <Package className="text-emerald-600" size={20} />
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h4 className="font-bold text-gray-900">{item?.name || 'מוצר ללא שם'}</h4>
-                          <span className="text-[10px] font-mono text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">
-                            {sale.itemId}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-3 mt-0.5">
-                          <span className="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-black">
-                            {sale.quantity} {item?.unit || 'יחידות'}
-                          </span>
-                          <span className="text-[10px] text-gray-400 flex items-center gap-1">
-                            <User size={10} />
-                            {sale.customerName}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="text-left">
-                      <p className="text-sm font-black text-emerald-600">₪{((sale.priceAtSale || item?.price || 0) * (sale.quantity || 1)).toFixed(2)}</p>
-                      <p className="text-[10px] text-gray-400 flex items-center justify-end gap-1 font-medium">
-                        <Calendar size={10} />
-                        {sale.date}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-right border-collapse">
+                <thead>
+                  <tr className="bg-gray-50/50 border-b border-gray-100">
+                    <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase">מוצר</th>
+                    <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase">לקוח</th>
+                    <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase text-center">כמות</th>
+                    <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase text-center">סה"כ</th>
+                    <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase text-center">תאריך</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {filteredSales.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="text-center py-20">
+                        <TrendingUp size={48} className="mx-auto text-gray-200 mb-4" />
+                        <p className="text-gray-400 font-bold">לא נמצאו מכירות תואמות</p>
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredSales.map(sale => {
+                      const inventoryItem = items.find(i => i.sku === sale.itemId);
+                      const displayTitle = inventoryItem 
+                        ? inventoryItem.name 
+                        : sale.itemName || `${sale.itemId} (מוצר חדש/לא מסונכרן)`;
+                      
+                      return (
+                        <tr key={sale.id} className="hover:bg-gray-50/50 transition-colors">
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-3">
+                              <div className="bg-white p-2 rounded-lg shadow-sm border border-gray-100">
+                                <Package className="text-emerald-600" size={16} />
+                              </div>
+                              <div className="flex flex-col">
+                                <span className="text-sm font-bold text-gray-900">{displayTitle}</span>
+                                <span className="text-[10px] font-mono text-gray-400">{sale.itemId}</span>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-2 text-sm text-gray-600">
+                              <User size={14} className="text-gray-400" />
+                              {sale.customerName}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-center">
+                            <span className="text-xs bg-emerald-50 text-emerald-700 px-2 py-1 rounded-lg font-black">
+                              {sale.quantity} {inventoryItem?.unit || 'יחידות'}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-center">
+                            <span className="text-sm font-black text-emerald-600">
+                              ₪{((sale.priceAtSale || inventoryItem?.price || 0) * (sale.quantity || 1)).toFixed(2)}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-center">
+                            <div className="flex items-center justify-center gap-1 text-[10px] text-gray-400 font-medium">
+                              <Calendar size={12} />
+                              {sale.date}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
         </div>
       </div>
     )}
