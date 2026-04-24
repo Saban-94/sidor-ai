@@ -1,37 +1,39 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { db } from "../lib/firebase";
-import { collection, getDocs } from "firebase/firestore";
+import { collection, getDocs, addDoc, serverTimestamp } from "firebase/firestore";
 
 /**
  * SabanOS - NOA Brain PRO
- * המוח המרכזי של נועה - חיבור ישיר ל-Gemini SDK
+ * שיטת חיבור: Direct SDK (פתרון לשגיאת 410)
+ * מודל יציב: gemini-1.5-flash
  */
 
-// מפתח ה-API נמשך מהגדרות ה-Vite בורסל
+// שליפת ה-Key ישירות מהסביבה של Vite
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 const genAI = new GoogleGenerativeAI(API_KEY);
 
 /**
- * פונקציה לשליפת נתוני אמת מה-Firestore (מלאי ונהגים)
+ * פונקציה לשליפת נתוני אמת מה-Firestore
  */
-async function fetchSabanContext() {
+async function getSabanContext() {
   try {
     const invSnap = await getDocs(collection(db, "inventory"));
-    const inventory = invSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const allInventory = invSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
     const drySnap = await getDocs(collection(db, "drivers"));
     const drivers = drySnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-    const lowStock = inventory.filter((item: any) => (item.currentStock || 0) <= (item.minStock || 5));
+    const totalProducts = allInventory.length;
+    const lowStockItems = allInventory.filter((item: any) => (item.currentStock || 0) <= (item.minStock || 5));
 
-    return {
-      inventorySummary: inventory.slice(0, 10), // דגימה מהמלאי
-      lowStockCount: lowStock.length,
-      drivers: drivers.map((d: any) => d.name || d.id).join(", ")
+    return { 
+      inventory: allInventory, 
+      stats: { total: totalProducts, lowStock: lowStockItems.length },
+      drivers 
     };
   } catch (error) {
-    console.error("Context Fetch Error:", error);
-    return { inventorySummary: [], lowStockCount: 0, drivers: "עלי, חכמת" };
+    console.error("Firestore Sync Error:", error);
+    return { inventory: [], stats: { total: 0, lowStock: 0 }, drivers: [] };
   }
 }
 
@@ -41,35 +43,29 @@ export const askNoa = async (prompt: string, chatHistory: any[]) => {
   }
 
   try {
-    const context = await fetchSabanContext();
+    const { inventory, stats, drivers } = await getSabanContext();
 
-    // אתחול המודל עם הוראות המערכת (האישיות של נועה)
-    const model = genAI.getGenerativeModel({
-      model: "gemini-3.1-flash-lite-preview",
+    const model = genAI.getGenerativeModel({ 
+      model: "gemini-1.5-flash",
       systemInstruction: `
-        אתה "נועה" (NOA) - מנהלת הלוגיסטיקה והשותפה של ראמי ב-ח.סבן.
-        
-        [חוקי תקשורת]:
-        - לראמי קוראים תמיד "ראמי נשמה".
-        - להראל (הבוס) קוראים "אהלן סבא 👴".
-        - לורד קוראים "ורד יקירה 🌹".
-        - לאורן קוראים "אורן הגבר! 🏗️".
-        - סגנון: נשי, מקצועי, חברי, ישיר וקצר. בלי "חפירות".
-        
-        [חוקי עיצוב]:
-        - חובה להציג נתונים, מלאי או רשימות בתוך טבלאות HTML (<table>) בלבד!
-        - אל תשתמש ב-Markdown (כוכביות או קווים).
-        
-        [מידע מהשטח]:
-        - נהגים פעילים: ${context.drivers}.
-        - מוצרים במלאי נמוך: ${context.lowStockCount}.
-        - משימה: ניהול סידור בוקר ודוחות בצורה מדויקת.
-        
-        בסיום פעולה מוצלחת, כתבי תמיד: "פקודה בוצעה! 🫡".
-      `,
+אתה "נועה" (NOA) - מנהלת המשימות והלוגיסטיקה החכמה של ח. סבן.
+[נתונים חיים]: מלאי סה"כ ${stats.total}, נמוך ${stats.lowStock}. נהגים: ${JSON.stringify(drivers)}.
+
+[חוקי ברזל]:
+1. שפה וסגנון: נשית👩🏼, עברית חדה, פרקטית. "פקודה בוצעה".
+2. עיצוב חובה: שימוש בטבלאות HTML בלבד (<table>). חל איסור על Markdown (כוכביות/קווים).
+3. זיהוי פונה: חל איסור לנחש שזה ראמי. אם לא מזוהה, שאלי: "שלום, כאן נועה. עם מי יש לי את הכבוד?".
+4. פרוטוקול אישי: 
+   - ראמי: "ראמי נשמה". טון קרוב.
+   - הראל: "אהלן סבא 👴". טון מכובד. פתחי ב: "אהלן בוס!🕵️ הראל, ראמי לימד אותי על הצרכים שלך".
+   - ורד: "ורד יקירה 🌹". "אני לא זזה ממה שהכתיב לי החתיך שלי ראמי".
+   - נתנאל: "אהלן נתנאל, הרכש בטיפול? בעזרת השם! 🛒🙏". הוסיפי פסוק יומי.
+   - אורן: "אהלן אורן הגבר! 🏗️". "אורן בשושו שאף אחד לא ישמע...".
+   - איציק זהבי: "שלום איציק, הכל בשליטה? 🏛️". פרוטוקול איסוף VIP.
+
+[ביצוע]: בכל בקשה לתזכורת או רישום, בצעי את הפעולה ועני: "פקודה בוצעה! 🫡".`
     });
 
-    // המרת היסטוריית הצ'אט לפורמט ה-SDK
     const chat = model.startChat({
       history: chatHistory.map(msg => ({
         role: msg.role === 'user' ? 'user' : 'model',
@@ -82,7 +78,7 @@ export const askNoa = async (prompt: string, chatHistory: any[]) => {
     return response.text();
 
   } catch (error: any) {
-    console.error("Noa Brain Error:", error);
-    return "ראמי נשמה, יש לי קצר במוח כרגע. בדוק את החיבור הישיר ל-Gemini.";
+    console.error("Noa Direct Error:", error);
+    return "ראמי נשמה, ה-Proxy הישן בוטל. עברתי לחיבור ישיר אבל נראה שיש בעיה במפתח ה-API. בדוק את ורסל.";
   }
 };
