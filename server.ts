@@ -36,6 +36,9 @@ async function startServer() {
 
   app.use(express.json());
 
+  // Explicitly serve public folder assets (manifest.json, icons, etc.)
+  app.use(express.static(path.join(process.cwd(), 'public')));
+
   // AI generation proxy
   app.post("/api/ai/generate", async (req, res) => {
     try {
