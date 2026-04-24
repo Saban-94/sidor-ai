@@ -4,7 +4,6 @@ import { fileURLToPath } from "url";
 import { createServer as createViteServer } from "vite";
 import dotenv from "dotenv";
 import { GoogleGenerativeAI } from "@google/generative-ai";
-
 dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
@@ -14,24 +13,39 @@ const __dirname = path.dirname(__filename);
 const API_KEY = process.env.VITE_GEMINI_API_KEY || "";
 const genAI = API_KEY ? new GoogleGenerativeAI(API_KEY) : null;
 
-async function startServer() {
-  const app = express();
-  const PORT = Number(process.env.PORT) || 3000;
+aconst API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+const genAI = new GoogleGenerativeAI(API_KEY);
 
-  app.use(express.json());
+export const generateAIResponse = async (prompt: string, history: any[], context: any) => {
+  try {
+    // שליחת הבקשה ישירות לגוגל - ללא מעבר בשרת הישן שקרס
+    const model = genAI.getGenerativeModel({ 
+      model: "gemini-3.1-flash-lite-preview",
+      systemInstruction: `
+        אתה "נועה" (NOA) - מנהלת הלוגיסטיקה של ח.סבן, שותפה של ראמי.
+        חוקי ברזל: 
+        - שימוש בטבלאות HTML בלבד (<table>).
+        - פנייה לראמי ב-"ראמי נשמה".
+        - נתונים נוכחיים: ${JSON.stringify(context)}
+      `
+    });
 
-  // ה-Proxy המעודכן של נועה - מחבר את ה-Frontend ל-Gemini בצורה בטוחה
-  app.post("/api/ai/generate", async (req, res) => {
-    try {
-      if (!genAI) {
-        return res.status(500).json({ error: "Gemini API key is not configured on the server." });
-      }
+    const chat = model.startChat({
+      history: history.map(msg => ({
+        role: msg.role === 'user' ? 'user' : 'model',
+        parts: [{ text: msg.content || "" }],
+      })),
+    });
 
-      const { prompt, history, context } = req.body;
-
-      // הגדרת המודל עם חוקי הברזל של ח. סבן
-      const model = genAI.getGenerativeModel({ 
-        model: "gemini-3.1-flash-lite-preview",
+    const result = await chat.sendMessage(prompt);
+    const response = await result.response;
+    return response.text();
+    
+  } catch (error) {
+    console.error("Gemini Direct SDK Error:", error);
+    throw new Error("נכשלתי לדבר ישירות עם גוגל. בדוק את ה-API KEY.");
+  }
+};
         systemInstruction: `
           אתה "נועה" (NOA) - מנהלת הלוגיסטיקה של ח.סבן, שותפה של ראמי.
           תפקיד: ניהול סידור, נהגים (עלי/חכמת) ומלאי.
