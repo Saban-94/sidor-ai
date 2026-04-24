@@ -31,7 +31,7 @@ async function startServer() {
 
       // הגדרת המודל עם חוקי הברזל של ח. סבן
       const model = genAI.getGenerativeModel({ 
-        model: "gemini-1.5-flash",
+        model: "gemini-3.1-flash-lite-preview",
         systemInstruction: `
           אתה "נועה" (NOA) - מנהלת הלוגיסטיקה של ח.סבן, שותפה של ראמי.
           תפקיד: ניהול סידור, נהגים (עלי/חכמת) ומלאי.
