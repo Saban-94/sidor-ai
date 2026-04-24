@@ -332,6 +332,7 @@ export const createOrder = async (orderData: Partial<Order>) => {
   let customerId = orderData.customerId;
   const customerPhone = orderData.customerPhone || "";
   const customerName = orderData.customerName || "לקוח מזדמן";
+  let customerStatus: "קיים" | "חדש" = "קיים";
 
   // Automated Onboarding Logic
   if (!customerId && customerPhone) {
@@ -342,6 +343,7 @@ export const createOrder = async (orderData: Partial<Order>) => {
       // Existing Customer
       const existingCustomer = snap.docs[0];
       customerId = existingCustomer.id;
+      customerStatus = "קיים";
       await updateDoc(doc(db, 'customers', customerId), {
         totalOrders: (existingCustomer.data().totalOrders || 0) + 1,
         lastOrderAt: serverTimestamp(),
@@ -349,6 +351,7 @@ export const createOrder = async (orderData: Partial<Order>) => {
       });
     } else {
       // New Customer Onboarding
+      customerStatus = "חדש";
       const newCustomerId = `CUST-${customerPhone.replace(/[^0-9]/g, '')}`;
       const newCustomer = {
         customerNumber: newCustomerId,
@@ -378,7 +381,12 @@ export const createOrder = async (orderData: Partial<Order>) => {
   } as Order;
   
   const docRef = await addDoc(collection(db, 'orders'), fullOrder);
-  return { id: docRef.id, ...fullOrder };
+  return { 
+    id: docRef.id, 
+    ...fullOrder,
+    customerStatus,
+    customerNumber: `CUST-${customerPhone.replace(/[^0-9]/g, '')}`
+  };
 };
 
 export const updateOrder = async (orderId: string, updates: Partial<Order>) => {

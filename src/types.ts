@@ -10,6 +10,7 @@ export interface Order {
   driverId: string;
   customerName: string;
   customerPhone?: string;
+  phone?: string; // Compatibility alias
   destination: string;
   items: string;
   warehouse: 'החרש' | 'התלמיד';

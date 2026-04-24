@@ -643,15 +643,14 @@ export default function App() {
 
   const handleCreateCustomer = async (name: string, phone: string, address: string) => {
     try {
-      const customerId = `CUST-${Math.floor(1000 + Math.random() * 9000)}`;
+      const customerId = `CUST-${phone.replace(/[^0-9]/g, '') || Math.floor(1000 + Math.random() * 9000)}`;
       await createCustomer({
-        id: customerId,
+        customerNumber: customerId,
         name,
         phone,
+        phoneNumber: phone,
         address,
         totalOrders: 1,
-        createdAt: new Date().toISOString(),
-        customerType: 'standard'
       });
       addToast('כרטיס לקוח', `כרטיס עבור ${name} נוצר בהצלחה! 📑`, 'success');
     } catch (error) {

@@ -688,7 +688,7 @@ export const OrderCard = ({
               <button 
                 onClick={() => {
                   if (onCreateCustomer) {
-                    onCreateCustomer(order.customerName, order.phone || '', order.destination || '');
+                    onCreateCustomer(order.customerName, order.customerPhone || '', order.destination || '');
                   }
                 }}
                 title="פתח כרטיס לקוח"

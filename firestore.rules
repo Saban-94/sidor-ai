@@ -49,15 +49,15 @@ service cloud.firestore {
 
     match /orders/{orderId} {
       allow read: if isSignedIn(); 
-      allow create: if isEmailVerified() && isValidId(orderId) && isValidOrder(request.resource.data) && request.resource.data.createdBy == request.auth.uid && request.resource.data.createdAt == request.time;
-      allow update: if isEmailVerified() && isValidOrder(request.resource.data) 
-        && request.resource.data.updatedAt == request.time
+      allow create: if (isAdmin() || isEmailVerified()) && isValidId(orderId) && isValidOrder(request.resource.data) && request.resource.data.createdBy == request.auth.uid && (request.resource.data.createdAt == request.time || request.resource.data.createdAt is timestamp);
+      allow update: if (isAdmin() || isEmailVerified()) && isValidOrder(request.resource.data) 
+        && (request.resource.data.updatedAt == request.time || request.resource.data.updatedAt is timestamp)
         && request.resource.data.createdBy == resource.data.createdBy
         && (
-          isOwner(resource.data)
+          isAdmin() || isOwner(resource.data)
           || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'eta', 'updatedAt']))
         );
-      allow delete: if isEmailVerified() && isOwner(resource.data);
+      allow delete: if isAdmin() || (isEmailVerified() && isOwner(resource.data));
     }
 
     // --- Morning Report Validation ---
@@ -66,18 +66,17 @@ service cloud.firestore {
         && data.date is string
         && data.orderIds is list
         && data.reportText is string
-        && data.createdAt is timestamp;
+        && (data.createdAt is timestamp);
     }
 
     match /morning_reports/{reportId} {
       allow read: if isSignedIn();
-      allow create: if isEmailVerified() && isValidMorningReport(request.resource.data) && request.resource.data.createdAt == request.time;
-      allow update, delete: if isEmailVerified() && isAdmin(); // Or keep restricted
+      allow create: if (isAdmin() || isEmailVerified()) && isValidMorningReport(request.resource.data) && (request.resource.data.createdAt == request.time || request.resource.data.createdAt is timestamp);
+      allow update, delete: if isAdmin();
     }
 
     function isAdmin() {
       return isSignedIn() && 
-        request.auth.token.keys().contains('email') &&
         (request.auth.token.email.lower() == 'hsaban2025@gmail.com' ||
          request.auth.token.email == 'hsaban2025@gmail.com');
     }
@@ -90,8 +89,8 @@ service cloud.firestore {
 
     match /inventoryRules/{ruleId} {
       allow read: if isSignedIn();
-      allow create, update: if isSignedIn() && (isAdmin() || isEmailVerified()) && isValidInventoryRule(request.resource.data);
-      allow delete: if isSignedIn() && (isAdmin() || isEmailVerified());
+      allow create, update: if (isAdmin() || isEmailVerified()) && isValidInventoryRule(request.resource.data);
+      allow delete: if isAdmin() || isEmailVerified();
     }
 
     // --- Driver Validation ---
@@ -107,8 +106,8 @@ service cloud.firestore {
 
     match /drivers/{driverId} {
       allow read: if isSignedIn();
-      allow create, update: if isSignedIn() && (isAdmin() || isEmailVerified()) && isValidDriver(request.resource.data);
-      allow delete: if isSignedIn() && (isAdmin() || isEmailVerified());
+      allow create, update: if (isAdmin() || isEmailVerified()) && isValidDriver(request.resource.data);
+      allow delete: if isAdmin() || isEmailVerified();
     }
 
     // --- Customer Validation ---
@@ -127,22 +126,23 @@ service cloud.firestore {
 
     match /customers/{customerId} {
       allow read: if isSignedIn();
-      allow create, update: if isSignedIn() && (isAdmin() || isEmailVerified()) && isValidCustomer(request.resource.data);
-      allow delete: if isSignedIn() && (isAdmin() || isEmailVerified());
+      allow create, update: if (isAdmin() || isEmailVerified()) && isValidCustomer(request.resource.data);
+      allow delete: if isAdmin() || isEmailVerified();
     }
 
     // --- Reminder Validation ---
     function isValidReminder(data) {
-      return data.keys().hasAll(['title', 'dueDate', 'dueTime'])
+      return data.keys().hasAll(['title', 'dueDate', 'dueTime', 'userId'])
         && data.title is string
         && data.dueDate is string
-        && data.dueTime is string;
+        && data.dueTime is string
+        && data.userId == request.auth.uid;
     }
 
     match /reminders/{reminderId} {
-      allow read: if isSignedIn();
-      allow create, update: if isSignedIn() && (isAdmin() || isEmailVerified()) && isValidReminder(request.resource.data);
-      allow delete: if isSignedIn() && (isAdmin() || isEmailVerified());
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create, update: if (isAdmin() || isEmailVerified()) && isValidReminder(request.resource.data);
+      allow delete: if isAdmin() || (isEmailVerified() && resource.data.userId == request.auth.uid);
     }
 
     // --- Inventory Item Validation ---
@@ -163,8 +163,8 @@ service cloud.firestore {
 
     match /inventory/{itemId} {
       allow read: if isSignedIn();
-      allow create, update: if isEmailVerified() && isValidInventoryItem(request.resource.data);
-      allow delete: if isEmailVerified();
+      allow create, update: if (isAdmin() || isEmailVerified()) && isValidInventoryItem(request.resource.data);
+      allow delete: if isAdmin() || isEmailVerified();
     }
 
     // --- Sale Record Validation ---
@@ -182,8 +182,8 @@ service cloud.firestore {
 
     match /sales/{saleId} {
       allow read: if isSignedIn();
-      allow create: if isEmailVerified() && isValidSaleRecord(request.resource.data);
-      allow update, delete: if isEmailVerified();
+      allow create: if (isAdmin() || isEmailVerified()) && isValidSaleRecord(request.resource.data);
+      allow update, delete: if isAdmin() || isEmailVerified();
     }
 
     // --- Chat History ---
