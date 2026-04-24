@@ -1,67 +1,64 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { db } from "../lib/firebase";
-import { collection, getDocs, query, where } from "firebase/firestore";
+import { collection, getDocs } from "firebase/firestore";
 
-// הגדרת ה-SDK של גוגל
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 const genAI = new GoogleGenerativeAI(API_KEY);
 
 /**
- * פונקציה לשליפת נתונים חיים מה-Firestore
- * אנחנו שולפים מלאי ונהגים כדי שנועה תדע על מה היא מדברת
+ * משיכת נתונים חיים מהשטח
  */
 async function getSabanContext() {
   try {
-    // שליפת מלאי (מוצרים מתחת למינימום או דחופים)
-    const inventorySnap = await getDocs(collection(db, "inventory"));
-    const inventory = inventorySnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    // משיכת מלאי
+    const invSnap = await getDocs(collection(db, "inventory"));
+    const inventory = invSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-    // שליפת נהגים פעילים בלבד
-    const driversSnap = await getDocs(collection(db, "drivers"));
-    const drivers = driversSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    // משיכת נהגים
+    const drySnap = await getDocs(collection(db, "drivers"));
+    const drivers = drySnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
     return { inventory, drivers };
   } catch (error) {
-    console.error("Error fetching Firestore context:", error);
+    console.error("Firestore Sync Error:", error);
     return { inventory: [], drivers: [] };
   }
 }
 
 export const askNewNoa = async (prompt: string, chatHistory: any[]) => {
   try {
-    // 1. שליפת נתונים עדכניים מהמחסן ומהשטח
     const { inventory, drivers } = await getSabanContext();
 
-    // 2. הגדרת המודל
+    // בדיקה אם המערך ריק - כדי שלא אגיד סתם "אפס"
+    const invStatus = inventory.length > 0 
+      ? JSON.stringify(inventory.slice(0, 20)) 
+      : "אזהרה: לא הצלחתי למשוך נתונים מהקולקציה 'inventory'. המאגר נראה ריק בקוד.";
+
     const model = genAI.getGenerativeModel({ 
       model: "gemini-3.1-flash-lite-preview",
       systemInstruction: `
-        את נועה, המוח הלוגיסטי של ח. סבן. את שותפה של ראמי.
-        תפקידך: לנהל את המחסן בטייבה, את הסידורים בהוד השרון ואת הנהגים עלי וחכמת.
-        סגנון: מקצועי, חד, אנושי, תמציתי.
-        נתונים נוכחיים מהמערכת:
-        - מלאי זמין: ${JSON.stringify(inventory.slice(0, 15))}
-        - סטטוס נהגים: ${JSON.stringify(drivers)}
+        את נועה, המוח של SabanOS. שותפה של ראמי.
+        את מחוברת ל-Firestore בזמן אמת.
+        נתונים נוכחיים מהמחסן: ${invStatus}
+        נתוני נהגים: ${JSON.stringify(drivers)}
         
-        אם שואלים אותך על מלאי או נהגים, תשתמשי בנתונים האלו. אם חסר נתון, תגידי לראמי בדיוק מה חסר ב-Firebase.
+        אם המלאי מגיע ריק (inventory length 0), אל תגידי שאין סחורה, אלא תגידי לראמי שיש בעיה בחיבור לקולקציה ב-Firebase.
+        תהיי חדה, חברית וממוקדת.
       `
     });
 
-    // 3. יצירת צ'אט עם היסטוריה
     const chat = model.startChat({
       history: chatHistory.map(msg => ({
         role: msg.role === 'user' ? 'user' : 'model',
-        parts: [{ text: msg.content || "" }],
+        parts: [{ text: msg.content || msg.parts?.[0]?.text || "" }],
       })),
     });
 
-    // 4. שליחת ההודעה
     const result = await chat.sendMessage(prompt);
     const response = await result.response;
     return response.text();
 
   } catch (error) {
-    console.error("Noa Brain Error:", error);
-    return "ראמי אחי, יש לי שגיאה בחיבור למאגר. תוודא שה-API KEY תקין ושהקולקשנים ב-Firebase קיימים.";
+    return "ראמי, יש לי תקלה טכנית בשליפת הנתונים. תוודא שקובץ ה-firebase.ts מוגדר עם ה-Project ID הנכון.";
   }
 };
