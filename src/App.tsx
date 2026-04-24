@@ -76,8 +76,10 @@ import { NoaChat } from './components/NoaChat';
 import { initOneSignal, sendOrderNotification } from './services/notificationService';
 import { DeliveryImport } from './components/DeliveryImport';
 import { InventoryManager } from './components/InventoryManager';
+import OrderForm from './components/OrderForm';
 import { 
   createOrder, 
+  getOrderByTrackingId,
   updateOrder, 
   updateDriver,
   deleteOrder, 
@@ -1267,206 +1269,22 @@ export default function App() {
         onDelete={deleteReminder}
       />
 
-      {/* Manual Order Modal */}
-      <AnimatePresence>
-        {(isAddingOrder || editingOrder) && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => {
-                setIsAddingOrder(false);
-                setEditingOrder(null);
-              }}
-              className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm"
-            />
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-lg bg-white rounded-[32px] shadow-2xl overflow-hidden"
-            >
-              <div className="bg-gray-900 p-6 text-white flex justify-between items-center">
-                <h3 className="text-xl font-bold">{editingOrder ? 'עדכון הזמנה' : 'הזמנה חדשה'}</h3>
-                <button onClick={() => {
-                  setIsAddingOrder(false);
-                  setEditingOrder(null);
-                }} className="p-1 hover:bg-white/10 rounded-lg">
-                  <X size={24} />
-                </button>
-              </div>
-              
-              <form 
-                key={editingOrder?.id || 'new'}
-                onChange={(e) => {
-                  if (editingOrder) return;
-                  const target = e.target as any;
-                  setDraftOrder({ [target.name === 'customer' ? 'customerName' : target.name === 'driver' ? 'driverId' : target.name]: target.value });
-                }}
-                onSubmit={async (e) => {
-                  e.preventDefault();
-                  const form = e.target as any;
-                  const data = {
-                    date: form.date.value,
-                    time: form.time.value,
-                    driverId: form.driver.value,
-                    orderNumber: form.orderNumber.value,
-                    customerName: form.customer.value,
-                    destination: form.destination.value,
-                    items: form.items.value,
-                    warehouse: form.warehouse.value as any,
-                  };
-                  
-                  if (editingOrder) {
-                    await updateOrder(editingOrder.id!, data);
-                  } else {
-                    await createOrder(data);
-                    clearDraftOrder();
-                  }
-                  
-                  setIsAddingOrder(false);
-                  setEditingOrder(null);
-                }}
-                className="p-6 space-y-4"
-              >
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-400 mb-1">תאריך</label>
-                    <input name="date" type="date" required defaultValue={editingOrder ? editingOrder.date : draftOrder.date} className="w-full bg-gray-50 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-sky-600 outline-none" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-400 mb-1">שעה</label>
-                    <input name="time" type="time" required defaultValue={editingOrder ? editingOrder.time : draftOrder.time} className="w-full bg-gray-50 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-sky-600 outline-none" />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-400 mb-1">מחסן</label>
-                    <select name="warehouse" required defaultValue={editingOrder ? editingOrder.warehouse : draftOrder.warehouse} className="w-full bg-gray-50 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-sky-600 outline-none">
-                      <option value="החרש">החרש</option>
-                      <option value="התלמיד">התלמיד</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-400 mb-1">נהג</label>
-                    <select name="driver" required defaultValue={editingOrder ? editingOrder.driverId : (draftOrder.driverId || (drivers.length > 0 ? drivers[0].id : ''))} className="w-full bg-gray-50 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-sky-600 outline-none">
-                      {drivers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-                    </select>
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-400 mb-1">לקוח</label>
-                    <input name="customer" required defaultValue={editingOrder ? editingOrder.customerName : draftOrder.customerName} placeholder="שם הלקוח" className="w-full bg-gray-50 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-sky-600 outline-none" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-400 mb-1">מספר הזמנה / ליד</label>
-                    <input name="orderNumber" defaultValue={editingOrder ? editingOrder.orderNumber : draftOrder.orderNumber} placeholder="מס' נתור / הזמנה" className="w-full bg-gray-50 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-sky-600 outline-none" />
-                  </div>
-                </div>
-                
-                <div>
-                  <label className="block text-xs font-bold text-gray-400 mb-1">יעד</label>
-                  <input name="destination" required defaultValue={editingOrder ? editingOrder.destination : draftOrder.destination} placeholder="לאן נוסעים?" className="w-full bg-gray-50 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-sky-600 outline-none" />
-                </div>
-                
-                <div>
-                  <div className="flex justify-between items-center mb-1">
-                    <label className="block text-xs font-bold text-gray-400">פריטים</label>
-                    <button 
-                      type="button"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        const currentItems = editingOrder ? editingOrder.items : draftOrder.items;
-                        const parsed = parseItems(currentItems);
-                        if (parsed.length > 0) {
-                          const formatted = parsed.map(p => `${p.quantity} | ${p.name}${p.sku ? ` | ${p.sku}` : ''}`).join('\n');
-                          if (editingOrder) {
-                            setEditingOrder({ ...editingOrder, items: formatted });
-                          } else {
-                            setDraftOrder({ items: formatted });
-                          }
-                          addToast('סידור רשימה', 'הפריטים סודרו בשורות ✅', 'success');
-                        }
-                      }}
-                      className="text-[10px] font-black text-sky-600 bg-sky-50 px-2 py-1 rounded-lg border border-sky-100 hover:bg-sky-100 transition-all flex items-center gap-1 shadow-sm"
-                    >
-                      <Sparkles size={12} />
-                      סדר רשימה
-                    </button>
-                  </div>
-                  <textarea 
-                    name="items" 
-                    required 
-                    value={editingOrder ? editingOrder.items : draftOrder.items}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      if (editingOrder) {
-                        setEditingOrder({ ...editingOrder, items: val });
-                      } else {
-                        setDraftOrder({ items: val });
-                      }
-                    }}
-                    placeholder="מה מעמיסים? (למשל: 8 חול 11501)" 
-                    rows={3} 
-                    className="w-full bg-gray-50 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-sky-600 outline-none resize-none" 
-                  />
-                  
-                  {/* Automatic Preview */}
-                  {(() => {
-                    const items = editingOrder ? editingOrder.items : draftOrder.items;
-                    const parsed = parseItems(items);
-                    if (parsed.length > 0) {
-                      return (
-                        <div className="mt-2 p-3 bg-sky-50/50 rounded-xl border border-sky-100 flex flex-wrap gap-2">
-                           {parsed.map((p, i) => (
-                             <div key={i} className="bg-white px-2 py-1 rounded-lg border border-sky-200 text-[10px] font-bold text-sky-700 flex items-center gap-1 shadow-sm">
-                                <span className="bg-sky-600 text-white w-4 h-4 flex items-center justify-center rounded-full text-[8px]">{p.quantity}</span>
-                                <span>{p.name}</span>
-                                {p.sku && <span className="text-gray-400 font-medium">({p.sku})</span>}
-                             </div>
-                           ))}
-                        </div>
-                      );
-                    }
-                    return null;
-                  })()}
-                </div>
-
-                <div className="pt-4 flex items-center gap-3">
-                  {editingOrder && (
-                    <label className="flex items-center justify-center gap-2 px-4 py-4 bg-gray-100 text-gray-600 rounded-2xl font-bold cursor-pointer hover:bg-gray-200 transition-colors h-[60px] min-w-[130px]" title="צרף מסמך PDF">
-                      {isUploadingDoc ? (
-                        <Loader2 size={24} className="animate-spin text-sky-600" />
-                      ) : (
-                        <>
-                          <Paperclip size={20} />
-                          <span className="text-sm">צרף PDF</span>
-                        </>
-                      )}
-                      <input 
-                        type="file" 
-                        accept="application/pdf" 
-                        className="hidden" 
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file && editingOrder) handleDriveFileUpload(file, editingOrder.id, 'orderForm');
-                        }}
-                      />
-                    </label>
-                  )}
-                  <button type="submit" className="flex-1 bg-sky-600 text-white py-4 rounded-2xl font-bold text-lg hover:bg-sky-700 transition-colors shadow-lg shadow-sky-600/20 h-[60px]">
-                    {editingOrder ? 'עדכון' : 'אישור'}
-                  </button>
-                </div>
-              </form>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      <OrderForm 
+        isOpen={isAddingOrder || !!editingOrder}
+        onClose={() => {
+          setIsAddingOrder(false);
+          setEditingOrder(null);
+        }}
+        inventory={inventoryItems}
+        editingOrder={editingOrder}
+        onSuccess={(order) => {
+          if (!editingOrder) {
+            addToast('הזמנה חדשה', `הזמנה עבור ${order.customerName} התווספה בהצלחה! 📦`, 'success');
+          } else {
+            addToast('עדכון הזמנה', `הזמנה עבור ${order.customerName} עודכנה בהצלחה! ✅`, 'success');
+          }
+        }}
+      />
 
       <main className="flex-1 max-w-5xl w-full mx-auto p-4 md:p-8 pb-32 sm:pb-8">
         <div className="pb-[env(safe-area-inset-bottom)]">
