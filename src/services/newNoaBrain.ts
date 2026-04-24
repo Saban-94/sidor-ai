@@ -34,7 +34,7 @@ export const askNewNoa = async (prompt: string, chatHistory: any[]) => {
 
     // 2. הגדרת המודל
     const model = genAI.getGenerativeModel({ 
-      model: "gemini-1.5-flash",
+      model: "gemini-2.0-flash",
       systemInstruction: `
         את נועה, המוח הלוגיסטי של ח. סבן. את שותפה של ראמי.
         תפקידך: לנהל את המחסן בטייבה, את הסידורים בהוד השרון ואת הנהגים עלי וחכמת.
