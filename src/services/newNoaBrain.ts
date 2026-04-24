@@ -13,7 +13,7 @@ const SYSTEM_INSTRUCTION = `
 export const askNewNoa = async (prompt: string, history: any[], context: { inventory: any[], drivers: any[] }) => {
   try {
     const model = genAI.getGenerativeModel({ 
-      model: "gemini-1.5-flash",
+      model: "gemini-3.1-flash-lite-preview",
       systemInstruction: SYSTEM_INSTRUCTION 
     });
 
