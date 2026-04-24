@@ -1,10 +1,11 @@
+import "dotenv/config";
 import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
 import { createServer as createViteServer } from "vite";
 
 // Initialize Gemini API
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -15,16 +16,14 @@ async function startServer() {
   if (!startupKey) {
     console.warn("⚠️ WARNING: GEMINI_API_KEY is not defined in the environment at startup.");
   } else {
-    console.log(`✅ GEMINI_API_KEY is present (Length: ${startupKey.length})`);
+    console.log(`✅ GEMINI_API_KEY is present (Length: ${startupKey?.length})`);
     
     // Attempt a test call to verify key validity
-    const testGenAI = new GoogleGenAI({ 
-      apiKey: startupKey.trim(),
-      apiVersion: "v1beta"
-    });
+    const testGenAI = new GoogleGenerativeAI(startupKey.trim());
+    const testModel = testGenAI.getGenerativeModel({ model: "gemini-1.5-flash" });
     
-    testGenAI.models.list()
-      .then(() => console.log("✨ Gemini API Key verified successfully (Test list models succeeded)"))
+    testModel.generateContent("test")
+      .then(() => console.log("✨ Gemini API Key verified successfully (Test succeeded)"))
       .catch((err) => {
         console.error("❌ Gemini API Key verification failed at startup:");
         console.error(err.message || err);
@@ -34,9 +33,9 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
-  app.use(express.json());
+  app.use(express.json({ limit: '50mb' }));
 
-  // Explicitly serve public folder assets (manifest.json, icons, etc.)
+  // Explicitly serve public folder assets
   app.use(express.static(path.join(process.cwd(), 'public')));
 
   // AI generation proxy
@@ -45,25 +44,35 @@ async function startServer() {
       const apiKey = process.env.GEMINI_API_KEY?.trim();
       if (!apiKey || apiKey === "undefined" || apiKey.length < 10) {
         return res.status(500).json({ 
-          error: "Gemini API key is invalid or not provided. Please check the 'Secrets' tab in the app settings.",
-          details: `Current state: ${!apiKey ? 'Missing' : 'Present but short/invalid'}`
+          error: "Gemini API key is invalid or not provided.",
+          details: `Current state: ${!apiKey ? 'Missing' : 'Empty/Invalid'}`
         });
       }
 
-      // Explicitly using v1beta as it sometimes resolves "invalid key" issues with specific models/regions
-      const genAI = new GoogleGenAI({ 
-        apiKey,
-        apiVersion: "v1beta" 
-      });
-      const { model, contents, config } = req.body;
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const { model: modelName, contents, config } = req.body;
 
-      const response = await genAI.models.generateContent({
-        model: model || "gemini-1.5-flash",
-        contents: contents,
-        config: config
+      const model = genAI.getGenerativeModel({ 
+        model: modelName || "gemini-1.5-flash",
+        generationConfig: config
       });
+
+      // Pass contents directly if it's an array
+      const result = await model.generateContent({ contents });
+      const response = await result.response;
       
-      res.json(response);
+      // Extract text safely for the client
+      let text = "";
+      try {
+        text = response.text();
+      } catch (e) {
+        // text() throws if there are candidates but no text (e.g. function calls)
+      }
+      
+      res.json({
+        ...response,
+        text: text
+      });
     } catch (error: any) {
       console.error("Gemini Server Error:", error);
       res.status(500).json({ 
