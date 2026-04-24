@@ -219,7 +219,14 @@ export const NoaChat = ({
                   ? 'bg-sky-600 text-white rounded-tr-none shadow-sky-600/10' 
                   : 'bg-white/95 text-gray-800 rounded-tl-none border-2 border-sky-50'
               }`}>
-                {chat.parts[0].text}
+                {chat.parts[0].text.includes('<table') || chat.parts[0].text.includes('<div') ? (
+                  <div 
+                    className="prose prose-sm max-w-none text-right"
+                    dangerouslySetInnerHTML={{ __html: chat.parts[0].text }}
+                  />
+                ) : (
+                  chat.parts[0].text
+                )}
                 
                 {chat.role !== 'user' && (
                   <div className="flex items-center gap-2 mt-3 pt-2 border-t border-sky-50/50">

@@ -326,6 +326,13 @@ export const noaSystemInstruction = `
 // Helper to generate unique tracking ID
 const generateTrackingId = () => Math.random().toString(36).substring(2, 10).toUpperCase();
 
+export const getOrderByTrackingId = async (trackingId: string) => {
+  const q = query(collection(db, 'orders'), where('trackingId', '==', trackingId), limit(1));
+  const snap = await getDocs(q);
+  if (snap.empty) return null;
+  return { id: snap.docs[0].id, ...snap.docs[0].data() } as Order;
+};
+
 export const createOrder = async (orderData: Partial<Order>) => {
   if (!auth.currentUser) throw new Error('Not authenticated');
 
@@ -336,12 +343,20 @@ export const createOrder = async (orderData: Partial<Order>) => {
 
   // Automated Onboarding Logic
   if (!customerId && customerPhone) {
-    const q = query(collection(db, 'customers'), where('phone', '==', customerPhone), limit(1));
-    const snap = await getDocs(q);
+    // Try matching by phone first, then phoneNumber
+    const q1 = query(collection(db, 'customers'), where('phone', '==', customerPhone), limit(1));
+    const snap1 = await getDocs(q1);
     
-    if (!snap.empty) {
+    let existingCustomer = snap1.empty ? null : snap1.docs[0];
+    
+    if (!existingCustomer) {
+      const q2 = query(collection(db, 'customers'), where('phoneNumber', '==', customerPhone), limit(1));
+      const snap2 = await getDocs(q2);
+      if (!snap2.empty) existingCustomer = snap2.docs[0];
+    }
+    
+    if (existingCustomer) {
       // Existing Customer
-      const existingCustomer = snap.docs[0];
       customerId = existingCustomer.id;
       customerStatus = "קיים";
       await updateDoc(doc(db, 'customers', customerId), {
@@ -352,7 +367,10 @@ export const createOrder = async (orderData: Partial<Order>) => {
     } else {
       // New Customer Onboarding
       customerStatus = "חדש";
-      const newCustomerId = `CUST-${customerPhone.replace(/[^0-9]/g, '')}`;
+      const phoneDigits = customerPhone.replace(/[^0-9]/g, '');
+      const lastFour = phoneDigits.slice(-4);
+      const newCustomerId = `CUST-${lastFour || Math.floor(1000 + Math.random() * 9000)}`;
+      
       const newCustomer = {
         customerNumber: newCustomerId,
         name: customerName,

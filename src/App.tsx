@@ -97,6 +97,156 @@ import { uploadFileToDrive } from './services/driveService';
 
 // --- Components ---
 
+const TrackingView = ({ trackingId }: { trackingId: string }) => {
+  const [order, setOrder] = useState<Order | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [isEditing, setIsEditing] = useState(false);
+  const [items, setItems] = useState("");
+
+  useEffect(() => {
+    const fetchOrder = async () => {
+      const data = await getOrderByTrackingId(trackingId);
+      setOrder(data);
+      if (data) setItems(data.items);
+      setLoading(false);
+    };
+    fetchOrder();
+  }, [trackingId]);
+
+  const handleUpdateItems = async () => {
+    if (!order?.id) return;
+    try {
+      await updateOrder(order.id, { items });
+      setOrder({ ...order, items });
+      setIsEditing(false);
+      alert('הפריטים עודכנו בהצלחה!');
+    } catch (error) {
+      alert('שגיאה בעדכון הפריטים');
+    }
+  };
+
+  if (loading) return <div className="flex items-center justify-center h-screen bg-gray-50"><Loader2 className="animate-spin text-sky-600" size={40} /></div>;
+  if (!order) return <div className="flex flex-col items-center justify-center h-screen bg-gray-50 text-center p-6"><AlertCircle size={60} className="text-red-500 mb-4" /><h1 className="text-2xl font-bold">הזמנה לא נמצאה</h1><p className="text-gray-500">ודא שהקישור תקין או צור קשר עם המשרד</p></div>;
+
+  const statusMap: Record<string, { label: string, color: string, step: number }> = {
+    'pending': { label: 'התקבל', color: 'bg-emerald-500', step: 1 },
+    'preparing': { label: 'בטיפול', color: 'bg-orange-500', step: 2 },
+    'ready': { label: 'בדרך אליך', color: 'bg-sky-500', step: 3 },
+    'delivered': { label: 'סופק', color: 'bg-gray-500', step: 4 },
+  };
+
+  const currentStatus = statusMap[order.status] || { label: order.status, color: 'bg-gray-400', step: 0 };
+  const canEdit = order.status === 'pending';
+  const isExpired = order.status === 'delivered';
+
+  return (
+    <div className="min-h-screen bg-gray-50 p-4 md:p-8 flex flex-col items-center" dir="rtl">
+      <div className="w-full max-w-lg bg-white rounded-[2.5rem] shadow-xl border border-sky-100 overflow-hidden">
+        <div className="bg-sky-600 p-8 text-white text-center relative">
+          <Truck className="mx-auto mb-4" size={48} />
+          <h1 className="text-2xl font-black italic">מעקב הזמנה SabanOS</h1>
+          <p className="text-sky-100 font-bold opacity-80 mt-1">הזמנה מס' {order.orderNumber || order.id?.slice(0, 8)}</p>
+        </div>
+
+        <div className="p-8 space-y-8">
+          {/* Status Progress */}
+          <div className="relative">
+             <div className="absolute top-4 left-0 w-full h-1 bg-gray-100 rounded-full"></div>
+             <div className="absolute top-4 right-0 h-1 bg-sky-600 rounded-full transition-all duration-1000" style={{ width: `${((currentStatus.step - 1) / 3) * 100}%` }}></div>
+             
+             <div className="relative flex justify-between">
+                {[1, 2, 3, 4].map((s) => (
+                  <div key={s} className={`w-8 h-8 rounded-full flex items-center justify-center border-4 transition-all ${
+                    s <= currentStatus.step ? 'bg-sky-600 border-sky-100 text-white shadow-lg' : 'bg-white border-gray-100 text-gray-300'
+                  }`}>
+                    {s < currentStatus.step ? <CheckCircle2 size={16} /> : <span className="text-[10px] font-bold">{s}</span>}
+                  </div>
+                ))}
+             </div>
+             
+             <div className="flex justify-between mt-2 px-1">
+                <span className="text-[10px] font-black text-gray-400">התקבל</span>
+                <span className="text-[10px] font-black text-gray-400">בטיפול</span>
+                <span className="text-[10px] font-black text-gray-400">בדרך</span>
+                <span className="text-[10px] font-black text-gray-400">סופק</span>
+             </div>
+          </div>
+
+          <div className={`p-6 rounded-3xl ${currentStatus.color} text-white text-center shadow-lg`}>
+            <h2 className="text-xl font-black mb-1">סטטוס נוכחי: {currentStatus.label}</h2>
+            <p className="text-sm opacity-90">{isExpired ? 'הזמנה זו סופקה בהצלחה' : 'המערכת מעדכנת את הסטטוס בזמן אמת'}</p>
+          </div>
+
+          <div className="space-y-4">
+             <div className="flex items-center gap-3 bg-gray-50 p-4 rounded-2xl">
+                <User className="text-sky-600" size={20} />
+                <div className="text-right">
+                   <p className="text-[10px] font-bold text-gray-400 uppercase">לקוח</p>
+                   <p className="text-sm font-black text-gray-800">{order.customerName}</p>
+                </div>
+             </div>
+
+             <div className="flex items-center gap-3 bg-gray-50 p-4 rounded-2xl">
+                <Plus className="text-sky-600" size={20} />
+                <div className="text-right flex-1">
+                   <p className="text-[10px] font-bold text-gray-400 uppercase">פריטים</p>
+                   {isEditing ? (
+                     <textarea 
+                       value={items}
+                       onChange={(e) => setItems(e.target.value)}
+                       className="w-full bg-white border border-sky-100 rounded-xl p-2 text-sm mt-1 outline-none focus:ring-2 focus:ring-sky-600"
+                       rows={4}
+                     />
+                   ) : (
+                     <div className="space-y-1 mt-1">
+                       {parseItems(order.items).map((p, i) => (
+                         <div key={i} className="text-sm font-bold text-gray-700 bg-white px-2 py-1 rounded-lg border border-gray-100 flex justify-between">
+                            <span>{p.name} {p.sku && <span className="text-gray-400 text-[10px]">({p.sku})</span>}</span>
+                            <span className="text-sky-600">{p.quantity}</span>
+                         </div>
+                       ))}
+                     </div>
+                   )}
+                </div>
+             </div>
+
+             {canEdit && (
+               <div className="pt-4">
+                  {isEditing ? (
+                    <div className="flex gap-2">
+                       <button onClick={handleUpdateItems} className="flex-1 bg-sky-600 text-white py-3 rounded-2xl font-bold hover:bg-sky-700 transition-all shadow-lg">שמור שינויים</button>
+                       <button onClick={() => setIsEditing(false)} className="px-6 py-3 bg-gray-100 text-gray-500 rounded-2xl font-bold hover:bg-gray-200 transition-all">ביטול</button>
+                    </div>
+                  ) : (
+                    <button 
+                      onClick={() => setIsEditing(true)}
+                      className="w-full flex items-center justify-center gap-2 py-4 bg-sky-50 text-sky-600 rounded-2xl font-bold hover:bg-sky-100 transition-all border border-sky-100 shadow-sm"
+                    >
+                      <Pencil size={18} />
+                      ערוך פריטים (המערכת טרם התחילה בטיפול)
+                    </button>
+                  )}
+               </div>
+             )}
+          </div>
+        </div>
+
+        <div className="bg-gray-50 p-6 text-center border-t border-gray-100">
+          <p className="text-[10px] font-bold text-gray-400 mb-2 italic">SabanOS Magic Page - צילום מסך לצורך תיעוד</p>
+          <div className="flex justify-center gap-4">
+             <div className="bg-white p-2 rounded-xl shadow-sm border border-gray-200">
+                <Truck size={20} className="text-sky-600" />
+             </div>
+             <div className="bg-white p-2 rounded-xl shadow-sm border border-gray-200">
+                <CheckCircle size={20} className="text-emerald-500" />
+             </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const SortIcon = ({ field, currentSort, direction }: { field: string, currentSort: string, direction: 'asc' | 'desc' }) => {
   if (currentSort !== field) return <ArrowUpDown size={12} className="inline mr-2 opacity-20" />;
   return direction === 'asc' ? <ArrowUp size={12} className="inline mr-2 text-sky-600" /> : <ArrowDown size={12} className="inline mr-2 text-sky-600" />;
@@ -448,6 +598,15 @@ export default function App() {
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [isRemindersOpen, setIsRemindersOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [trackingId, setTrackingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const path = window.location.pathname;
+    if (path.startsWith('/track/')) {
+      const id = path.split('/track/')[1];
+      setTrackingId(id);
+    }
+  }, []);
   const [chatHistory, setChatHistory] = useState<any[]>([]);
   const [isAddingOrder, setIsAddingOrder] = useState(false);
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
@@ -983,6 +1142,10 @@ export default function App() {
       </motion.div>
     </div>
   );
+
+  if (trackingId) {
+    return <TrackingView trackingId={trackingId} />;
+  }
 
   if (!user) return (
     <div className="h-screen w-full flex flex-col items-center justify-center bg-white p-6 relative overflow-hidden" dir="rtl">
