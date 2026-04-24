@@ -1,180 +1,298 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { 
-  Send, ChevronRight, Volume2, VolumeX, 
-  Zap, Terminal, LayoutPanelLeft, Sparkles
+  MessageSquare, 
+  Send, 
+  ChevronRight,
+  Volume2,
+  VolumeX,
+  Speaker,
+  Settings,
+  Waves
 } from 'lucide-react';
+import { Order } from '../types';
+import { parseItems } from '../lib/utils';
 
 interface NoaChatProps {
   chatHistory: any[];
   chatScrollRef: React.RefObject<HTMLDivElement>;
   onBack: () => void;
   onAction: (action: string) => void;
-  isLoading?: boolean;
+  orders: Order[];
 }
 
-/**
- * רכיב הקנבס - עם הגנה מוגברת מפני טקסט חסר
- */
-const DataCanvas = ({ htmlContent }: { htmlContent: string }) => {
-  if (!htmlContent || typeof htmlContent !== 'string' || !htmlContent.includes('<table')) return null;
-
-  return (
-    <motion.div 
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
-      className="my-6 relative group"
-    >
-      <div className="absolute -inset-1 bg-gradient-to-r from-sky-500 to-blue-600 rounded-[2rem] blur opacity-20 group-hover:opacity-40 transition duration-1000"></div>
-      <div className="relative bg-white/90 backdrop-blur-xl border border-sky-100 rounded-[2rem] overflow-hidden shadow-2xl">
-        <div className="bg-slate-900 px-6 py-3 flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <LayoutPanelLeft size={16} className="text-sky-400" />
-            <span className="text-[11px] font-black text-sky-100 uppercase tracking-widest">SabanOS Data Canvas</span>
-          </div>
-          <div className="flex gap-1.5">
-            <div className="w-1.5 h-1.5 rounded-full bg-red-500/50" />
-            <div className="w-1.5 h-1.5 rounded-full bg-yellow-500/50" />
-            <div className="w-1.5 h-1.5 rounded-full bg-green-500/50" />
-          </div>
-        </div>
-        <div className="p-1 overflow-x-auto custom-scrollbar">
-          <div 
-            className="prose prose-slate max-w-none noa-html-content"
-            dangerouslySetInnerHTML={{ __html: htmlContent }} 
-          />
-        </div>
-      </div>
-    </motion.div>
-  );
-};
-
 export const NoaChat = ({ 
-  chatHistory = [], 
+  chatHistory, 
   chatScrollRef, 
   onBack, 
   onAction,
-  isLoading = false
+  orders 
 }: NoaChatProps) => {
-  const [inputValue, setInputValue] = useState('');
-  
-  useEffect(() => {
-    if (chatScrollRef?.current) {
-      chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
-    }
-  }, [chatHistory, isLoading]);
+  const [isAutoVoice, setIsAutoVoice] = useState(() => localStorage.getItem('noa_auto_voice') === 'true');
+  const [currentlySpeaking, setCurrentlySpeaking] = useState<number | null>(null);
+  const synthRef = useRef<SpeechSynthesis | null>(window.speechSynthesis);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!inputValue.trim() || isLoading) return;
-    onAction(inputValue);
-    setInputValue('');
+  // Persistence of auto voice setting
+  useEffect(() => {
+    localStorage.setItem('noa_auto_voice', String(isAutoVoice));
+  }, [isAutoVoice]);
+
+  const cleanTextForSpeech = (text: string) => {
+    // 1. Detect if it's an item list
+    const items = parseItems(text);
+    if (items.length > 0) {
+      let speech = "הנה הפריטים שנמצאו: ";
+      items.forEach((item, index) => {
+        speech += `פריט ${index + 1}: ${item.name}, כמות: ${item.quantity}. `;
+      });
+      return speech;
+    }
+
+    // 2. Regular cleaning
+    return text
+      .replace(/[*_#]/g, '') // remove markdown
+      .replace(/[^\u0590-\u05FF0-9\s,.?!]/g, ' ') // keep hebrew, numbers, basic punctuation
+      .trim();
   };
 
+  const stopSpeaking = () => {
+    if (synthRef.current) {
+      synthRef.current.cancel();
+      setCurrentlySpeaking(null);
+    }
+  };
+
+  const speak = (text: string, index: number) => {
+    if (!synthRef.current) return;
+
+    // If already speaking this message, stop
+    if (currentlySpeaking === index) {
+      stopSpeaking();
+      return;
+    }
+
+    // Stop anything else
+    stopSpeaking();
+
+    const utterance = new SpeechSynthesisUtterance(cleanTextForSpeech(text));
+    const voices = synthRef.current.getVoices();
+    const hebrewVoice = voices.find(v => v.lang.includes('he')) || voices[0];
+    
+    utterance.voice = hebrewVoice;
+    utterance.lang = 'he-IL';
+    utterance.rate = 1.0;
+    utterance.pitch = 1.0;
+
+    utterance.onstart = () => setCurrentlySpeaking(index);
+    utterance.onend = () => setCurrentlySpeaking(null);
+    utterance.onerror = () => setCurrentlySpeaking(null);
+
+    synthRef.current.speak(utterance);
+  };
+
+  // Auto-voice effect
+  useEffect(() => {
+    if (isAutoVoice && chatHistory.length > 0) {
+      const lastMessage = chatHistory[chatHistory.length - 1];
+      if (lastMessage.role === 'model' || lastMessage.role === 'assistant') {
+        speak(lastMessage.parts[0].text, chatHistory.length - 1);
+      }
+    }
+  }, [chatHistory.length]);
+
+  const dynamicSuggestions = [
+    { label: 'סנכרון דרייב 📂', action: 'סרוק את תיקיית SabanOS ותחלץ נתונים מהקובץ האחרון' },
+    { label: 'הזמנה חדשה ✍️', action: 'הזמנה חדשה' },
+    { label: 'סטטוס הפצה 📊', action: 'מה סטטוס ההפצה כרגע?' },
+    { label: 'דוח בוקר 📋', action: 'תכיני לי דוח בוקר 📋' },
+    { label: 'סטטוס נהגים 🚛', action: 'סטטוס נהגים 🚛' },
+    { label: 'חריגות בטון/ריצופית ⚠️', action: 'חריגות בטון/ריצופית ⚠️' },
+    { label: 'סיכום עמוסים 📈', action: 'סיכום עמוסים' },
+    { label: 'תיעוד מסירה 📜', action: 'תיעוד מסירה' },
+    ...orders.filter(o => o.status === 'preparing').slice(0, 2).map(o => ({
+      label: `צפי ל${o.customerName.split(' ')[0]} ⏱️`,
+      action: `מה ה-ETA של ${o.customerName}?`
+    }))
+  ];
+
   return (
-    <div className="fixed inset-0 h-screen w-screen bg-[#f1f5f9] flex flex-col overflow-hidden font-assistant" dir="rtl">
-      
-      <header className="p-5 border-b border-slate-200 bg-white/80 backdrop-blur-xl flex justify-between items-center z-50 shrink-0">
-        <div className="flex items-center gap-4">
-          <button onClick={onBack} className="p-2 hover:bg-sky-50 rounded-xl transition-all">
-            <ChevronRight size={24} className="text-sky-600" />
+    <div className="h-[100dvh] bg-white flex flex-col md:flex-row overflow-hidden" dir="rtl">
+      {/* Left Sidebar for Desktop (Quick Info) */}
+      <div className="hidden md:flex w-72 bg-gray-50 border-l border-gray-100 flex-col p-6 overflow-y-auto shrink-0">
+        <div className="flex items-center gap-3 mb-8">
+          <button onClick={onBack} className="p-2 hover:bg-gray-200 rounded-xl transition-colors">
+            <ChevronRight size={20} />
           </button>
-          <div className="flex flex-col">
-            <h1 className="font-black text-xl italic text-slate-900 leading-none">Noa AI</h1>
-            <span className="text-[9px] font-black text-sky-500 uppercase tracking-widest mt-1">Canvas Mode Active</span>
-          </div>
+          <h1 className="text-xl font-bold">נועה (SabanOS)</h1>
         </div>
-        <div className="w-10 h-10 bg-slate-900 rounded-2xl flex items-center justify-center shadow-lg">
-          <Zap size={20} className="text-sky-400 fill-sky-400" />
-        </div>
-      </header>
+        
+          <div className="space-y-6">
+            <div>
+              <p className="text-[10px] font-black text-gray-400 mb-2 uppercase tracking-widest text-right">סטטוס מערכת</p>
+              <div className="bg-white p-4 rounded-2xl border border-gray-100 flex items-center gap-3">
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(34,197,94,0.5)]"></div>
+                <span className="text-sm font-bold">זמינה לראמי</span>
+              </div>
+            </div>
 
-      <div 
-        ref={chatScrollRef}
-        className="flex-1 overflow-y-auto p-4 md:p-10 space-y-8 z-10 scroll-smooth pb-44"
-      >
-        <AnimatePresence>
-          {chatHistory && chatHistory.map((chat, idx) => {
-            if (!chat) return null;
-
-            // חילוץ טקסט בטוח - מונע את שגיאת ה-includes
-            const rawContent = chat.content || (chat.parts && chat.parts[0]?.text) || "";
-            const text = typeof rawContent === 'string' ? rawContent : "";
-            
-            const hasTable = text.includes('<table');
-
-            return (
-              <motion.div 
-                key={idx} 
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className={`flex flex-col w-full ${chat.role === 'user' ? 'items-start' : 'items-end'}`}
-              >
-                <div className={`relative max-w-[90%] md:max-w-2xl p-5 md:p-7 rounded-[2.5rem] shadow-xl backdrop-blur-md ${
-                  chat.role === 'user' 
-                    ? 'bg-slate-900 text-white rounded-tr-none' 
-                    : 'bg-white/95 text-slate-800 rounded-tl-none border border-white'
-                }`}>
-                  <div className="text-sm md:text-lg font-bold leading-relaxed">
-                    <p className="whitespace-pre-wrap">
-                      {hasTable 
-                        ? text.replace(/<table[\s\S]*?<\/table>/g, '[צפייה בנתונים בקנבס למטה 👇]') 
-                        : text}
-                    </p>
-                  </div>
+            <div>
+              <p className="text-[10px] font-black text-gray-400 mb-2 uppercase tracking-widest text-right">הגדרות קול</p>
+              <div className="bg-white p-4 rounded-2xl border border-gray-100 flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-gray-600">נועה מדברת</span>
+                  <button 
+                    onClick={() => setIsAutoVoice(!isAutoVoice)}
+                    className={`relative w-10 h-5 rounded-full transition-colors ${isAutoVoice ? 'bg-sky-600' : 'bg-gray-200'}`}
+                  >
+                    <motion.div 
+                      animate={{ x: isAutoVoice ? 20 : 2 }}
+                      className="absolute top-1 left-0 w-3 h-3 bg-white rounded-full shadow-sm"
+                    />
+                  </button>
                 </div>
+                <p className="text-[9px] text-gray-400 leading-tight">במצב פעיל, נועה תקריא כל תשובה חדשה באופן אוטומטי.</p>
+              </div>
+            </div>
+          </div>
+      </div>
 
-                {chat.role !== 'user' && hasTable && (
-                  <div className="w-full max-w-4xl mt-4">
-                    <DataCanvas htmlContent={text.match(/<table[\s\S]*?<\/table>/)?.[0] || ''} />
+      {/* Main Chat Area */}
+      <div className="flex-1 flex flex-col h-full bg-white relative overflow-hidden">
+        <header className="p-4 border-b border-gray-100 flex items-center justify-between md:hidden bg-white/80 backdrop-blur-md z-30 shrink-0">
+          <div className="flex items-center gap-3">
+             <button onClick={onBack} className="p-2 hover:bg-gray-100 rounded-xl transition-colors">
+               <ChevronRight size={20} />
+             </button>
+             <h1 className="font-black text-lg text-gray-900 italic font-sans">נועה AI</h1>
+          </div>
+          <div className="flex items-center gap-4">
+             <button 
+               onClick={() => setIsAutoVoice(!isAutoVoice)}
+               className={`p-2 rounded-xl transition-all ${isAutoVoice ? 'bg-sky-50 text-sky-600' : 'text-gray-400'}`}
+             >
+               <Speaker size={18} />
+             </button>
+             <div className="flex items-center gap-1.5">
+               <div className="w-2 h-2 bg-green-500 rounded-full" />
+               <span className="text-[10px] font-black text-gray-400 uppercase">ONLINE</span>
+             </div>
+          </div>
+        </header>
+
+        {/* Message List */}
+        <div 
+          ref={chatScrollRef}
+          className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 max-w-full md:max-w-4xl mx-auto w-full scroll-smooth"
+        >
+          {chatHistory.length === 0 && (
+            <div className="text-center py-20 px-4">
+              <div className="bg-sky-50 w-24 h-24 rounded-[3rem] flex items-center justify-center mx-auto mb-6 shadow-inner">
+                 <MessageSquare className="text-sky-600" size={48} />
+              </div>
+              <h2 className="text-2xl font-black mb-2 italic">שלום ראמי</h2>
+              <p className="text-sm font-bold text-gray-400 mb-8 max-w-[250px] mx-auto">"תפתחי הזמנה חדשה לחכמת לשעה 9 ליעד ברקאי"</p>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-md mx-auto">
+                 {dynamicSuggestions.slice(0, 6).map(suggestion => (
+                   <button 
+                     key={suggestion.label}
+                     onClick={() => onAction(suggestion.action)}
+                     className="p-4 bg-gray-50 rounded-2xl border border-gray-100 text-xs font-bold text-gray-600 hover:bg-sky-50 hover:border-sky-100 transition-all text-right shadow-sm flex items-center justify-between group"
+                   >
+                     <span>{suggestion.label}</span>
+                     <ChevronRight size={14} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                   </button>
+                 ))}
+              </div>
+            </div>
+          )}
+          
+          {chatHistory.map((chat, idx) => (
+            <motion.div 
+              key={idx} 
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              className={`flex w-full ${chat.role === 'user' ? 'justify-start' : 'justify-end'}`}
+            >
+              <div className={`max-w-[90%] md:max-w-md p-5 rounded-[2.5rem] text-sm md:text-base font-bold leading-relaxed shadow-xl backdrop-blur-md relative group/msg ${
+                chat.role === 'user' 
+                  ? 'bg-sky-600 text-white rounded-tr-none shadow-sky-600/10' 
+                  : 'bg-white/95 text-gray-800 rounded-tl-none border-2 border-sky-50'
+              }`}>
+                {chat.parts[0].text}
+                
+                {chat.role !== 'user' && (
+                  <div className="flex items-center gap-2 mt-3 pt-2 border-t border-sky-50/50">
+                    <button 
+                      onClick={() => speak(chat.parts[0].text, idx)}
+                      className={`p-2 rounded-xl transition-all ${currentlySpeaking === idx ? 'bg-sky-100 text-sky-600' : 'hover:bg-gray-100 text-gray-400'}`}
+                    >
+                      {currentlySpeaking === idx ? <VolumeX size={16} /> : <Volume2 size={16} />}
+                    </button>
+                    
+                    {currentlySpeaking === idx && (
+                      <div className="flex items-center gap-0.5 h-4">
+                        {[1, 2, 3, 4, 3, 2, 1].map((h, i) => (
+                          <motion.div 
+                            key={i}
+                            animate={{ height: [4, h * 4, 4] }}
+                            transition={{ duration: 0.5, repeat: Infinity, delay: i * 0.1 }}
+                            className="w-0.5 bg-sky-400 rounded-full"
+                          />
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
-              </motion.div>
-            );
-          })}
-
-          {isLoading && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-end w-full">
-              <div className="bg-white/90 p-6 rounded-[2.5rem] rounded-tl-none shadow-xl border border-sky-100 flex items-center gap-4">
-                <div className="flex gap-1.5">
-                  <div className="w-2 h-2 bg-sky-400 rounded-full animate-bounce" />
-                  <div className="w-2 h-2 bg-sky-500 rounded-full animate-bounce [animation-delay:0.2s]" />
-                  <div className="w-2 h-2 bg-sky-600 rounded-full animate-bounce [animation-delay:0.4s]" />
-                </div>
-                <span className="text-[10px] font-black text-sky-600 uppercase tracking-widest">Processing...</span>
               </div>
             </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
+          ))}
+        </div>
 
-      <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-white via-white to-transparent pt-12 pb-10 px-6 z-40">
-        <div className="max-w-4xl mx-auto relative group">
-           <form onSubmit={handleSubmit} className="relative flex items-center">
-            <input 
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              placeholder="כתוב לנועה... (מלאי, נהגים, דוחות)"
-              className="w-full bg-white border-2 border-slate-200 rounded-[3rem] pl-24 pr-10 py-6 text-lg font-bold focus:border-sky-600 transition-all outline-none shadow-2xl"
-            />
-            <button 
-              type="submit"
-              disabled={isLoading}
-              className="absolute left-3 p-5 bg-slate-900 text-white rounded-full hover:bg-sky-600 transition-all shadow-xl disabled:opacity-50"
+        {/* Input Area */}
+        <div className="bg-gradient-to-t from-white via-white to-transparent pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))] md:pb-6 px-4 md:px-6 z-20 shrink-0 border-t border-gray-50/50">
+          <div className="max-w-full md:max-w-4xl mx-auto space-y-4">
+            {/* Quick Actions Scrollable */}
+            <div className="flex gap-2 overflow-x-auto no-scrollbar py-2 scroll-smooth">
+              {dynamicSuggestions.map((btn, i) => (
+                <button 
+                  key={i}
+                  onClick={() => onAction(btn.action)}
+                  className="whitespace-nowrap bg-white/95 backdrop-blur-md hover:bg-sky-600 hover:text-white text-sky-950 text-[11px] font-black px-4 py-3 rounded-full transition-all border border-sky-100 shadow-md hover:shadow-sky-200 active:scale-95 flex items-center gap-2"
+                >
+                  {btn.label}
+                </button>
+              ))}
+            </div>
+
+            <form 
+              onSubmit={(e) => {
+                e.preventDefault();
+                const form = e.target as HTMLFormElement;
+                const input = form.elements.namedItem('message') as HTMLInputElement;
+                const val = input.value;
+                if (!val) return;
+                onAction(val);
+                input.value = '';
+              }}
+              className="flex gap-3 items-center"
             >
-              <Send size={24} strokeWidth={3} />
-            </button>
-          </form>
+              <input 
+                name="message"
+                autoComplete="off"
+                placeholder="כיצד אוכל לעזור?"
+                className="flex-1 bg-white/90 backdrop-blur-md border-[3px] border-sky-100 rounded-[2.5rem] px-5 md:px-8 py-3.5 md:py-4 text-sm md:text-base focus:border-sky-600 transition-all outline-none shadow-2xl font-bold"
+              />
+              <button 
+                type="submit"
+                className="bg-gray-900 text-white p-3.5 md:p-4 rounded-full hover:bg-sky-600 transition-all shadow-2xl hover:scale-105 active:scale-95 flex items-center justify-center shrink-0"
+              >
+                <Send size={20} className="md:w-6 md:h-6" strokeWidth={2.5} />
+              </button>
+            </form>
+          </div>
         </div>
       </div>
-
-      <style>{`
-        .noa-html-content table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 14px; }
-        .noa-html-content th { background-color: #f8fafc; color: #1e293b; font-weight: 900; padding: 16px; border-bottom: 2px solid #e2e8f0; text-align: right; }
-        .noa-html-content td { padding: 14px 16px; border-bottom: 1px solid #f1f5f9; font-weight: 600; color: #334155; }
-        .custom-scrollbar::-webkit-scrollbar { height: 6px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-      `}</style>
     </div>
   );
 };

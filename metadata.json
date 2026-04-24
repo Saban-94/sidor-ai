@@ -1,48 +1,6 @@
 {
-  "name": "נועה - המוח של ח. סבן",
-  "short_name": "נועה",
-  "description": "נועה, המוח והנשמה של ח.סבן. שותפה מנצחת לראמי בניהול סידור, נהגים ומלאי. ניהול מדויק ואישי.",
-  "lang": "he-IL",
-  "dir": "rtl",
-  "icons": [
-    {
-      "src": "https://i.postimg.cc/JyYR58J9/Gemini-Generated-Image-nv19wenv19wenv19.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "https://i.postimg.cc/9R4Cxktb/Gemini-Generated-Image-v5sgttv5sgttv5sg.png",
-      "sizes": "192x192",
-      "type": "image/png"
-    }
-  ],
-  "screenshots": [
-    {
-      "src": "https://i.postimg.cc/Y4Dtz7gg/Gemini-Generated-Image-d11bk7d11bk7d11b.png",
-      "sizes": "1280x720",
-      "type": "image/png",
-      "form_factor": "wide",
-      "label": "נועה בחנות המותג"
-    }
-  ],
+  "name": "נועה - מנהלת לוגיסטיקה ח. סבן",
+  "description": "נועה, המוח הלוגיסטי של ח. סבן חומרי בניין. ניהול סבבי בוקר, נהגים, מלאי וסיכומי הפצה.",
   "requestFramePermissions": ["geolocation"],
-  "display": "standalone",
-  "orientation": "portrait",
-  "start_url": "/",
-  "theme_color": "#0f172a",
-  "background_color": "#0f172a",
-  "categories": ["business", "productivity"],
-  "shortcuts": [
-    {
-      "name": "סידור נהגים",
-      "url": "/sidor",
-      "icons": [{ "src": "https://i.postimg.cc/9R4Cxktb/Gemini-Generated-Image-v5sgttv5sgttv5sg.png", "sizes": "96x96" }]
-    },
-    {
-      "name": "מצב מלאי",
-      "url": "/inventory",
-      "icons": [{ "src": "https://i.postimg.cc/JyYR58J9/Gemini-Generated-Image-nv19wenv19wenv19.png", "sizes": "96x96" }]
-    }
-  ]
+  "majorCapabilities": []
 }
