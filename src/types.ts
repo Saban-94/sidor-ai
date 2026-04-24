@@ -64,6 +64,7 @@ export interface InventoryItem {
   sku: string;
   name: string;
   description?: string;
+  imageUrl?: string;
   unit: string;
   currentStock: number;
   minStock: number;

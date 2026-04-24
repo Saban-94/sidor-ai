@@ -15,7 +15,8 @@ import {
   CheckCircle2,
   Loader2,
   User,
-  Calendar
+  Calendar,
+  Image as ImageIcon
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -81,6 +82,7 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({ orders = [] 
       sku: formData.get('sku') as string,
       name: formData.get('name') as string,
       description: formData.get('description') as string,
+      imageUrl: formData.get('imageUrl') as string,
       unit: formData.get('unit') as string,
       currentStock: Number(formData.get('currentStock')),
       minStock: Number(formData.get('minStock')),
@@ -128,9 +130,10 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({ orders = [] 
       }, 0);
   };
 
-const filteredItems = items.filter(item => 
+  const filteredItems = items.filter(item => 
     item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    item.sku.toLowerCase().includes(searchQuery.toLowerCase())
+    item.sku.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    item.category?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
@@ -218,6 +221,7 @@ const filteredItems = items.filter(item =>
               <table className="w-full text-right border-collapse">
                 <thead>
                   <tr className="bg-gray-50/50 border-b border-gray-100">
+                    <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase">תמונה</th>
                     <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase">מק"ט</th>
                     <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase">שם מוצר</th>
                     <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase text-center">מלאי נוכחי</th>
@@ -231,14 +235,14 @@ const filteredItems = items.filter(item =>
                 <tbody className="divide-y divide-gray-50">
                   {loading ? (
                     <tr>
-                      <td colSpan={7} className="px-6 py-20 text-center">
+                      <td colSpan={9} className="px-6 py-20 text-center">
                         <Loader2 className="animate-spin mx-auto text-sky-600" size={32} />
                         <p className="text-gray-400 mt-2 font-bold">טוען מוצרים...</p>
                       </td>
                     </tr>
                   ) : filteredItems.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="px-6 py-20 text-center">
+                      <td colSpan={9} className="px-6 py-20 text-center">
                         <Package className="mx-auto text-gray-200 mb-4" size={48} />
                         <h4 className="text-lg font-bold text-gray-400">לא נמצאו מוצרים תואמים</h4>
                       </td>
@@ -246,6 +250,23 @@ const filteredItems = items.filter(item =>
                   ) : (
                     filteredItems.map(item => (
                       <tr key={item.id} className="hover:bg-gray-50/50 transition-colors group">
+                        <td className="px-6 py-4 text-center">
+                          <div className="w-10 h-10 rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center border border-gray-200">
+                            {item.imageUrl ? (
+                              <img 
+                                src={item.imageUrl} 
+                                alt={item.name} 
+                                className="w-full h-full object-cover"
+                                referrerPolicy="no-referrer"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).src = 'https://via.placeholder.com/100?text=Error';
+                                }}
+                              />
+                            ) : (
+                              <ImageIcon className="text-gray-300" size={20} />
+                            )}
+                          </div>
+                        </td>
                         <td className="px-6 py-4 text-sm font-mono text-gray-500">{item.sku}</td>
                         <td className="px-6 py-4">
                           <div className="flex flex-col">
@@ -432,6 +453,29 @@ const filteredItems = items.filter(item =>
                     rows={2}
                     className="w-full bg-gray-50 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-sky-600 outline-none resize-none" 
                   />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-400 mb-1">לינק לתמונת מוצר</label>
+                  <div className="flex gap-2">
+                    <input 
+                      name="imageUrl" 
+                      type="url"
+                      defaultValue={editingItem?.imageUrl}
+                      placeholder="https://example.com/image.jpg"
+                      className="flex-1 bg-gray-50 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-sky-600 outline-none" 
+                    />
+                    {editingItem?.imageUrl && (
+                      <div className="w-12 h-12 rounded-xl border border-gray-200 overflow-hidden bg-gray-50 flex items-center justify-center">
+                        <img 
+                          src={editingItem.imageUrl} 
+                          alt="Preview" 
+                          className="w-full h-full object-cover"
+                          referrerPolicy="no-referrer"
+                        />
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-3 gap-4">
