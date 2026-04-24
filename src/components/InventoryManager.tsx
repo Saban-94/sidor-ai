@@ -151,10 +151,14 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({ orders = [] 
 
   const filteredSales = sales.filter(sale => {
     const searchLower = salesSearchQuery.toLowerCase();
+    const inventoryItem = items.find(i => i.sku === sale.itemId);
+    const itemName = inventoryItem ? inventoryItem.name : (sale.itemName || '');
+    
     return (
-      sale.customerName?.toLowerCase().includes(searchLower) ||
-      sale.date?.includes(searchLower) ||
-      sale.itemId?.toLowerCase().includes(searchLower)
+      (sale.customerName?.toLowerCase().includes(searchLower)) ||
+      (sale.date?.includes(searchLower)) ||
+      (sale.itemId?.toLowerCase().includes(searchLower)) ||
+      (itemName.toLowerCase().includes(searchLower))
     );
   });
 
@@ -358,7 +362,7 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({ orders = [] 
             <Search className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
             <input 
               type="text"
-              placeholder="חפש לפי שם לקוח, תאריך (YYYY-MM-DD) או מק'ט..."
+              placeholder="חפש לפי שם לקוח, תאריך (YYYY-MM-DD), מוצר או מק'ט..."
               value={salesSearchQuery}
               onChange={(e) => setSalesSearchQuery(e.target.value)}
               className="w-full bg-white border border-gray-100 rounded-2xl py-4 pr-12 pl-4 text-sm focus:ring-2 focus:ring-sky-600 outline-none shadow-sm transition-all"

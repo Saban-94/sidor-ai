@@ -21,6 +21,7 @@ interface KanbanBoardProps {
   onOrderUpdateEta: (id: string, eta: string) => void;
   onOrderDelete: (id: string) => void;
   onOrderRepeat: (o: Order) => void;
+  onOrderCreateCustomer?: (name: string, phone: string, address: string) => void;
   onAddToast: (title: string, msg: string, type?: any) => void;
   onUploadDoc: (file: File, orderId?: string, documentType?: any) => Promise<void>;
   inventoryItems?: any[];
@@ -43,6 +44,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   onOrderUpdateEta,
   onOrderDelete,
   onOrderRepeat,
+  onOrderCreateCustomer,
   onAddToast,
   onUploadDoc,
   inventoryItems = []
@@ -148,6 +150,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                                     onUpdateEta={onOrderUpdateEta}
                                     onDelete={onOrderDelete}
                                     onRepeat={onOrderRepeat}
+                                    onCreateCustomer={onOrderCreateCustomer}
                                     onAddToast={onAddToast}
                                     onUploadDoc={onUploadDoc}
                                     inventoryItems={inventoryItems}

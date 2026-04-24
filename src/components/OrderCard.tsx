@@ -60,6 +60,7 @@ interface OrderCardProps {
   onDelete: (id: string) => void;
   onRepeat: (o: Order) => void;
   onAddToast: (title: string, msg: string, type?: any) => void;
+  onCreateCustomer?: (name: string, phone: string, address: string) => void;
   allOrders: Order[];
   searchQuery?: string;
   onUploadDoc?: (file: File, orderId?: string, docType?: any) => Promise<void>;
@@ -363,6 +364,7 @@ export const OrderCard = ({
   onDelete,
   onRepeat,
   onAddToast,
+  onCreateCustomer,
   allOrders,
   searchQuery = '',
   onUploadDoc,
@@ -684,11 +686,15 @@ export const OrderCard = ({
               </button>
 
               <button 
-                onClick={() => onEdit(order)}
-                title="ערוך הזמנה"
-                className="p-3.5 text-gray-400 hover:text-sky-600 hover:bg-sky-50 rounded-2xl transition-all"
+                onClick={() => {
+                  if (onCreateCustomer) {
+                    onCreateCustomer(order.customerName, order.phone || '', order.destination || '');
+                  }
+                }}
+                title="פתח כרטיס לקוח"
+                className="p-3.5 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-2xl transition-all"
               >
-                <Pencil size={18} />
+                <User size={18} />
               </button>
 
               <button 

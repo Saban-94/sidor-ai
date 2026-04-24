@@ -85,6 +85,7 @@ import {
   predictOrderEta,
   getPrivateChatHistory,
   createDriver,
+  createCustomer,
   createReminder,
   updateReminder,
   deleteReminder,
@@ -637,6 +638,25 @@ export default function App() {
     } catch (error) {
       console.error(error);
       addToast('שגיאה', 'לא הצלחתי לשכפל את ההזמנה.', 'warning');
+    }
+  };
+
+  const handleCreateCustomer = async (name: string, phone: string, address: string) => {
+    try {
+      const customerId = `CUST-${Math.floor(1000 + Math.random() * 9000)}`;
+      await createCustomer({
+        id: customerId,
+        name,
+        phone,
+        address,
+        totalOrders: 1,
+        createdAt: new Date().toISOString(),
+        customerType: 'standard'
+      });
+      addToast('כרטיס לקוח', `כרטיס עבור ${name} נוצר בהצלחה! 📑`, 'success');
+    } catch (error) {
+      console.error('Error creating customer:', error);
+      addToast('שגיאה', 'לא הצלחתי ליצור כרטיס לקוח. ייתכן שאין לך הרשאות.', 'warning');
     }
   };
 
@@ -1648,6 +1668,7 @@ export default function App() {
               onOrderUpdateEta={(id, eta) => updateOrder(id, { eta })}
               onOrderDelete={deleteOrder}
               onOrderRepeat={handleRepeatOrder}
+              onOrderCreateCustomer={handleCreateCustomer}
               onAddToast={addToast}
               onDriverSelect={id => setSelectedDriverId(id === selectedDriverId ? null : id)}
               selectedDriverId={selectedDriverId}
@@ -1667,6 +1688,7 @@ export default function App() {
                   onOrderUpdateEta={(id, eta) => updateOrder(id, { eta })}
                   onOrderDelete={deleteOrder}
                   onOrderRepeat={handleRepeatOrder}
+                  onOrderCreateCustomer={handleCreateCustomer}
                   onAddToast={addToast}
                   onUploadDoc={handleDriveFileUpload}
                 />
@@ -1683,6 +1705,7 @@ export default function App() {
               onOrderUpdateEta={(id, eta) => updateOrder(id, { eta })}
               onOrderDelete={deleteOrder}
               onOrderRepeat={handleRepeatOrder}
+              onOrderCreateCustomer={handleCreateCustomer}
               onAddToast={addToast}
               onUploadDoc={handleDriveFileUpload}
             />
@@ -1702,6 +1725,7 @@ export default function App() {
                   onDelete={deleteOrder}
                   onRepeat={handleRepeatOrder}
                   onAddToast={addToast}
+                  onCreateCustomer={handleCreateCustomer}
                   onUploadDoc={handleDriveFileUpload}
                 />
               ))}

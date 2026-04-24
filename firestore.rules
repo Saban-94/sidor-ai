@@ -137,12 +137,12 @@ service cloud.firestore {
     // --- Inventory Item Validation ---
     function isValidInventoryItem(data) {
       return data.keys().hasAll(['sku', 'name', 'unit', 'currentStock'])
-        && data.sku is string
-        && data.name is string
-        && data.unit is string
+        && data.sku is string && data.sku.size() <= 100
+        && data.name is string && data.name.size() <= 200
+        && data.unit is string && data.unit.size() <= 50
         && data.currentStock is number
         && (!data.keys().contains('description') || data.description is string)
-        && (!data.keys().contains('imageUrl') || data.imageUrl is string)
+        && (!data.keys().contains('imageUrl') || (data.imageUrl is string && data.imageUrl.size() <= 1000))
         && (!data.keys().contains('minStock') || data.minStock is number)
         && (!data.keys().contains('price') || data.price is number)
         && (!data.keys().contains('category') || data.category is string)
@@ -152,17 +152,18 @@ service cloud.firestore {
 
     match /inventory/{itemId} {
       allow read: if isSignedIn();
-      allow create, update: if isSignedIn() && (isAdmin() || isEmailVerified()) && isValidInventoryItem(request.resource.data);
-      allow delete: if isSignedIn() && (isAdmin() || isEmailVerified());
+      allow create, update: if isEmailVerified() && isValidInventoryItem(request.resource.data);
+      allow delete: if isEmailVerified();
     }
 
     // --- Sale Record Validation ---
     function isValidSaleRecord(data) {
       return data.keys().hasAll(['itemId', 'customerName', 'quantity', 'date'])
-        && data.itemId is string
-        && data.customerName is string
+        && data.itemId is string && data.itemId.size() <= 100
+        && data.customerName is string && data.customerName.size() <= 200
         && data.quantity is number
-        && data.date is string
+        && data.date is string && data.date.size() <= 20
+        && (!data.keys().contains('itemName') || data.itemName is string)
         && (!data.keys().contains('orderId') || data.orderId is string)
         && (!data.keys().contains('priceAtSale') || data.priceAtSale is number)
         && (!data.keys().contains('createdAt') || data.createdAt is timestamp);
@@ -170,8 +171,8 @@ service cloud.firestore {
 
     match /sales/{saleId} {
       allow read: if isSignedIn();
-      allow create: if isSignedIn() && (isAdmin() || isEmailVerified()) && isValidSaleRecord(request.resource.data);
-      allow update, delete: if isSignedIn() && (isAdmin() || isEmailVerified());
+      allow create: if isEmailVerified() && isValidSaleRecord(request.resource.data);
+      allow update, delete: if isEmailVerified();
     }
 
     // --- Chat History ---
