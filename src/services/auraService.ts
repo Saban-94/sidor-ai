@@ -37,36 +37,25 @@ const sanitizeForVoice = (text: string): string => {
 
 import { GoogleGenAI } from "@google/genai";
 
-// Lazy-loaded AI client to ensure it picks up the environment variable correctly
-let genAI: GoogleGenAI | null = null;
-
-function getGenAI() {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    throw new Error("Gemini API key is not configured. Please ensure it is set in the environment.");
-  }
-  if (!genAI) {
-    genAI = new GoogleGenAI({ apiKey });
-  }
-  return genAI;
-}
-
-// Helper to call Gemini API directly from the client
+// Helper to call Gemini API via server proxy
 async function generateContentProxy(payload: { model: string, contents: any[], config?: any }) {
   try {
-    const ai = getGenAI();
-    const response = await ai.models.generateContent({
-      model: payload.model || "gemini-3-flash-preview",
-      contents: payload.contents,
-      config: payload.config
+    const response = await fetch("/api/ai/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
     });
     
-    return response;
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({}));
+      throw new Error(errData.error || `AI generation failed with status ${response.status}`);
+    }
+    
+    return await response.json();
   } catch (error: any) {
-    console.error("Gemini Error:", error);
-    // If we get an API key error, provide a clearer message
-    if (error.message?.includes("API key not valid") || error.message?.includes("API key should be set")) {
-      throw new Error("מפתח ה-API של Gemini אינו תקין או חסר. אנא וודא שהגדרת את ה-GEMINI_API_KEY בהגדרות המערכת.");
+    console.error("Gemini Proxy Error:", error);
+    if (error.message?.includes("not configured on the server")) {
+      throw new Error("מפתח ה-API של Gemini אינו מוגדר בשרת. אנא וודא שהגדרת את ה-GEMINI_API_KEY בהגדרות המערכת.");
     }
     throw error;
   }

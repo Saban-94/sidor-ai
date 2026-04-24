@@ -4,13 +4,15 @@ import { fileURLToPath } from "url";
 import { createServer as createViteServer } from "vite";
 import dotenv from "dotenv";
 
+import { GoogleGenAI } from "@google/genai";
+
 dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Initialize Gemini API - DEPRECATED (Call from client directly)
-// const genAI = ...
+// Initialize Gemini API
+const genAI = process.env.GEMINI_API_KEY ? new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY }) : null;
 
 async function startServer() {
   const app = express();
@@ -18,9 +20,25 @@ async function startServer() {
 
   app.use(express.json());
 
-  // Helper for AI generation (Redirected to client-side, but keep endpoint for backward compatibility if needed)
+  // AI generation proxy
   app.post("/api/ai/generate", async (req, res) => {
-    return res.status(410).json({ error: "AI proxy is deprecated. Use the client-side GoogleGenAI SDK directly." });
+    try {
+      if (!genAI) {
+        return res.status(500).json({ error: "Gemini API key is not configured on the server." });
+      }
+
+      const { model, contents, config } = req.body;
+      const response = await genAI.models.generateContent({
+        model: model || "gemini-3-flash-preview",
+        contents: contents,
+        config: config
+      });
+      
+      res.json(response);
+    } catch (error: any) {
+      console.error("Gemini Error:", error);
+      res.status(500).json({ error: error.message || "Failed to generate content" });
+    }
   });
 
   // Vite middleware for development
