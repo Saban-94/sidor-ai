@@ -15,12 +15,13 @@ interface NoaChatProps {
   isLoading?: boolean;
 }
 
-// קומפוננטה לרינדור חכם של נתונים וטבלאות
+// קומפוננטה לרינדור חכם של נתונים וטבלאות - כולל הגנה משגיאות
 const SmartContent = ({ text }: { text: any }) => {
-  // הגנה: אם הטקסט לא קיים או לא מחרוזת, נחזיר ריק
-  if (!text || typeof text !== 'string') return null;
+  // הגנה: אם הטקסט לא מחרוזת, נהפוך אותו לכזו או נחזיר ריק
+  const content = typeof text === 'string' ? text : '';
+  if (!content) return null;
 
-  const isDataBlock = text.includes('|') || text.includes('sku:') || text.includes('---');
+  const isDataBlock = content.includes('|') || content.includes('sku:') || content.includes('---');
   
   if (isDataBlock) {
     return (
@@ -28,21 +29,21 @@ const SmartContent = ({ text }: { text: any }) => {
         <div className="flex items-center justify-between mb-3 border-b border-slate-800 pb-2">
           <div className="flex items-center gap-2">
             <Terminal size={14} className="text-sky-400" />
-            <span className="text-[10px] font-mono text-slate-400 uppercase tracking-widest font-black">SabanOS Engine</span>
+            <span className="text-[10px] font-mono text-slate-400 uppercase tracking-widest font-black">SabanOS Engine Output</span>
           </div>
           <div className="flex gap-1">
-            <div className="w-2 h-2 rounded-full bg-red-500/50" />
-            <div className="w-2 h-2 rounded-full bg-yellow-500/50" />
-            <div className="w-2 h-2 rounded-full bg-green-500/50" />
+            <div className="w-1.5 h-1.5 rounded-full bg-red-500/50" />
+            <div className="w-1.5 h-1.5 rounded-full bg-yellow-500/50" />
+            <div className="w-1.5 h-1.5 rounded-full bg-green-500/50" />
           </div>
         </div>
         <div className="text-[11px] md:text-xs font-mono text-sky-300 whitespace-pre leading-relaxed tracking-tight">
-          {text}
+          {content}
         </div>
       </div>
     );
   }
-  return <p className="leading-relaxed whitespace-pre-wrap">{text}</p>;
+  return <p className="leading-relaxed whitespace-pre-wrap">{content}</p>;
 };
 
 export const NoaChat = ({ 
@@ -70,11 +71,12 @@ export const NoaChat = ({
   };
 
   const speak = (text: any, index: number) => {
-    if (!synthRef.current || !text || typeof text !== 'string') return;
+    const content = typeof text === 'string' ? text : '';
+    if (!synthRef.current || !content) return;
     if (currentlySpeaking === index) { stopSpeaking(); return; }
     stopSpeaking();
 
-    const utterance = new SpeechSynthesisUtterance(text.replace(/[*_#|]/g, ''));
+    const utterance = new SpeechSynthesisUtterance(content.replace(/[*_#|]/g, ''));
     const voices = synthRef.current.getVoices();
     utterance.voice = voices.find(v => v.lang.includes('he')) || voices[0];
     utterance.lang = 'he-IL';
@@ -93,7 +95,7 @@ export const NoaChat = ({
   };
 
   const suggestions = [
-    { label: 'מלאי מעודכן 📦', action: 'מה מצב המלאי?' },
+    { label: 'מצב מלאי 📦', action: 'מה מצב המלאי?' },
     { label: 'סידור נהגים 🚛', action: 'מי בדרכים עכשיו?' },
     { label: 'דוח בוקר 📋', action: 'תפיקי דוח בוקר' }
   ];
@@ -101,17 +103,17 @@ export const NoaChat = ({
   return (
     <div className="fixed inset-0 h-screen w-screen bg-[#f1f5f9] flex flex-col md:flex-row overflow-hidden font-assistant" dir="rtl">
       
-      {/* Sidebar - Desktop Only */}
+      {/* Sidebar - Desktop */}
       <div className="hidden md:flex w-80 bg-white/40 backdrop-blur-3xl border-l border-white/20 flex-col p-8 shrink-0 z-50 shadow-2xl relative">
-        <div className="flex items-center gap-4 mb-12">
+        <div className="flex items-center gap-4 mb-12 relative z-10">
           <button onClick={onBack} className="p-3 bg-white hover:bg-sky-50 rounded-2xl shadow-sm transition-all border border-sky-100 group">
             <ChevronRight size={20} className="text-sky-600 group-hover:-translate-x-1 transition-transform" />
           </button>
-          <h1 className="text-2xl font-black text-slate-900 italic tracking-tighter">Noa <span className="text-sky-500">Pro</span></h1>
+          <h1 className="text-2xl font-black text-slate-900 tracking-tighter">Noa <span className="text-sky-500 italic">Pro</span></h1>
         </div>
 
-        <div className="space-y-6">
-          <div className="p-6 rounded-[2.5rem] bg-white shadow-xl shadow-sky-900/5 border border-white relative overflow-hidden group">
+        <div className="space-y-6 relative z-10">
+          <div className="p-6 rounded-[2.5rem] bg-white shadow-xl shadow-sky-900/5 border border-white">
             <div className="flex items-center justify-between mb-4">
               <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">מנוע קול</span>
               <button 
@@ -121,28 +123,28 @@ export const NoaChat = ({
                 <motion.div animate={{ x: isAutoVoice ? 24 : 0 }} className="w-4 h-4 bg-white rounded-full shadow-md" />
               </button>
             </div>
-            <p className="text-xs text-slate-600 font-bold leading-relaxed">הקראה אוטומטית של תשובות נועה מופעלת.</p>
+            <p className="text-xs text-slate-600 font-bold leading-relaxed italic">הקראה אוטומטית פעילה.</p>
           </div>
 
-          <div className="p-6 rounded-[2.5rem] bg-slate-900 text-white shadow-2xl">
+          <div className="p-6 rounded-[2.5rem] bg-slate-900 text-white shadow-2xl border border-white/5">
             <div className="flex items-center gap-2 mb-3">
               <ShieldCheck size={14} className="text-sky-400" />
-              <span className="text-[10px] font-black uppercase tracking-widest text-sky-400">Secure Sync</span>
+              <span className="text-[10px] font-black uppercase tracking-widest text-sky-400">Direct SDK Link</span>
             </div>
             <p className="text-[11px] leading-relaxed text-slate-400 font-medium">
-              הנתונים מסונכרנים ישירות מול ה-Firestore של ח. סבן בטייבה.
+              החיבור כעת ישיר ל-Google AI ללא פרוקסי.
             </p>
           </div>
         </div>
       </div>
 
-      {/* Main Container */}
+      {/* Main Chat Area */}
       <div className="flex-1 flex flex-col h-full relative bg-white overflow-hidden">
-        {/* Diamond Gloss Overlays */}
-        <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-sky-200/20 blur-[120px] rounded-full pointer-events-none" />
+        {/* Diamond Background Gloss */}
+        <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-sky-100/20 blur-[120px] rounded-full pointer-events-none" />
         <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-blue-100/30 blur-[100px] rounded-full pointer-events-none" />
 
-        {/* Header - Mobile */}
+        {/* Mobile Header */}
         <header className="p-5 border-b border-slate-100 flex items-center justify-between md:hidden bg-white/80 backdrop-blur-xl z-50">
           <div className="flex items-center gap-4">
             <button onClick={onBack} className="p-2 hover:bg-sky-50 rounded-xl transition-colors">
@@ -150,13 +152,13 @@ export const NoaChat = ({
             </button>
             <h1 className="font-black text-xl italic tracking-tighter text-slate-900">Noa AI</h1>
           </div>
-          <div className="flex items-center gap-2 px-3 py-1 bg-green-50 rounded-full border border-green-100">
+          <div className="px-3 py-1 bg-green-50 rounded-full flex items-center gap-2 border border-green-100">
             <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
-            <span className="text-[9px] font-black text-green-600 uppercase">Live</span>
+            <span className="text-[9px] font-black text-green-600 uppercase">Online</span>
           </div>
         </header>
 
-        {/* Chat List */}
+        {/* Message Stream */}
         <div 
           ref={chatScrollRef}
           className="flex-1 overflow-y-auto p-4 md:p-12 space-y-10 z-10 scroll-smooth pb-44"
@@ -168,7 +170,7 @@ export const NoaChat = ({
                    <Zap className="text-sky-400 fill-sky-400" size={40} />
                    <div className="absolute inset-0 bg-sky-400 blur-3xl opacity-20 scale-150 animate-pulse" />
                 </div>
-                <h2 className="text-4xl font-black text-slate-900 mb-6 italic tracking-tight">איך עוזרים היום?</h2>
+                <h2 className="text-4xl font-black text-slate-900 mb-6 italic tracking-tight">איך נתקדם היום?</h2>
                 <div className="flex flex-wrap justify-center gap-3 max-w-lg">
                   {suggestions.map(s => (
                     <button 
@@ -183,35 +185,38 @@ export const NoaChat = ({
               </motion.div>
             )}
 
-            {chatHistory.map((chat, idx) => (
-              <motion.div 
-                key={idx} 
-                initial={{ opacity: 0, scale: 0.98 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className={`flex w-full ${chat.role === 'user' ? 'justify-start' : 'justify-end'}`}
-              >
-                <div className={`relative max-w-[92%] md:max-w-2xl p-6 md:p-8 rounded-[2.8rem] shadow-2xl backdrop-blur-xl transition-all ${
-                  chat.role === 'user' 
-                    ? 'bg-slate-900 text-white rounded-tr-none' 
-                    : 'bg-white/95 text-slate-800 rounded-tl-none border border-white ring-1 ring-slate-100'
-                }`}>
-                  <div className="text-sm md:text-lg font-bold leading-relaxed tracking-tight">
-                    <SmartContent text={chat.role === 'user' ? chat.content : (chat.parts?.[0]?.text || chat.content)} />
-                  </div>
-                  
-                  {chat.role !== 'user' && (
-                    <div className="flex items-center gap-4 mt-6 pt-4 border-t border-slate-100/50">
-                      <button 
-                        onClick={() => speak(chat.parts?.[0]?.text || chat.content, idx)}
-                        className={`p-3 rounded-full transition-all ${currentlySpeaking === idx ? 'bg-sky-600 text-white shadow-lg shadow-sky-600/30' : 'bg-sky-50 text-sky-500'}`}
-                      >
-                        {currentlySpeaking === idx ? <VolumeX size={18} /> : <Volume2 size={18} />}
-                      </button>
+            {chatHistory.map((chat, idx) => {
+              const chatText = chat.role === 'user' ? chat.content : (chat.parts?.[0]?.text || chat.content || '');
+              return (
+                <motion.div 
+                  key={idx} 
+                  initial={{ opacity: 0, scale: 0.98 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className={`flex w-full ${chat.role === 'user' ? 'justify-start' : 'justify-end'}`}
+                >
+                  <div className={`relative max-w-[92%] md:max-w-2xl p-6 md:p-8 rounded-[2.8rem] shadow-2xl backdrop-blur-xl transition-all ${
+                    chat.role === 'user' 
+                      ? 'bg-slate-900 text-white rounded-tr-none' 
+                      : 'bg-white/95 text-slate-800 rounded-tl-none border border-white ring-1 ring-slate-100'
+                  }`}>
+                    <div className="text-sm md:text-lg font-bold leading-relaxed tracking-tight">
+                      <SmartContent text={chatText} />
                     </div>
-                  )}
-                </div>
-              </motion.div>
-            ))}
+                    
+                    {chat.role !== 'user' && (
+                      <div className="flex items-center gap-4 mt-6 pt-4 border-t border-slate-100/50">
+                        <button 
+                          onClick={() => speak(chatText, idx)}
+                          className={`p-3 rounded-full transition-all ${currentlySpeaking === idx ? 'bg-sky-600 text-white shadow-lg shadow-sky-600/30' : 'bg-sky-50 text-sky-500'}`}
+                        >
+                          {currentlySpeaking === idx ? <VolumeX size={18} /> : <Volume2 size={18} />}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              );
+            })}
 
             {isLoading && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-end w-full">
@@ -230,12 +235,13 @@ export const NoaChat = ({
 
         {/* Input Bar */}
         <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-white via-white to-transparent pt-12 pb-10 px-6 z-40">
-          <div className="max-w-4xl mx-auto relative">
-             <form onSubmit={handleSubmit} className="relative flex items-center group">
+          <div className="max-w-4xl mx-auto relative group">
+             <div className="absolute -inset-1 bg-gradient-to-r from-sky-400 to-blue-600 rounded-[3rem] blur opacity-10 group-focus-within:opacity-30 transition duration-1000" />
+             <form onSubmit={handleSubmit} className="relative flex items-center">
               <input 
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
-                placeholder="כתוב לנועה... (מלאי, נהגים, הזמנות)"
+                placeholder="כתוב לנועה... (מלאי, נהגים, דוחות)"
                 className="w-full bg-white border-2 border-slate-100 rounded-[3rem] pl-24 pr-10 py-6 md:py-7 text-lg font-bold focus:border-sky-600 transition-all outline-none shadow-2xl placeholder:text-slate-300"
               />
               <button 
