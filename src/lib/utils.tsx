@@ -42,26 +42,41 @@ export function parseItems(text: string): ParsedItem[] {
   const lines = text.split('\n').map(l => l.trim()).filter(l => l);
   
   for (const line of lines) {
-    // Regex logic:
-    // 1. Optional number at start (Quantity)
-    // 2. Any text (Name)
-    // 3. Exactly 5 digits at end (SKU)
-    const match = line.match(/^(\d+)?\s*(.+?)\s*(\d{5})$/);
+    // 1. Try to find a 5-digit SKU anywhere in the line
+    const skuMatch = line.match(/\b\d{5}\b/);
+    const sku = skuMatch ? skuMatch[0] : '';
     
-    if (match) {
+    // 2. Remove the SKU from the line to parse quantity and name
+    let lineWithoutSku = line;
+    if (sku) {
+      // Replace only the first occurrence to be safe
+      lineWithoutSku = line.replace(new RegExp(`\\b${sku}\\b`), '').trim();
+    }
+    
+    // 3. Find leading quantity
+    const qtyMatch = lineWithoutSku.match(/^(\d+)\s+/);
+    const quantity = qtyMatch ? qtyMatch[1] : '1';
+    
+    // 4. Name is what remains
+    let name = lineWithoutSku;
+    if (qtyMatch) {
+      name = lineWithoutSku.replace(new RegExp(`^${quantity}\\s+`), '').trim();
+    }
+    
+    // Clean up common filler words
+    name = name.replace(/לא צוין/g, '').trim();
+    
+    // If name is empty but we have a SKU, use the SKU as name for now
+    if (!name && sku) {
+      name = `מוצר ${sku}`;
+    }
+
+    if (name || sku) {
       items.push({
-        quantity: match[1] || '1',
-        name: match[2].trim(),
-        sku: match[3]
+        quantity: quantity || '1',
+        name: name || 'פריט ללא שם',
+        sku: sku || ''
       });
-    } else {
-      // Fallback: try to just get quantity and name if SKU is missing
-      const fallbackMatch = line.match(/^(\d+)\s+(.+)/);
-      if (fallbackMatch) {
-         items.push({ quantity: fallbackMatch[1], name: fallbackMatch[2].trim(), sku: '' });
-      } else if (line.trim()) {
-         items.push({ quantity: '1', name: line.trim(), sku: '' });
-      }
     }
   }
 

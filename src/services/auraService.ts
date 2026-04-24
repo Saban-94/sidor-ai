@@ -233,15 +233,46 @@ export const syncInventoryOnDelivery = async (order: Order) => {
   for (const item of items) {
     const qty = parseInt(item.quantity) || 1;
     
-    // First, lookup the item to get the price
-    const q = query(collection(db, 'inventory'), where('sku', '==', item.sku), limit(1));
-    const snap = await getDocs(q);
-    const invItem = !snap.empty ? snap.docs[0].data() as InventoryItem : null;
+    let invItem = null;
+    let finalSku = item.sku;
+
+    // 1. Try to find by SKU if available
+    if (finalSku) {
+      const q = query(collection(db, 'inventory'), where('sku', '==', finalSku), limit(1));
+      const snap = await getDocs(q);
+      if (!snap.empty) {
+        invItem = snap.docs[0].data() as InventoryItem;
+      }
+    }
+
+    // 2. If not found by SKU (or SKU was missing), try to find by exact name
+    if (!invItem && item.name) {
+      const q = query(collection(db, 'inventory'), where('name', '==', item.name), limit(1));
+      const snap = await getDocs(q);
+      if (!snap.empty) {
+        invItem = snap.docs[0].data() as InventoryItem;
+        finalSku = invItem.sku;
+      } else {
+        // Fallback: search all inventory for fuzzy name match
+        const allInvQ = query(collection(db, 'inventory'));
+        const allSnap = await getDocs(allInvQ);
+        const bestMatch = allSnap.docs.find(d => {
+          const invName = (d.data().name || '').toLowerCase();
+          const targetName = item.name.toLowerCase();
+          return invName.includes(targetName) || targetName.includes(invName);
+        });
+        if (bestMatch) {
+          invItem = bestMatch.data() as InventoryItem;
+          finalSku = invItem.sku;
+        }
+      }
+    }
+
     const priceAtSale = invItem?.price || 0;
 
-    // 1. Record the sale
+    // 3. Record the sale
     await recordSale({
-      itemId: item.sku, // Store SKU as ID for now
+      itemId: finalSku || item.name || 'unknown',
       orderId: order.id,
       customerName: order.customerName,
       quantity: qty,
@@ -249,9 +280,9 @@ export const syncInventoryOnDelivery = async (order: Order) => {
       priceAtSale: priceAtSale
     });
 
-    // 2. Decrement Stock if SKU matches
-    if (item.sku) {
-      await updateInventoryStock(item.sku, qty);
+    // 4. Decrement Stock if SKU identified
+    if (finalSku) {
+      await updateInventoryStock(finalSku, qty);
     }
   }
 };
