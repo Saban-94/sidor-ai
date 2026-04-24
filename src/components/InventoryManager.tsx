@@ -32,11 +32,16 @@ import {
   getDocs 
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { InventoryItem, SaleRecord } from '../types';
+import { InventoryItem, SaleRecord, Order } from '../types';
 import { format } from 'date-fns';
 import { he } from 'date-fns/locale';
+import { parseItems } from '../lib/utils';
 
-export const InventoryManager: React.FC = () => {
+interface InventoryManagerProps {
+  orders?: Order[];
+}
+
+export const InventoryManager: React.FC<InventoryManagerProps> = ({ orders = [] }) => {
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [sales, setSales] = useState<SaleRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -111,6 +116,16 @@ export const InventoryManager: React.FC = () => {
     } catch (error) {
       console.error("Error deleting item:", error);
     }
+  };
+
+  const getItemDemand = (sku: string) => {
+    return orders
+      .filter(o => o.status !== 'delivered' && o.status !== 'cancelled')
+      .reduce((acc, order) => {
+        const orderItems = parseItems(order.items);
+        const item = orderItems.find(i => i.sku === sku);
+        return acc + (item ? parseInt(item.quantity) || 1 : 0);
+      }, 0);
   };
 
   const filteredItems = items.filter(item => 
@@ -207,6 +222,7 @@ export const InventoryManager: React.FC = () => {
                     <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase">מק"ט</th>
                     <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase">שם מוצר</th>
                     <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase text-center">מלאי נוכחי</th>
+                    <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase text-center">ביקוש פעיל</th>
                     <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase text-center">מינימום</th>
                     <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase text-center">מחיר (₪)</th>
                     <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase">סטטוס</th>
@@ -241,6 +257,11 @@ export const InventoryManager: React.FC = () => {
                         <td className="px-6 py-4 text-center">
                           <span className={`text-sm font-black ${item.currentStock <= item.minStock ? 'text-rose-600' : 'text-gray-900'}`}>
                             {item.currentStock} {item.unit}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          <span className={`text-sm font-bold ${getItemDemand(item.sku) > 0 ? 'text-sky-600 bg-sky-50 px-2 py-1 rounded-lg' : 'text-gray-400'}`}>
+                            {getItemDemand(item.sku)}
                           </span>
                         </td>
                         <td className="px-6 py-4 text-center text-sm font-bold text-gray-400">{item.minStock}</td>

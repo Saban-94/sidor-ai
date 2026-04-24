@@ -87,7 +87,8 @@ import {
   createDriver,
   createReminder,
   updateReminder,
-  deleteReminder
+  deleteReminder,
+  syncInventoryOnDelivery
 } from './services/auraService';
 import { Order, Driver, Customer, Reminder, InventoryItem } from './types';
 import { useUserMemory } from './hooks/useUserMemory';
@@ -597,12 +598,16 @@ export default function App() {
       // Update driver metrics when delivered
       if (newStatus === 'delivered') {
         const order = orders.find(o => o.id === id);
-        if (order && order.driverId && order.driverId !== 'self') {
-          const driver = drivers.find(d => d.id === order.driverId);
-          if (driver) {
-            await updateDriver(driver.id, { 
-              totalDeliveries: (driver.totalDeliveries || 0) + 1 
-            });
+        if (order) {
+          await syncInventoryOnDelivery(order);
+          
+          if (order.driverId && order.driverId !== 'self') {
+            const driver = drivers.find(d => d.id === order.driverId);
+            if (driver) {
+              await updateDriver(driver.id, { 
+                totalDeliveries: (driver.totalDeliveries || 0) + 1 
+              });
+            }
           }
         }
       }
@@ -1624,7 +1629,7 @@ export default function App() {
           {viewMode === 'import' ? (
             <DeliveryImport />
           ) : viewMode === 'table' ? (
-            <InventoryManager />
+            <InventoryManager orders={orders} />
           ) : filteredOrders.length === 0 && (viewMode === 'list' || viewMode === 'kanban') ? (
             <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
               <div className="bg-gray-100 p-4 rounded-full mb-3 text-gray-400">
@@ -1687,6 +1692,7 @@ export default function App() {
                   order={order} 
                   drivers={drivers}
                   allOrders={orders}
+                  inventoryItems={inventoryItems}
                   searchQuery={searchQuery}
                   onEdit={setEditingOrder}
                   onUpdateStatus={handleStatusUpdate}

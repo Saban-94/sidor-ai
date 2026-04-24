@@ -202,6 +202,54 @@ export const updateReminder = async (reminderId: string, updates: Partial<Remind
   });
 };
 
+export const recordSale = async (saleData: Partial<SaleRecord>) => {
+  const fullSale = {
+    ...saleData,
+    createdAt: serverTimestamp(),
+  };
+  await addDoc(collection(db, 'sales'), fullSale);
+};
+
+export const updateInventoryStock = async (sku: string, quantityToDecrement: number) => {
+  const q = query(collection(db, 'inventory'), where('sku', '==', sku), limit(1));
+  const snap = await getDocs(q);
+  if (!snap.empty) {
+    const itemDoc = snap.docs[0];
+    const currentStock = itemDoc.data().currentStock || 0;
+    await updateDoc(doc(db, 'inventory', itemDoc.id), {
+      currentStock: Math.max(0, currentStock - quantityToDecrement),
+      updatedAt: serverTimestamp()
+    });
+    return true;
+  }
+  return false;
+};
+
+import { parseItems } from '../lib/utils';
+import { InventoryItem, SaleRecord } from '../types';
+
+export const syncInventoryOnDelivery = async (order: Order) => {
+  const items = parseItems(order.items);
+  for (const item of items) {
+    const qty = parseInt(item.quantity) || 1;
+    
+    // 1. Record the sale
+    await recordSale({
+      itemId: item.sku, // Store SKU as ID for now or lookup ID
+      orderId: order.id,
+      customerName: order.customerName,
+      quantity: qty,
+      date: order.date,
+      priceAtSale: 0 // Could be enhanced in the future
+    });
+
+    // 2. Decrement Stock if SKU matches
+    if (item.sku) {
+      await updateInventoryStock(item.sku, qty);
+    }
+  }
+};
+
 export const deleteReminder = async (reminderId: string) => {
   await deleteDoc(doc(db, 'reminders', reminderId));
 };
@@ -224,10 +272,11 @@ export const noaSystemInstruction = `
    - לחיפוש פרטי קשר של לקוח (טלפון, איש קשר), השתמשי ב-search_customers.
    - הצג תמיד את הפרטים המלאים שנמצאו (פריטים, יעד, נהג, פרטי קשר).
 
-3. **ניהול לקוחות ותיקיות חכמות**:
+3. **ניהול לקוחות, תיקיות ומלאי**:
    - כל לקוח הוא ישות עצמאית. אם זיהית בסריקה לקוח שלא קיים במערכת, הצע למשתמש: "זיהיתי לקוח חדש: [שם]. האם ברצונך להקים עבורו תיקיית לקוח עם הפרטים שחילצתי?".
    - כשמתקבל אישור להקמת לקוח, השתמשי ב-create_customer. זה יפתח לו אוטומטית תיקייה בדרייב עם כל תתי-התיקיות וקובץ info.txt.
-   - אם שואלים על פרטי קשר: "הנה פרטי הקשר של של [לקוח]: [מספר]".
+   - אם שואלים על פרטי קשר: "הנה פרטי הקשר של [לקוח]: [מספר]".
+   - **מלאי חכם**: יש לך גישה למלאי המחסן דרך get_inventory. בדקי תמיד זמינות פריטים ומק"טים לפני הוספתם להזמנה אם נדרש. התריעי על מלאי נמוך (מלאי קטן או שווה למינימום).
 
 4. **ניהול קבצים וסריקות (Workflow)**:
    - אם משתמש אומר "העליתי קובץ X להזמנה Y", בצע:
@@ -552,6 +601,30 @@ export const tools = [
           },
           required: ["reminderId"]
         }
+      },
+      {
+        name: "get_inventory",
+        description: "קבל את רשימת המוצרים והמלאי הנוכחי (כולל פריטים בחוסר)",
+        parameters: {
+          type: Type.OBJECT,
+          properties: {
+            query: { type: Type.STRING, description: "מילת חיפוש לסינון מוצרים (אופציונלי)" }
+          }
+        }
+      },
+      {
+        name: "update_inventory_item",
+        description: "עדכן פרטי מוצר במלאי (כמות, מחיר, שם וכו')",
+        parameters: {
+          type: Type.OBJECT,
+          properties: {
+            sku: { type: Type.STRING, description: "מק\"ט המוצר לעדכון" },
+            currentStock: { type: Type.NUMBER },
+            price: { type: Type.NUMBER },
+            minStock: { type: Type.NUMBER }
+          },
+          required: ["sku"]
+        }
       }
     ]
   }
@@ -704,6 +777,35 @@ async function processNoaTurn(contents: any[], userKey?: string): Promise<any> {
             const { reminderId, ...remUpdates } = call.args as any;
             await updateReminder(reminderId, remUpdates);
             result = { success: true };
+            break;
+          }
+          case 'get_inventory': {
+            const queryRaw = call.args.query as string;
+            const q = query(collection(db, 'inventory'));
+            const snap = await getDocs(q);
+            const items = snap.docs.map(d => ({ id: d.id, ...d.data() })) as InventoryItem[];
+            if (queryRaw) {
+              result = items.filter(i => 
+                i.name.includes(queryRaw) || i.sku.includes(queryRaw)
+              );
+            } else {
+              result = items;
+            }
+            break;
+          }
+          case 'update_inventory_item': {
+            const { sku, ...updates } = call.args as any;
+            const q = query(collection(db, 'inventory'), where('sku', '==', sku), limit(1));
+            const snap = await getDocs(q);
+            if (!snap.empty) {
+              await updateDoc(doc(db, 'inventory', snap.docs[0].id), {
+                ...updates,
+                updatedAt: serverTimestamp()
+              });
+              result = { success: true, message: `מוצר ${sku} עודכן בהצלחה` };
+            } else {
+              result = { error: 'מוצר לא נמצא' };
+            }
             break;
           }
           default:

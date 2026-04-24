@@ -27,7 +27,7 @@ import {
 } from 'lucide-react';
 import { AnimatePresence } from 'motion/react';
 import { predictOrderEta } from '../services/auraService';
-import { Order, Driver } from '../types';
+import { Order, Driver, InventoryItem } from '../types';
 import { highlightText, parseItems, isKnownProduct, cn } from '../lib/utils';
 
 export const StatusBadge = ({ status }: { status: Order['status'] }) => {
@@ -53,6 +53,7 @@ export const StatusBadge = ({ status }: { status: Order['status'] }) => {
 interface OrderCardProps {
   order: Order;
   drivers: Driver[];
+  inventoryItems?: InventoryItem[];
   onEdit: (o: Order) => void;
   onUpdateStatus: (id: string, s: any) => void;
   onUpdateEta: (id: string, eta: string) => void;
@@ -68,9 +69,11 @@ interface OrderCardProps {
 
 const ItemsModal = ({ 
   order, 
+  inventoryItems = [],
   onClose 
 }: { 
   order: Order, 
+  inventoryItems?: InventoryItem[],
   onClose: () => void 
 }) => {
   const parsedItems = parseItems(order.items);
@@ -137,13 +140,25 @@ const ItemsModal = ({
                     </p>
                   </td>
                   <td className="py-4 text-left">
-                    {item.sku ? (
-                      <span className="text-[10px] font-bold text-gray-400 bg-gray-100 px-2 py-1 rounded-lg">
-                        {item.sku}
-                      </span>
-                    ) : (
-                      <span className="text-[10px] font-bold text-gray-300 italic">לא צוין</span>
-                    )}
+                    <div className="flex flex-col items-end gap-1">
+                      {item.sku ? (
+                        <span className="text-[10px] font-bold text-gray-400 bg-gray-100 px-2 py-1 rounded-lg">
+                          {item.sku}
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-bold text-gray-300 italic">לא צוין</span>
+                      )}
+                      
+                      {inventoryItems.find(inv => inv.sku === item.sku) && (
+                        <span className={`text-[9px] font-black px-1.5 py-0.5 rounded ${
+                          (inventoryItems.find(inv => inv.sku === item.sku)?.currentStock || 0) > 0 
+                            ? 'bg-emerald-50 text-emerald-600' 
+                            : 'bg-rose-50 text-rose-600'
+                        }`}>
+                          {(inventoryItems.find(inv => inv.sku === item.sku)?.currentStock || 0) > 0 ? 'במלאי' : 'חסר'}
+                        </span>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -601,7 +616,7 @@ export const OrderCard = ({
 
         <AnimatePresence>
           {showItems && (
-            <ItemsModal order={order} onClose={() => setShowItems(false)} />
+            <ItemsModal order={order} inventoryItems={inventoryItems} onClose={() => setShowItems(false)} />
           )}
         </AnimatePresence>
 
