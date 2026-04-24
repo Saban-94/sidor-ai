@@ -72,7 +72,7 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return isEmailVerified() && (request.auth.token.email == 'hsaban2025@gmail.com');
+      return isSignedIn() && (request.auth.token.email == 'hsaban2025@gmail.com');
     }
 
     // --- Inventory Rules Validation ---
@@ -136,6 +136,7 @@ service cloud.firestore {
         && data.name is string && data.name.size() <= 200
         && data.unit is string && data.unit.size() <= 50
         && data.currentStock is number
+        && (!data.keys().contains('description') || (data.description is string && data.description.size() <= 1000))
         && (!data.keys().contains('imageUrl') || (data.imageUrl is string && data.imageUrl.size() <= 2000))
         && (!data.keys().contains('minStock') || data.minStock is number)
         && (!data.keys().contains('price') || data.price is number)
@@ -146,7 +147,7 @@ service cloud.firestore {
 
     match /inventory/{itemId} {
       allow read: if isSignedIn();
-      allow write: if isEmailVerified() && isValidInventoryItem(request.resource.data);
+      allow write: if isSignedIn() && (isAdmin() || isEmailVerified()) && isValidInventoryItem(request.resource.data);
     }
 
     // --- Sale Record Validation ---

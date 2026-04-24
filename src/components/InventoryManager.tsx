@@ -78,15 +78,21 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({ orders = [] 
     const form = e.currentTarget;
     const formData = new FormData(form);
     
+    const getNum = (key: string) => {
+      const val = formData.get(key);
+      const n = Number(val);
+      return isNaN(n) ? 0 : n;
+    };
+    
     const newItem: Partial<InventoryItem> = {
       sku: formData.get('sku') as string,
       name: formData.get('name') as string,
       description: formData.get('description') as string,
       imageUrl: formData.get('imageUrl') as string,
       unit: formData.get('unit') as string,
-      currentStock: Number(formData.get('currentStock')),
-      minStock: Number(formData.get('minStock')),
-      price: Number(formData.get('price')),
+      currentStock: getNum('currentStock'),
+      minStock: getNum('minStock'),
+      price: getNum('price'),
       category: formData.get('category') as string,
       createdAt: serverTimestamp() as any,
       updatedAt: serverTimestamp() as any,
@@ -94,8 +100,9 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({ orders = [] 
 
     try {
       if (editingItem) {
+        const { createdAt, ...updateData } = newItem;
         await updateDoc(doc(db, 'inventory', editingItem.id!), {
-          ...newItem,
+          ...updateData,
           updatedAt: serverTimestamp()
         });
       } else {

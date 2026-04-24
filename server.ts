@@ -35,9 +35,6 @@ async function startServer() {
 
   app.use(express.json({ limit: '50mb' }));
 
-  // Explicitly serve public folder assets
-  app.use(express.static(path.join(process.cwd(), 'public')));
-
   // AI generation proxy
   app.post("/api/ai/generate", async (req, res) => {
     try {
@@ -81,6 +78,15 @@ async function startServer() {
       });
     }
   });
+
+  // Serve public folder assets explicitly (backup for Vite)
+  app.use(express.static(path.resolve('public'), {
+    setHeaders: (res, path) => {
+      if (path.endsWith('.json')) {
+        res.setHeader('Content-Type', 'application/json');
+      }
+    }
+  }));
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
