@@ -18,6 +18,8 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { UserProfile, TeamChatMessage } from '../types';
+import { MobileWrapper } from './MobileWrapper';
+import { Avatar } from './Avatar';
 import { TeamMessenger } from './TeamMessenger';
 import { db } from '../lib/firebase';
 import { 
@@ -85,14 +87,20 @@ export const UserMagicPage = () => {
               <motion.div 
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
-                className="w-32 h-32 rounded-[2.5rem] p-1 bg-white shadow-2xl relative overflow-hidden"
+                className="w-32 h-32 relative"
               >
-                <img src={userProfile.avatarUrl || 'https://via.placeholder.com/200'} className="w-full h-full object-cover rounded-[2rem]" alt="" />
+                <Avatar 
+                  src={userProfile.avatarUrl} 
+                  name={userProfile.name} 
+                  size="xl" 
+                  className="w-32 h-32"
+                />
               </motion.div>
               <div className="absolute bottom-1 right-1 w-8 h-8 bg-emerald-500 rounded-2xl border-4 border-white flex items-center justify-center">
                 <div className="w-2 h-2 bg-white rounded-full animate-ping" />
               </div>
             </div>
+
 
             <h1 className="text-4xl font-black text-gray-900 tracking-tight italic mb-1">{userProfile.name}</h1>
             <div className="bg-sky-50 text-sky-600 px-4 py-1 rounded-full text-xs font-black uppercase tracking-widest mb-6">

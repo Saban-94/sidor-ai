@@ -141,6 +141,14 @@ export function getDirectDriveLink(fileId: string): string {
 }
 
 /**
+ * Generates a direct thumbnail link for a Google Drive file.
+ */
+export function formatDriveThumbnailUrl(fileId: string, size: number = 800): string {
+  if (!fileId) return '';
+  return `https://drive.google.com/thumbnail?id=${fileId}&sz=w${size}`;
+}
+
+/**
  * Find a subfolder by name within a parent folder.
  */
 export async function findSubfolderByName(parentFolderId: string, name: string): Promise<string | null> {

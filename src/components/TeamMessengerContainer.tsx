@@ -31,6 +31,8 @@ import {
 import { MessageBubble } from './MessageBubble';
 import { handleFirestoreError, OperationType } from '../lib/firebaseUtils';
 import { uploadFileToDrive, getDirectDriveLink } from '../services/driveService';
+import { Avatar } from './Avatar';
+import { cleanupBadMediaUrls } from '../services/cleanupService';
 
 interface TeamMessengerContainerProps {
   currentUserProfile: UserProfile;
@@ -78,6 +80,10 @@ export const TeamMessengerContainer: React.FC<TeamMessengerContainerProps> = ({
   useEffect(() => {
     if (fullScreen) setIsOpen(true);
   }, [fullScreen]);
+
+  useEffect(() => {
+    cleanupBadMediaUrls();
+  }, []);
 
   useEffect(() => {
     beepRef.current = new Audio('https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3');
@@ -271,7 +277,7 @@ export const TeamMessengerContainer: React.FC<TeamMessengerContainerProps> = ({
                      className={`w-full p-4 rounded-2xl flex items-center gap-3 transition-all ${selectedMember?.id === member.id ? 'bg-sky-600 text-white shadow-lg' : 'hover:bg-white'}`}
                    >
                      <div className="relative">
-                        <img src={member.avatarUrl || 'https://via.placeholder.com/48'} className="w-12 h-12 rounded-xl object-cover border-2 border-white" alt="" />
+                        <Avatar src={member.avatarUrl} name={member.name} size="md" />
                         <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white ${isOnline(member.lastSeen) ? 'bg-emerald-500 animate-pulse' : 'bg-gray-400'}`} />
                      </div>
                      <div className="text-right">
@@ -279,6 +285,7 @@ export const TeamMessengerContainer: React.FC<TeamMessengerContainerProps> = ({
                         <p className={`text-[10px] font-bold ${selectedMember?.id === member.id ? 'text-white/80' : 'text-gray-400'}`}>{member.role}</p>
                      </div>
                    </button>
+
                 ))}
               </div>
             </div>
@@ -312,7 +319,11 @@ export const TeamMessengerContainer: React.FC<TeamMessengerContainerProps> = ({
                         </button>
                       )}
                       <div className="relative">
-                        <img src={selectedMember?.avatarUrl || currentUserProfile.avatarUrl || 'https://via.placeholder.com/40'} className="w-10 h-10 rounded-xl object-cover" alt="" />
+                        <Avatar 
+                          src={selectedMember?.avatarUrl || currentUserProfile.avatarUrl} 
+                          name={selectedMember?.name || currentUserProfile.name || 'Team'} 
+                          size="md" 
+                        />
                       </div>
                       <div>
                         <h4 className="font-black text-gray-900 leading-none">{selectedMember?.name || 'צ׳אט קבוצתי'}</h4>
@@ -427,9 +438,10 @@ export const TeamMessengerContainer: React.FC<TeamMessengerContainerProps> = ({
                                             }}
                                             className="w-full text-right p-2 hover:bg-sky-50 rounded-lg flex items-center gap-2 transition-all"
                                         >
-                                            <img src={m.avatarUrl || 'https://via.placeholder.com/24'} className="w-6 h-6 rounded-lg object-cover" alt="" />
+                                            <Avatar src={m.avatarUrl} name={m.name} size="xs" />
                                             <span className="text-xs font-bold text-gray-700">{m.name}</span>
                                         </button>
+
                                     ))}
                                 </div>
                             </motion.div>

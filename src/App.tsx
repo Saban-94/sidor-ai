@@ -91,6 +91,7 @@ import { UserAdminPanel } from './components/UserAdminPanel';
 import { UserMagicPage } from './components/UserMagicPage';
 import { TeamMessengerContainer } from './components/TeamMessengerContainer';
 import { MobileWrapper } from './components/MobileWrapper';
+import { Avatar } from './components/Avatar';
 import { 
   createOrder, 
   getOrderByTrackingId,
@@ -243,7 +244,7 @@ const Header = ({
           <LogOut size={12} /> התנתק
         </button>
       </div>
-      <img src={user.photoURL || ''} alt="" className="w-9 h-9 rounded-full border-2 border-sky-50 shadow-sm" referrerPolicy="no-referrer" />
+      <Avatar src={user.photoURL} name={user.displayName || user.email || ''} size="sm" />
     </div>
   </header>
 );
@@ -296,6 +297,13 @@ const Drawer = ({
           </div>
 
           <div className="flex-1 space-y-2">
+            <div className="flex items-center gap-4 mb-6 px-2">
+              <Avatar src={user.photoURL} name={user.displayName || user.email || ''} size="lg" />
+              <div>
+                <p className="font-bold text-gray-900 leading-none mb-1">{user.displayName}</p>
+                <p className="text-[10px] text-gray-400 font-bold uppercase">{user.email}</p>
+              </div>
+            </div>
             {[
               { id: 'chat', label: 'דברו עם נועה (AI)', icon: MessageSquare },
               { id: 'list', label: 'לוח הזמנות', icon: LayoutList },
@@ -355,14 +363,6 @@ const Drawer = ({
                 <Plus size={20} /> התקן כאפליקציה
               </button>
             )}
-            
-            <div className="flex items-center gap-4 mb-6 px-2">
-              <img src={user.photoURL || ''} alt="" className="w-12 h-12 rounded-full border-2 border-sky-100" />
-              <div>
-                <p className="font-bold text-gray-900 leading-none mb-1">{user.displayName}</p>
-                <p className="text-[10px] text-gray-400 font-bold uppercase">{user.email}</p>
-              </div>
-            </div>
             
             <button 
               onClick={() => {
@@ -1252,8 +1252,8 @@ export default function App() {
             <TeamMessengerContainer 
               currentUserProfile={{ 
                 id: user.uid.slice(0,4), 
-                name: user.displayName || 'סבאן', 
-                avatarUrl: user.photoURL || 'https://via.placeholder.com/150',
+                name: user.displayName || 'משתמש', 
+                avatarUrl: user.photoURL,
                 role: 'צוות SabanOS',
                 phone: '',
                 email: user.email || '',
@@ -1329,8 +1329,8 @@ export default function App() {
               <div className="hidden md:block">
                 <TeamMessengerContainer currentUserProfile={{ 
                   id: user.uid.slice(0,4), 
-                  name: user.displayName || 'סבאן', 
-                  avatarUrl: user.photoURL || 'https://via.placeholder.com/150',
+                  name: user.displayName || 'משתמש', 
+                  avatarUrl: user.photoURL,
                   role: 'צוות SabanOS',
                   phone: '',
                   email: user.email || '',
