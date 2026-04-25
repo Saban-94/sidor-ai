@@ -30,6 +30,7 @@ import {
 } from 'firebase/firestore';
 import { MessageBubble } from './MessageBubble';
 import { handleFirestoreError, OperationType } from '../lib/firebaseUtils';
+import { uploadFileToDrive, getDirectDriveLink } from '../services/driveService';
 
 interface TeamMessengerContainerProps {
   currentUserProfile: UserProfile;
@@ -49,7 +50,26 @@ export const TeamMessengerContainer: React.FC<TeamMessengerContainerProps> = ({
   const [selectedMember, setSelectedMember] = useState<UserProfile | null>(null);
   const [showMentions, setShowMentions] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [isPriorityUrgent, setIsPriorityUrgent] = useState(false);
+
+  // Simulate progress for uploads
+  useEffect(() => {
+    let interval: any;
+    if (isUploading) {
+      setUploadProgress(10);
+      interval = setInterval(() => {
+        setUploadProgress(prev => (prev < 90 ? prev + (Math.random() * 8) : prev));
+      }, 400);
+    } else {
+      if (uploadProgress > 0) {
+        setUploadProgress(100);
+        setTimeout(() => setUploadProgress(0), 1000);
+      }
+      clearInterval(interval);
+    }
+    return () => clearInterval(interval);
+  }, [isUploading]);
   
   const scrollRef = useRef<HTMLDivElement>(null);
   const beepRef = useRef<HTMLAudioElement | null>(null);
@@ -175,21 +195,24 @@ export const TeamMessengerContainer: React.FC<TeamMessengerContainerProps> = ({
 
     setIsUploading(true);
     try {
-        await new Promise(r => setTimeout(r, 1500));
+        const uploadResult = await uploadFileToDrive(file);
         
+        if (!uploadResult?.fileId) {
+          throw new Error("Upload failed: No fileId returned");
+        }
+
         const isImg = file.type.startsWith('image/');
-        const fakeUrl = isImg 
-          ? "https://images.unsplash.com/photo-1586769852044-692d6e671c6e?w=800&auto=format&fit=crop&q=60"
-          : "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf";
         
         await addDoc(collection(db, 'office_messages'), {
             senderId: currentUserProfile.id,
             senderName: currentUserProfile.name,
             senderAvatar: currentUserProfile.avatarUrl,
             text: isImg ? "שלח תמונה" : `קובץ: ${file.name}`,
-            imageUrl: isImg ? fakeUrl : null,
-            fileUrl: !isImg ? fakeUrl : null,
+            imageUrl: isImg ? getDirectDriveLink(uploadResult.fileId) : null,
+            fileUrl: uploadResult.webViewLink || null,
+            fileId: uploadResult.fileId,
             fileName: file.name,
+            mimeType: file.type,
             type: isImg ? 'image' : 'file',
             priority: 'normal',
             timestamp: serverTimestamp()
@@ -366,9 +389,18 @@ export const TeamMessengerContainer: React.FC<TeamMessengerContainerProps> = ({
                        </button>
 
                        {isUploading && (
-                          <div className="flex items-center gap-2 ml-auto text-sky-600 font-bold text-[10px] animate-pulse">
-                             <Loader2 className="animate-spin" size={14} />
-                             מעלה קובץ...
+                          <div className="flex flex-col gap-1 ml-auto min-w-[120px]">
+                            <div className="flex items-center gap-2 text-sky-600 font-bold text-[10px] animate-pulse">
+                               <Loader2 className="animate-spin" size={14} />
+                               מעלה קובץ... {Math.round(uploadProgress)}%
+                            </div>
+                            <div className="h-1 w-full bg-gray-100 rounded-full overflow-hidden">
+                              <motion.div 
+                                initial={{ width: 0 }}
+                                animate={{ width: `${uploadProgress}%` }}
+                                className="h-full bg-sky-600"
+                              />
+                            </div>
                           </div>
                        )}
                     </div>

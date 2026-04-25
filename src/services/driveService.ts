@@ -91,40 +91,39 @@ export async function uploadFileToDrive(file: File, folderId: string = FOLDER_ID
     });
 
     const payload = {
-      name: file.name,           // Common key for GAS
-      filename: file.name,       // Existing key
-      fileName: file.name,       // CamelCase variation
+      name: file.name,
+      filename: file.name,
+      fileName: file.name,
       mimeType: file.type,
-      base64Data: base64Content, // GAS script expects this specific key
-      data: base64Content,       // Keep for backward compatibility
+      base64Data: base64Content,
+      data: base64Content,
       folderId: folderId
     };
 
-    // Using mode: 'cors' so we can read the response body. 
-    // GAS bridge must return a JSON response with the fileId.
     const response = await fetch(GAS_URL, {
       method: 'POST',
       headers: {
-        'Content-Type': 'text/plain', // Standard practice for GAS POST
+        'Content-Type': 'text/plain',
       },
       body: JSON.stringify(payload)
     });
 
-    console.log("GAS Bridge Response Status:", response.status);
-    
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error("GAS Bridge Error Response:", errorText);
       throw new Error(`Upload failed: ${response.statusText} (${response.status})`);
     }
 
     const result = await response.json();
-    console.log("GAS Bridge Raw Result:", result);
     
-    // Some GAS scripts might return 'id' or 'fileId'
+    // Some GAS scripts might return 'id', 'fileId', 'webViewLink', 'thumbnailLink'
     const finalId = result?.fileId || result?.id;
     if (finalId) {
-      return { ...result, fileId: finalId };
+      return { 
+        ...result, 
+        fileId: finalId,
+        webViewLink: result.webViewLink || `https://drive.google.com/file/d/${finalId}/view`,
+        thumbnailLink: result.thumbnailLink || getDirectDriveLink(finalId),
+        directLink: getDirectDriveLink(finalId)
+      };
     }
     
     return result; 
@@ -132,6 +131,13 @@ export async function uploadFileToDrive(file: File, folderId: string = FOLDER_ID
     console.error("Error uploading file to GAS bridge:", error);
     throw error;
   }
+}
+
+/**
+ * Converts a Drive File ID into a direct viewable URL.
+ */
+export function getDirectDriveLink(fileId: string): string {
+  return `https://lh3.googleusercontent.com/u/0/d/${fileId}`;
 }
 
 /**

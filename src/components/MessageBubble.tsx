@@ -11,8 +11,10 @@ import {
   File as FileIcon,
   CheckCheck,
   Check,
-  ExternalLink
+  ExternalLink,
+  Eye
 } from 'lucide-react';
+import { getDirectDriveLink } from '../services/driveService';
 
 interface MessageBubbleProps {
   message: TeamChatMessage;
@@ -29,14 +31,33 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isMe, onI
   const hasMentions = message.mentionedUserIds && message.mentionedUserIds.length > 0;
 
   const isImage = (text: string) => {
-    return /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(text) || message.type === 'image' || !!message.imageUrl;
+    return (
+      /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(text) || 
+      message.type === 'image' || 
+      !!message.imageUrl || 
+      (message.mimeType && message.mimeType.startsWith('image/'))
+    );
   };
 
   const isFile = (text: string) => {
-    return /\.(pdf|doc|docx|xls|xlsx|txt)$/i.test(text) || message.type === 'file' || !!message.fileUrl;
+    return (
+      /\.(pdf|doc|docx|xls|xlsx|txt)$/i.test(text) || 
+      message.type === 'file' || 
+      !!message.fileUrl || 
+      !!message.fileId
+    );
+  };
+
+  const isPdf = () => {
+    return (
+      message.mimeType === 'application/pdf' || 
+      (message.fileName && message.fileName.toLowerCase().endsWith('.pdf')) ||
+      (mediaUrl && mediaUrl.toLowerCase().endsWith('.pdf'))
+    );
   };
 
   const getMediaUrl = () => {
+    if (message.fileId) return getDirectDriveLink(message.fileId);
     if (message.imageUrl) return message.imageUrl;
     if (message.fileUrl) return message.fileUrl;
     if (message.text.startsWith('http')) return message.text;
@@ -45,15 +66,21 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isMe, onI
 
   const mediaUrl = getMediaUrl();
   const showImage = isImage(message.text) && mediaUrl;
-  const showFile = isFile(message.text) && mediaUrl && !showImage;
+  const showFile = isFile(message.text) && mediaUrl && (!showImage || isPdf());
 
   const handleMediaClick = () => {
-    if (showImage) {
-      if (onImageClick) {
+    if (showImage && !isPdf()) {
+      if (message.fileId) {
+        window.open(`https://drive.google.com/file/d/${message.fileId}/view`, '_blank');
+      } else if (onImageClick) {
         onImageClick(mediaUrl!);
       } else {
         setShowLightbox(true);
       }
+    } else if (message.fileId) {
+      window.open(`https://drive.google.com/file/d/${message.fileId}/view`, '_blank');
+    } else if (mediaUrl) {
+      window.open(mediaUrl, '_blank');
     }
   };
 
@@ -105,7 +132,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isMe, onI
             } ${isUrgent ? 'ring-2 ring-red-500' : ''}`}
           >
             {/* Image Content */}
-            {showImage && (
+            {showImage && !isPdf() && (
               <div 
                 className="relative cursor-pointer overflow-hidden max-w-sm"
                 onClick={handleMediaClick}
@@ -136,34 +163,61 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isMe, onI
               </div>
             )}
 
-            {/* File Content */}
+            {/* File Content / PDF Card */}
             {showFile && (
               <div className={`p-1 ${isMe ? 'bg-sky-700/30' : 'bg-gray-50'}`}>
-                <a 
-                  href={mediaUrl!} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className={`flex items-center gap-4 p-4 min-w-[240px] rounded-xl hover:bg-black/5 transition-colors ${isMe ? 'text-white' : 'text-gray-800'}`}
-                >
-                  <div className={`p-3 rounded-xl ${isMe ? 'bg-white/20' : 'bg-sky-50 text-sky-600'}`}>
-                    <FileIcon size={24} />
+                <div className={`flex flex-col gap-3 p-4 min-w-[240px] rounded-xl ${isMe ? 'text-white' : 'text-gray-800'}`}>
+                  <div className="flex items-center gap-4">
+                    <div className={`p-3 rounded-xl ${isMe ? 'bg-white/20' : 'bg-sky-50 text-sky-600'}`}>
+                      {isPdf() ? <FileText size={24} /> : <FileIcon size={24} />}
+                    </div>
+                    <div className="flex-1 overflow-hidden">
+                      <p className="text-xs font-black truncate">{message.fileName || 'Document'}</p>
+                      <p className={`text-[10px] font-bold opacity-60 uppercase tracking-widest mt-0.5`}>
+                        {message.mimeType?.split('/')[1]?.toUpperCase() || mediaUrl!.split('.').pop()?.toUpperCase() || 'FILE'}
+                      </p>
+                    </div>
                   </div>
-                  <div className="flex-1 overflow-hidden">
-                    <p className="text-xs font-black truncate">{message.fileName || 'Document.pdf'}</p>
-                    <p className={`text-[10px] font-bold opacity-60 uppercase tracking-widest mt-0.5`}>
-                      {mediaUrl!.split('.').pop()?.toUpperCase() || 'FILE'}
-                    </p>
+                  
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={() => window.open(message.fileId ? `https://drive.google.com/file/d/${message.fileId}/view` : mediaUrl!, '_blank')}
+                      className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
+                        isMe ? 'bg-white/10 hover:bg-white/20 text-white' : 'bg-white hover:bg-sky-50 text-sky-600 shadow-sm border border-sky-100'
+                      }`}
+                    >
+                      <Eye size={14} />
+                      צפייה
+                    </button>
+                    {!message.fileId && (
+                      <a 
+                        href={mediaUrl!} 
+                        download 
+                        className={`flex items-center justify-center p-2 rounded-lg transition-all ${
+                          isMe ? 'bg-white/10 hover:bg-white/20 text-white' : 'bg-white hover:bg-sky-50 text-sky-600 shadow-sm border border-sky-100'
+                        }`}
+                      >
+                        <Download size={14} />
+                      </a>
+                    )}
+                    {message.fileId && (
+                      <button 
+                        onClick={() => window.open(`https://drive.google.com/file/d/${message.fileId}/view`, '_blank')}
+                        className={`flex items-center justify-center p-2 rounded-lg transition-all ${
+                          isMe ? 'bg-white/10 hover:bg-white/20 text-white' : 'bg-white hover:bg-sky-50 text-sky-600 shadow-sm border border-sky-100'
+                        }`}
+                      >
+                        <ExternalLink size={14} />
+                      </button>
+                    )}
                   </div>
-                  <div className={`p-2 rounded-lg ${isMe ? 'bg-white/10' : 'bg-white shadow-sm'}`}>
-                    <Download size={16} />
-                  </div>
-                </a>
+                </div>
               </div>
             )}
 
             {/* Text Content */}
             {(message.text && (!showImage || (showImage && message.text !== mediaUrl))) && (
-              <div className={`p-3.5 sm:p-5 ${showImage ? 'pt-2' : ''}`}>
+              <div className={`p-3.5 sm:p-5 ${showImage && !isPdf() ? 'pt-2' : ''}`}>
                 <p className="text-sm sm:text-[15px] font-bold leading-relaxed whitespace-pre-wrap">
                   {showImage && message.text === mediaUrl ? '' : message.text}
                 </p>

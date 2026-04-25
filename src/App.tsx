@@ -102,6 +102,8 @@ import {
   getPrivateChatHistory,
   createDriver,
   createCustomer,
+  updateCustomer,
+  getCustomerByNumber,
   createReminder,
   updateReminder,
   deleteReminder,
@@ -109,7 +111,7 @@ import {
 } from './services/auraService';
 import { Order, Driver, Customer, Reminder, InventoryItem } from './types';
 import { useUserMemory } from './hooks/useUserMemory';
-import { uploadFileToDrive } from './services/driveService';
+import { uploadFileToDrive, createCustomerFolderHierarchy } from './services/driveService';
 
 // --- Components ---
 
@@ -128,7 +130,8 @@ const Header = ({
   isUploading,
   onOpenReminders,
   onAddReminder,
-  hasNaggingReminder
+  hasNaggingReminder,
+  uploadProgress = 0
 }: { 
   user: FirebaseUser, 
   notificationsEnabled: boolean, 
@@ -139,9 +142,19 @@ const Header = ({
   isUploading?: boolean,
   onOpenReminders: () => void,
   onAddReminder: () => void,
-  hasNaggingReminder?: boolean
+  hasNaggingReminder?: boolean,
+  uploadProgress?: number
 }) => (
-  <header className="flex items-center justify-between px-6 py-4 bg-white/80 backdrop-blur-md border-b border-sky-100 sticky top-0 z-30">
+  <header className="flex items-center justify-between px-6 py-4 bg-white/80 backdrop-blur-md border-b border-sky-100 sticky top-0 z-30 overflow-hidden">
+    {uploadProgress > 0 && (
+      <div className="absolute top-0 right-0 left-0 h-1 bg-sky-100">
+        <motion.div 
+          initial={{ width: 0 }}
+          animate={{ width: `${uploadProgress}%` }}
+          className="h-full bg-sky-600 shadow-[0_0_10px_rgba(2,132,199,0.5)]"
+        />
+      </div>
+    )}
     <div className="flex items-center gap-3">
       <button 
         onClick={onOpenDrawer}
@@ -552,7 +565,26 @@ export default function App() {
   const [isAddingOrder, setIsAddingOrder] = useState(false);
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const [isUploadingDoc, setIsUploadingDoc] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [toasts, setToasts] = useState<any[]>([]);
+
+  // Simulate progress for Drive uploads
+  useEffect(() => {
+    let interval: any;
+    if (isUploadingDoc) {
+      setUploadProgress(10);
+      interval = setInterval(() => {
+        setUploadProgress(prev => (prev < 90 ? prev + (Math.random() * 5) : prev));
+      }, 500);
+    } else {
+      if (uploadProgress > 0) {
+        setUploadProgress(100);
+        setTimeout(() => setUploadProgress(0), 1000);
+      }
+      clearInterval(interval);
+    }
+    return () => clearInterval(interval);
+  }, [isUploadingDoc]);
   const chatScrollRef = useRef<HTMLDivElement>(null);
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -637,8 +669,35 @@ export default function App() {
   const handleDriveFileUpload = async (file: File, orderId?: string, documentType: 'orderForm' | 'deliveryNote' = 'orderForm') => {
     addToast('העלאת קובץ', `מעלה את ${file.name} לדרייב...`, 'info');
     setIsUploadingDoc(true);
+    
     try {
-      const uploadResult = await uploadFileToDrive(file);
+      let targetFolderId = '';
+      
+      if (orderId) {
+        const order = orders.find(o => o.id === orderId);
+        if (order && order.customerId) {
+          const customer = await getCustomerByNumber(order.customerNumber || '');
+          if (customer) {
+            if (customer.driveFolderId) {
+               targetFolderId = customer.driveFolderId;
+            } else {
+               // Create folder hierarchy
+               addToast('תיקיית לקוח', 'יוצרת תיקיית לקוח חדשה בדרייב...', 'info');
+               const folderResult = await createCustomerFolderHierarchy(
+                 customer.customerNumber,
+                 customer.name,
+                 { contactPerson: customer.contactPerson, phoneNumber: customer.phoneNumber }
+               );
+               if (folderResult && folderResult.folderId) {
+                 targetFolderId = folderResult.folderId;
+                 await updateCustomer(customer.id!, { driveFolderId: targetFolderId });
+               }
+            }
+          }
+        }
+      }
+
+      const uploadResult = await uploadFileToDrive(file, targetFolderId);
       const fileId = uploadResult?.fileId;
       
       if (!fileId) {
@@ -646,7 +705,7 @@ export default function App() {
         throw new Error(errorMsg);
       }
       
-      addToast('העלאה הצליחה', 'הקובץ נשמר בתיקיית SabanOS ✅', 'success');
+      addToast('העלאה הצליחה', targetFolderId ? 'הקובץ נשמר בתיקיית הלקוח 📁' : 'הקובץ נשמר בתיקיית SabanOS ✅', 'success');
       
       if (orderId) {
         addToast('עדכון הזמנה', 'משייכת את המסמך להזמנה...', 'info');
@@ -1224,6 +1283,8 @@ export default function App() {
               onOpenDrawer={() => setIsDrawerOpen(true)}
               onInstallApp={installPrompt ? handleInstallClick : null}
               onFileUpload={handleDriveFileUpload}
+              isUploading={isUploadingDoc}
+              uploadProgress={uploadProgress}
               onOpenReminders={() => setIsRemindersOpen(true)}
               onAddReminder={() => setIsAddingReminder(true)}
               hasNaggingReminder={hasNaggingReminder}

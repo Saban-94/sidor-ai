@@ -121,7 +121,9 @@ export interface TeamChatMessage {
   text: string;
   imageUrl?: string;
   fileUrl?: string;
+  fileId?: string;
   fileName?: string;
+  mimeType?: string;
   type?: 'text' | 'image' | 'file';
   mentionedUserIds?: string[];
   priority?: 'normal' | 'urgent';
