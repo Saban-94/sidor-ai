@@ -127,7 +127,7 @@ const TrackingPage: React.FC = () => {
       <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }}>
         <Loader2 size={48} className="text-sky-600 mb-4" />
       </motion.div>
-      <p className="text-gray-500 font-bold animate-pulse">מתחבר למערכת SabanOS...</p>
+      <p className="text-gray-500 font-bold animate-pulse">מתחבר למערכת ח.סבן ...</p>
     </div>
   );
 
@@ -167,8 +167,8 @@ const TrackingPage: React.FC = () => {
          <div className="flex items-center gap-3">
             <div className="bg-sky-600 p-2 rounded-xl shadow-lg shadow-sky-600/20"><Truck className="text-white" size={20} /></div>
             <div>
-               <h1 className="text-lg font-black italic text-gray-900 leading-none">SabanOS</h1>
-               <p className="text-[10px] font-black text-sky-600 uppercase tracking-widest">Magic Tracking</p>
+               <h1 className="text-lg font-black italic text-gray-900 leading-none">מחלקת הזמנות</h1>
+               <p className="text-[10px] font-black text-sky-600 uppercase tracking-widest">דף מעקב אחר הזמנתך</p>
             </div>
          </div>
          <div className="bg-white px-4 py-2 rounded-2xl shadow-sm border border-sky-100">
