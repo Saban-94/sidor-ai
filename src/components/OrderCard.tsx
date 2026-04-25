@@ -1,178 +1,337 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { useParams } from 'react-router-dom';
 import { 
-  Truck, Info, Clock, CheckCircle2, CheckCircle, Sparkles, Send, User,
-  Pencil, AlertCircle, Trash2, Share2, RotateCcw, Eye, FileUp, Loader2,
-  Package, X, MessageSquare, Phone
-} from 'lucide-react';
-import { collection, query, orderBy, onSnapshot, limit, addDoc, serverTimestamp } from 'firebase/firestore';
+  collection, 
+  query, 
+  where, 
+  limit, 
+  onSnapshot, 
+  doc, 
+  updateDoc,
+  addDoc,
+  orderBy,
+  serverTimestamp 
+} from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { Order, Driver, InventoryItem } from '../types';
-import { highlightText, parseItems, cn } from '../lib/utils';
+import { 
+  Truck, 
+  Package, 
+  CheckCircle2, 
+  Clock, 
+  AlertCircle, 
+  Pencil, 
+  X,
+  Plus,
+  Info,
+  Loader2,
+  Calendar,
+  MapPin,
+  User,
+  MessageSquare,
+  Send,
+  PhoneCall
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { parseItems } from '../lib/utils';
+import { Order } from '../types';
 
-// --- רכיב בועת התראה ופופ-אפ מענה ---
-const QuickChatPopup = ({ order, onAddToast }: { order: Order, onAddToast: any }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [hasUnread, setHasUnread] = useState(false);
+const TrackingPage: React.FC = () => {
+  const { id } = useParams<{ id: string }>();
+  const [order, setOrder] = useState<Order | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editItems, setEditItems] = useState("");
+  
+  // Chat States
+  const [isChatOpen, setIsChatOpen] = useState(false);
   const [messages, setMessages] = useState<any[]>([]);
-  const [replyText, setReplyText] = useState("");
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [newMessage, setNewMessage] = useState("");
+  const chatEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    audioRef.current = new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3');
-    
-    const chatRef = collection(db, `orders/${order.id}/chat`);
-    const q = query(chatRef, orderBy('createdAt', 'asc'));
+    if (!id) {
+      setLoading(false);
+      setError("מזהה מעקב חסר");
+      return;
+    }
+
+    const ordersRef = collection(db, 'orders');
+    const q = query(ordersRef, where('trackingId', '==', id), limit(1));
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const msgs = snapshot.docs.map(d => d.data());
-      setMessages(msgs);
-      
-      const lastMsg = msgs[msgs.length - 1];
-      if (lastMsg && lastMsg.sender === 'customer') {
-        setHasUnread(true);
-        if (!isOpen) audioRef.current?.play().catch(() => {});
+      if (!snapshot.empty) {
+        const orderDoc = snapshot.docs[0];
+        const orderData = { id: orderDoc.id, ...orderDoc.data() } as Order;
+        setOrder(orderData);
+        setEditItems(orderData.items);
+        setError(null);
+
+        // מאזין להודעות צ'אט בזמן אמת
+        const chatQuery = query(
+          collection(db, `orders/${orderDoc.id}/chat`),
+          orderBy('createdAt', 'asc')
+        );
+        onSnapshot(chatQuery, (chatSnap) => {
+          setMessages(chatSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+        });
+
+      } else {
+        setOrder(null);
+        setError("הזמנה לא נמצאה. וודא שהקישור תקין.");
       }
+      setLoading(false);
+    }, (err) => {
+      setError("שגיאה בתקשורת עם השרת");
+      setLoading(false);
     });
 
     return () => unsubscribe();
-  }, [order.id, isOpen]);
+  }, [id]);
 
-  const handleSend = async (e: React.FormEvent) => {
+  useEffect(() => {
+    if (chatEndRef.current) {
+      chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages, isChatOpen]);
+
+  const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!replyText.trim()) return;
+    if (!newMessage.trim() || !order?.id) return;
 
     try {
       await addDoc(collection(db, `orders/${order.id}/chat`), {
-        text: replyText,
-        sender: 'admin',
+        text: newMessage,
+        sender: 'customer',
         createdAt: serverTimestamp()
       });
-      setReplyText("");
-      setHasUnread(false);
-      onAddToast("הודעה נשלחה", `שלחת הודעה ל-${order.customerName}`, "success");
+      setNewMessage("");
     } catch (err) {
-      console.error(err);
+      console.error("Chat error:", err);
     }
   };
 
-  return (
-    <>
-      {/* בועת התראה רוטטת */}
-      {hasUnread && !isOpen && (
-        <motion.div
-          initial={{ scale: 0 }} animate={{ scale: 1, x: [0, -2, 2, -2, 2, 0] }}
-          transition={{ x: { repeat: Infinity, duration: 0.5, repeatDelay: 2 } }}
-          onClick={() => setIsOpen(true)}
-          className="absolute -top-3 -right-3 z-30 cursor-pointer bg-rose-500 text-white p-2.5 rounded-2xl shadow-xl border-2 border-white"
-        >
-          <MessageSquare size={18} fill="currentColor" />
-          <div className="absolute inset-0 rounded-2xl bg-rose-500 animate-ping opacity-25"></div>
-        </motion.div>
-      )}
+  const handleUpdateItems = async () => {
+    if (!order?.id) return;
+    try {
+      await updateDoc(doc(db, 'orders', order.id), { 
+        items: editItems,
+        updatedAt: new Date().toISOString()
+      });
+      setIsEditing(false);
+    } catch (err) {
+      alert("שגיאה בעדכון ההזמנה");
+    }
+  };
 
-      {/* פופ-אפ מענה מהיר */}
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9, y: 10 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.9, y: 10 }}
-            className="absolute top-0 right-0 w-80 bg-white shadow-2xl rounded-[2rem] border border-sky-100 z-[40] overflow-hidden flex flex-col h-[400px]"
-          >
-            <div className="p-4 bg-sky-900 text-white flex justify-between items-center">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-sky-600 rounded-full flex items-center justify-center text-[10px] font-bold">
-                  {order.customerName.charAt(0)}
-                </div>
-                <span className="text-xs font-black truncate max-w-[120px]">{order.customerName}</span>
-              </div>
-              <button onClick={() => { setIsOpen(false); setHasUnread(false); }} className="p-1.5 hover:bg-white/10 rounded-lg">
-                <X size={16} />
-              </button>
+  if (loading) return (
+    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-6" dir="rtl">
+      <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }}>
+        <Loader2 size={48} className="text-sky-600 mb-4" />
+      </motion.div>
+      <p className="text-gray-500 font-bold animate-pulse">מתחבר למערכת SabanOS...</p>
+    </div>
+  );
+
+  if (error || !order) return (
+    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-6 text-center" dir="rtl">
+      <div className="w-24 h-24 bg-red-100 rounded-[2.5rem] flex items-center justify-center mb-6">
+        <AlertCircle className="text-red-500" size={48} />
+      </div>
+      <h1 className="text-2xl font-black text-gray-900 mb-2">אופס! משהו לא תקין</h1>
+      <p className="text-gray-500 font-bold mb-8">{error || "הזמנה זו אינה קיימת"}</p>
+      <a href="/" className="px-8 py-4 bg-sky-600 text-white rounded-[2rem] font-black shadow-xl">חזרה לדף הבית</a>
+    </div>
+  );
+
+  const statusSteps = [
+    { key: 'pending', label: 'התקבל', icon: Clock },
+    { key: 'preparing', label: 'בהכנה', icon: Package },
+    { key: 'on_the_way', label: 'בדרך אליך', icon: Truck },
+    { key: 'delivered', label: 'סופק', icon: CheckCircle2 },
+  ];
+
+  const dbStatus = order.status;
+  const activeStep = dbStatus === 'pending' ? 0 : dbStatus === 'preparing' ? 1 : (dbStatus === 'ready' || dbStatus === 'on_the_way') ? 2 : 3;
+
+  return (
+    <div className="min-h-screen bg-gray-50 p-4 md:p-8 flex flex-col items-center font-sans pb-24" dir="rtl">
+      {/* Header */}
+      <div className="w-full max-w-lg mb-6 flex items-center justify-between px-2">
+         <div className="flex items-center gap-3">
+            <div className="bg-sky-600 p-2 rounded-xl shadow-lg"><Truck className="text-white" size={20} /></div>
+            <div>
+               <h1 className="text-lg font-black italic text-gray-900 leading-none">SabanOS</h1>
+               <p className="text-[10px] font-black text-sky-600 uppercase tracking-widest">Magic Tracking</p>
+            </div>
+         </div>
+         <div className="bg-white px-4 py-2 rounded-2xl shadow-sm border border-sky-100 text-center">
+            <span className="text-[10px] font-black text-gray-400 block uppercase">מספר הזמנה</span>
+            <span className="text-sm font-black text-gray-900">#{order.orderNumber || order.trackingId?.slice(0, 8)}</span>
+         </div>
+      </div>
+
+      <div className="w-full max-w-lg space-y-6">
+        {/* Progress Card */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-[2.5rem] shadow-xl shadow-sky-900/5 border border-sky-50 overflow-hidden">
+          <div className="bg-sky-900 p-8 text-white relative text-center">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-sky-600/10 rounded-full -mr-16 -mt-16 blur-3xl"></div>
+            <h2 className="text-3xl font-black mb-1">{statusSteps[activeStep].label}</h2>
+            <p className="text-sky-100/60 text-sm font-bold italic">ח.סבן חומרי בניין בע"מ</p>
+          </div>
+          
+          <div className="p-8">
+            <div className="relative flex justify-between items-center mb-12 px-2">
+              <div className="absolute top-1/2 left-0 w-full h-1 bg-gray-100 -translate-y-1/2 z-0 rounded-full"></div>
+              <motion.div initial={{ width: 0 }} animate={{ width: `${(activeStep / 3) * 100}%` }} className="absolute top-1/2 right-0 h-1 bg-sky-600 -translate-y-1/2 z-0 rounded-full shadow-sm"></motion.div>
+              {statusSteps.map((step, index) => {
+                const Icon = step.icon;
+                const isActive = index <= activeStep;
+                const isCurrent = index === activeStep;
+                return (
+                  <div key={step.key} className="relative z-10 flex flex-col items-center">
+                    <motion.div 
+                      animate={isCurrent ? { scale: [1, 1.15, 1], boxShadow: ["0 0 0 0px rgba(2,132,199,0)", "0 0 0 10px rgba(2,132,199,0.1)", "0 0 0 0px rgba(2,132,199,0)"] } : {}}
+                      transition={{ repeat: Infinity, duration: 2 }}
+                      className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-500 border-4 ${isActive ? 'bg-sky-600 border-sky-100 text-white shadow-lg' : 'bg-white border-gray-100 text-gray-300'}`}
+                    >
+                      <Icon size={20} />
+                    </motion.div>
+                    <span className={`text-[10px] font-black mt-3 transition-colors ${isActive ? 'text-sky-900' : 'text-gray-400'}`}>{step.label}</span>
+                  </div>
+                );
+              })}
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50/50">
-              {messages.map((m, i) => (
-                <div key={i} className={`flex ${m.sender === 'admin' ? 'justify-start' : 'justify-end'}`}>
-                  <div className={`max-w-[85%] p-3 rounded-2xl text-[11px] font-bold shadow-sm ${
-                    m.sender === 'admin' ? 'bg-sky-600 text-white' : 'bg-white text-gray-800 border border-gray-100'
-                  }`}>
-                    {m.text}
+            <div className="space-y-4">
+               <div className="bg-gray-50 p-5 rounded-3xl flex items-center gap-4 hover:bg-white hover:shadow-md transition-all border border-transparent hover:border-sky-50">
+                  <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm text-sky-600"><User size={20} /></div>
+                  <div className="text-right">
+                     <p className="text-[10px] font-black text-gray-400 uppercase">לקוח</p>
+                     <p className="text-sm font-black text-gray-900">{order.customerName}</p>
+                  </div>
+               </div>
+               <div className="bg-gray-50 p-5 rounded-3xl flex items-center gap-4 hover:bg-white hover:shadow-md transition-all border border-transparent hover:border-sky-50">
+                  <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm text-sky-600"><MapPin size={20} /></div>
+                  <div className="text-right flex-1 truncate">
+                     <p className="text-[10px] font-black text-gray-400 uppercase">יעד אספקה</p>
+                     <p className="text-sm font-black text-gray-900 truncate">{order.destination}</p>
+                  </div>
+               </div>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Items Card */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-white rounded-[2.5rem] shadow-xl border border-sky-50 p-8 overflow-hidden">
+            <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-2">
+                    <Package className="text-sky-600" size={20} />
+                    <h3 className="text-lg font-black text-gray-900 italic">פירוט הזמנה</h3>
+                </div>
+                {dbStatus === 'pending' && (
+                    <button onClick={() => setIsEditing(!isEditing)} className="p-2 bg-sky-50 text-sky-600 rounded-xl hover:bg-sky-100 transition-all">
+                        {isEditing ? <X size={18} /> : <Pencil size={18} />}
+                    </button>
+                )}
+            </div>
+            
+            {isEditing ? (
+                <div className="space-y-4">
+                    <textarea value={editItems} onChange={(e) => setEditItems(e.target.value)} rows={4} className="w-full bg-gray-50 border-2 border-transparent rounded-2xl px-6 py-4 text-sm font-bold focus:bg-white focus:border-sky-600 outline-none transition-all shadow-inner" />
+                    <button onClick={handleUpdateItems} className="w-full py-4 bg-sky-900 text-white rounded-[1.5rem] font-black text-sm shadow-xl shadow-sky-900/20 hover:bg-sky-950 transition-all">עדכן הזמנה במשרד</button>
+                </div>
+            ) : (
+                <div className="space-y-3">
+                    {parseItems(order.items).map((p, i) => (
+                        <div key={i} className="flex items-center justify-between p-4 bg-gray-50/50 rounded-2xl border border-gray-100 group hover:border-sky-200 transition-all">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center border border-gray-100 text-sky-600 group-hover:bg-sky-600 group-hover:text-white transition-all"><Plus size={16} /></div>
+                                <span className="text-sm font-black text-gray-900">{p.name}</span>
+                            </div>
+                            <span className="bg-sky-600 text-white px-3 py-1.5 rounded-xl text-xs font-black shadow-sm">{p.quantity} יח'</span>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </motion.div>
+
+        {/* Action Buttons & Contact */}
+        <div className="bg-sky-50 rounded-[2.5rem] p-8 space-y-6">
+            <div className="flex items-center gap-3 mb-2">
+                <PhoneCall className="text-sky-600" size={20} />
+                <h4 className="font-black text-gray-900">צור קשר עם הסידור</h4>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <a href="tel:0772374865" className="flex items-center justify-center gap-2 bg-white border border-sky-100 py-4 rounded-2xl font-black text-sky-600 shadow-sm hover:shadow-md transition-all active:scale-95">
+                    077-237-4865
+                </a>
+                <a href="tel:097602010" className="flex items-center justify-center gap-2 bg-white border border-sky-100 py-4 rounded-2xl font-black text-sky-600 shadow-sm hover:shadow-md transition-all active:scale-95">
+                    09-7602010
+                </a>
+            </div>
+            <a href="https://wa.me/972508860896" className="w-full py-5 bg-emerald-500 text-white rounded-[1.5rem] font-black shadow-xl shadow-emerald-500/20 hover:bg-emerald-600 transition-all flex items-center justify-center gap-3 active:scale-95">
+                <MessageSquare size={20} />
+                שלח WhatsApp לסידור
+            </a>
+        </div>
+      </div>
+
+      {/* Floating Chat Button */}
+      <button 
+        onClick={() => setIsChatOpen(true)}
+        className="fixed bottom-6 right-6 w-16 h-16 bg-sky-600 text-white rounded-full shadow-2xl flex items-center justify-center hover:scale-110 transition-transform active:scale-95 z-40"
+      >
+        <motion.div animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0, 0.3] }} transition={{ repeat: Infinity, duration: 2 }} className="absolute inset-0 rounded-full bg-white"></motion.div>
+        <MessageSquare size={28} />
+      </button>
+
+      {/* Chat Interface Overlay */}
+      <AnimatePresence>
+        {isChatOpen && (
+          <>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsChatOpen(false)} className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-[50]" />
+            <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} className="fixed bottom-0 left-0 right-0 h-[85vh] bg-white rounded-t-[3rem] shadow-2xl z-[60] flex flex-col overflow-hidden">
+              <div className="p-6 bg-sky-900 text-white flex justify-between items-center shrink-0 shadow-lg">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center"><MessageSquare size={20} /></div>
+                  <div>
+                    <p className="font-black text-sm mb-0.5">צ'אט עם המשרד</p>
+                    <p className="text-[10px] text-sky-300 font-bold uppercase tracking-widest italic">SabanOS LIVE Support</p>
                   </div>
                 </div>
-              ))}
-            </div>
+                <button onClick={() => setIsChatOpen(false)} className="p-2 hover:bg-white/10 rounded-xl transition-all"><X size={24} /></button>
+              </div>
 
-            <form onSubmit={handleSend} className="p-3 bg-white border-t border-gray-100 flex gap-2">
-              <input 
-                value={replyText} onChange={(e) => setReplyText(e.target.value)}
-                placeholder="הקלד תשובה..."
-                className="flex-1 bg-gray-50 border-none rounded-xl px-4 py-2 text-xs font-bold outline-none focus:ring-1 focus:ring-sky-600/20"
-              />
-              <button type="submit" className="w-10 h-10 bg-sky-900 text-white rounded-xl flex items-center justify-center">
-                <Send size={16} />
-              </button>
-            </form>
-          </motion.div>
+              <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50/50">
+                {messages.length === 0 ? (
+                  <div className="text-center py-20 opacity-40">
+                    <MessageSquare size={48} className="mx-auto text-sky-200 mb-4" />
+                    <p className="font-black text-sm">היי {order.customerName.split(' ')[0]}, יש לך שאלה?</p>
+                    <p className="text-xs">נשמח לעזור לך כאן בזמן אמת</p>
+                  </div>
+                ) : (
+                  messages.map((msg, i) => (
+                    <div key={i} className={`flex ${msg.sender === 'customer' ? 'justify-start' : 'justify-end'}`}>
+                      <div className={`max-w-[85%] p-4 rounded-[1.8rem] font-bold text-sm shadow-sm ${msg.sender === 'customer' ? 'bg-sky-600 text-white rounded-br-none' : 'bg-white text-gray-800 border border-gray-100 rounded-bl-none'}`}>
+                        {msg.text}
+                      </div>
+                    </div>
+                  ))
+                )}
+                <div ref={chatEndRef} />
+              </div>
+
+              <form onSubmit={handleSendMessage} className="p-6 bg-white border-t border-gray-100 shrink-0 flex gap-3 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
+                <input value={newMessage} onChange={(e) => setNewMessage(e.target.value)} placeholder="הקלד הודעה לסידור..." className="flex-1 bg-gray-50 border-none rounded-2xl px-6 py-4 text-sm font-bold outline-none focus:ring-2 focus:ring-sky-600/10 transition-all shadow-inner" />
+                <button type="submit" className="w-14 h-14 bg-sky-900 text-white rounded-2xl flex items-center justify-center shadow-lg hover:bg-sky-950 transition-all active:scale-90"><Send size={24} /></button>
+              </form>
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
-    </>
+    </div>
   );
 };
 
-export const OrderCard = (props: OrderCardProps) => {
-  const { order, drivers, onEdit, onUpdateStatus, onDelete, onAddToast, searchQuery = '', isCompact = false } = props;
-  const driver = drivers.find(d => d.id === order.driverId);
-
-  return (
-    <motion.div layout className={cn(
-      "bg-white/95 backdrop-blur-sm rounded-[2rem] border border-sky-100 shadow-lg relative group transition-all",
-      isCompact ? "p-4" : "p-5"
-    )}>
-      {/* פופ-אפ צ'אט לקוח משולב */}
-      {order.id && <QuickChatPopup order={order} onAddToast={onAddToast} />}
-
-      <div className="absolute top-4 left-4 bg-gray-900 text-white px-3 py-1 rounded-full text-[10px] font-black z-10">
-        #{order.orderNumber || order.id?.slice(-4).toUpperCase()}
-      </div>
-
-      <div className="flex gap-4 pt-2 mb-6">
-        <div className="p-4 bg-blue-50 text-blue-600 rounded-3xl border border-blue-100 flex items-center justify-center">
-          <Truck size={24} strokeWidth={2.5} />
-        </div>
-        <div className="flex-1 text-right">
-          <h3 className="font-black text-gray-900 text-xl leading-tight mb-1">{highlightText(order.customerName, searchQuery)}</h3>
-          <p className="text-[10px] text-gray-400 font-bold flex items-center gap-1">
-            <Info size={10} /> {highlightText(order.destination, searchQuery)}
-          </p>
-        </div>
-      </div>
-
-      <div className="flex items-center justify-between bg-sky-50/50 rounded-2xl p-4 mb-6">
-        <div className="flex flex-col gap-1 text-right">
-          <div className="flex items-center gap-2">
-            <span className="font-black text-gray-900 text-sm">{driver?.name || 'ממתין'}</span>
-            <span className="font-black text-sky-600 text-sm">| {order.time}</span>
-          </div>
-        </div>
-        <StatusBadge status={order.status} />
-      </div>
-
-      <div className="flex items-center gap-2 pt-2 border-t border-gray-100">
-          <button 
-            onClick={() => {
-              const nextMap: any = { pending: 'preparing', preparing: 'ready', ready: 'delivered' };
-              onUpdateStatus(order.id!, nextMap[order.status] || order.status);
-            }}
-            className="flex-1 bg-sky-600 text-white py-3 rounded-2xl font-black text-xs shadow-lg active:scale-95 transition-all"
-          >
-            עדכן סטטוס
-          </button>
-          
-          <button onClick={() => onEdit(order)} className="p-3 text-gray-400 hover:text-sky-600 hover:bg-sky-50 rounded-2xl transition-all"><Pencil size={18} /></button>
-          <button onClick={() => onDelete(order.id!)} className="p-3 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-2xl transition-all"><Trash2 size={18} /></button>
-      </div>
-    </motion.div>
-  );
-};
+export default TrackingPage;
