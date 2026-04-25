@@ -61,7 +61,10 @@ import {
   eachDayOfInterval, 
   isSameMonth,
   addMonths,
-  subMonths
+  subMonths,
+  parseISO,
+  differenceInMinutes,
+  addMinutes
 } from 'date-fns';
 import { he } from 'date-fns/locale';
 import { auth, loginWithGoogle, logout, db } from './lib/firebase';
@@ -79,6 +82,7 @@ import { InventoryManager } from './components/InventoryManager';
 import OrderForm from './components/OrderForm';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import TrackingPage from './components/TrackingPage';
+import { RemindersSidebar } from './components/RemindersSidebar';
 import { 
   createOrder, 
   getOrderByTrackingId,
@@ -114,7 +118,8 @@ const Header = ({
   onInstallApp,
   onFileUpload,
   isUploading,
-  onOpenReminders
+  onOpenReminders,
+  hasNaggingReminder
 }: { 
   user: FirebaseUser, 
   notificationsEnabled: boolean, 
@@ -123,7 +128,8 @@ const Header = ({
   onInstallApp: () => void | null,
   onFileUpload: (file: File) => void,
   isUploading?: boolean,
-  onOpenReminders: () => void
+  onOpenReminders: () => void,
+  hasNaggingReminder?: boolean
 }) => (
   <header className="flex items-center justify-between px-6 py-4 bg-white/80 backdrop-blur-md border-b border-sky-100 sticky top-0 z-30">
     <div className="flex items-center gap-3">
@@ -151,6 +157,12 @@ const Header = ({
         title="תזכורות"
       >
         <ListTodo size={20} />
+        {hasNaggingReminder && (
+          <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 border-2 border-white rounded-full animate-ping" />
+        )}
+        {hasNaggingReminder && (
+          <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 border-2 border-white rounded-full" />
+        )}
       </button>
       <label className={`p-2.5 rounded-xl transition-all border shadow-sm flex items-center gap-2 cursor-pointer ${
         isUploading ? 'bg-sky-50 border-sky-200' : 'bg-white text-sky-600 border-sky-100 hover:bg-sky-50'
@@ -343,104 +355,6 @@ const EmptyState = () => (
 
 // Drawer and other UI components...
 
-// Reminders Sidebar Component
-const RemindersSidebar = ({ 
-  isOpen, 
-  onClose, 
-  reminders,
-  onToggleComplete,
-  onDelete
-}: { 
-  isOpen: boolean, 
-  onClose: () => void,
-  reminders: Reminder[],
-  onToggleComplete: (id: string, completed: boolean) => void,
-  onDelete: (id: string) => void
-}) => (
-  <AnimatePresence>
-    {isOpen && (
-      <>
-        <motion.div 
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          onClick={onClose}
-          className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-[80]"
-        />
-        <motion.div 
-          initial={{ x: '-100%' }}
-          animate={{ x: 0 }}
-          exit={{ x: '-100%' }}
-          transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-          className="fixed inset-y-0 left-0 w-80 bg-white shadow-2xl z-[90] flex flex-col p-6 overflow-y-auto"
-          dir="rtl"
-        >
-          <div className="flex justify-between items-center mb-10">
-            <div className="flex items-center gap-3">
-              <div className="bg-sky-600 p-2 rounded-xl text-white">
-                <ListTodo size={20} />
-              </div>
-              <h2 className="text-xl font-bold italic">תזכורות</h2>
-            </div>
-            <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-xl transition-colors">
-              <X size={24} className="text-gray-400" />
-            </button>
-          </div>
-
-          <div className="flex-1 space-y-4">
-            {reminders.length === 0 ? (
-              <div className="text-center py-20">
-                <Sparkles size={40} className="mx-auto text-sky-100 mb-4" />
-                <p className="text-gray-400 font-bold">אין תזכורות לבינתיים. הכל בשליטה!</p>
-              </div>
-            ) : (
-              reminders.map((reminder) => (
-                <div 
-                  key={reminder.id}
-                  className={`p-4 rounded-3xl border transition-all ${
-                    reminder.isCompleted ? 'bg-gray-50 border-gray-100 opacity-60' : 'bg-white border-sky-100 shadow-sm'
-                  }`}
-                >
-                  <div className="flex items-start justify-between mb-2">
-                    <button 
-                      onClick={() => onToggleComplete(reminder.id!, !reminder.isCompleted)}
-                      className={`p-2 rounded-xl transition-all ${
-                        reminder.isCompleted ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-400 hover:bg-sky-50 hover:text-sky-600'
-                      }`}
-                    >
-                      <CheckCircle size={18} />
-                    </button>
-                    <div className="flex-1 mr-3 text-right">
-                      <h4 className={`font-bold text-sm ${reminder.isCompleted ? 'line-through text-gray-400' : 'text-gray-900'}`}>
-                        {reminder.title}
-                      </h4>
-                      <div className="flex items-center gap-2 mt-1">
-                        <Clock size={12} className="text-sky-400" />
-                        <span className="text-[10px] font-bold text-gray-400">{reminder.dueDate} | {reminder.dueTime}</span>
-                      </div>
-                    </div>
-                    <button 
-                      onClick={() => {
-                        if (window.confirm('למחוק את התזכורת?')) onDelete(reminder.id!);
-                      }}
-                      className="p-1 text-gray-300 hover:text-red-500 transition-colors"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                  {reminder.description && (
-                    <p className="text-xs text-gray-500 mt-2 pr-11">{reminder.description}</p>
-                  )}
-                </div>
-              ))
-            )}
-          </div>
-        </motion.div>
-      </>
-    )}
-  </AnimatePresence>
-);
-
 // --- Main App ---
 
 export default function App() {
@@ -452,6 +366,69 @@ export default function App() {
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [isRemindersOpen, setIsRemindersOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
+
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    audioRef.current = new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3');
+  }, []);
+
+  const naggingReminders = reminders.filter(r => !r.isCompleted && r.isNagging);
+  const hasNaggingReminder = naggingReminders.some(r => {
+    try {
+      const scheduledTime = parseISO(`${r.dueDate}T${r.dueTime}`);
+      return differenceInMinutes(new Date(), scheduledTime) >= 0;
+    } catch (e) {
+      return false;
+    }
+  });
+
+  // Nagging Engine
+  useEffect(() => {
+    if (!user) return;
+    
+    const interval = setInterval(() => {
+      const now = new Date();
+      const dueNagging = reminders.filter(r => {
+        if (r.isCompleted || !r.isNagging) return false;
+        try {
+          const scheduledTime = parseISO(`${r.dueDate}T${r.dueTime}`);
+          const diff = differenceInMinutes(now, scheduledTime);
+          // Trigger every 5 minutes after due
+          return diff >= 0 && diff % 5 === 0;
+        } catch (e) {
+          return false;
+        }
+      });
+
+      if (dueNagging.length > 0) {
+        audioRef.current?.play().catch(e => console.log('Audio play failed:', e));
+        dueNagging.forEach(r => {
+          addToast('תזכורת דחופה!', r.title, r.priority === 'urgent' ? 'warning' : 'info');
+        });
+      }
+    }, 60000);
+
+    return () => clearInterval(interval);
+  }, [user, reminders]);
+
+  const handleSnooze = async (id: string) => {
+    const reminder = reminders.find(r => r.id === id);
+    if (!reminder) return;
+    
+    try {
+      const scheduledTime = parseISO(`${reminder.dueDate}T${reminder.dueTime}`);
+      const newTime = addMinutes(scheduledTime, 10);
+      await updateReminder(id, { 
+        dueDate: format(newTime, 'yyyy-MM-dd'),
+        dueTime: format(newTime, 'HH:mm'),
+        snoozeCount: (reminder.snoozeCount || 0) + 1
+      });
+      addToast('נודניק הופעל', 'התזכורת נדחתה ב-10 דקות 🕒', 'info');
+    } catch (error) {
+      addToast('שגיאה', 'לא הצלחתי לדחות את התזכורת', 'warning');
+    }
+  };
 
   const [chatHistory, setChatHistory] = useState<any[]>([]);
   const [isAddingOrder, setIsAddingOrder] = useState(false);
@@ -1033,15 +1010,13 @@ export default function App() {
   const deliveredOrders = filteredOrders.filter(o => o.status === 'delivered').length;
   const totalOrders = filteredOrders.length;
 
-return (
+  return (
     <Routes>
-      {/* דף קסם - נתיב ציבורי שנגיש לכולם ללא התחברות */}
       <Route path="/track/:id" element={<TrackingPage />} />
-       {/* כל שאר הנתיבים במערכת */}
       <Route path="*" element={
         !user ? (
-          /* מסך לוגין למשתמשים לא מחוברים */
           <div className="h-screen w-full flex flex-col items-center justify-center bg-white p-6 relative overflow-hidden" dir="rtl">
+            {/* Background Orbs */}
             <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-sky-100/30 rounded-full blur-3xl animate-pulse" />
             <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-100/20 rounded-full blur-3xl animate-pulse" />
             
@@ -1067,8 +1042,17 @@ return (
               </div>
             </div>
           </div>
+        ) : viewMode === 'reports' ? (
+          <MorningReportSystem onBack={() => setViewMode('list')} drivers={drivers} />
+        ) : viewMode === 'chat' ? (
+          <NoaChat 
+            chatHistory={chatHistory}
+            chatScrollRef={chatScrollRef}
+            onBack={() => setViewMode('list')}
+            onAction={handleAuraAction}
+            orders={orders}
+          />
         ) : (
-          /* ממשק המערכת המלא למשתמש מחובר (ראמי והצוות) */
           <div className="min-h-screen bg-gray-50 flex flex-col font-sans mb-20 md:mb-0" dir="rtl">
             <Header 
               user={user} 
@@ -1078,6 +1062,7 @@ return (
               onInstallApp={installPrompt ? handleInstallClick : null}
               onFileUpload={handleDriveFileUpload}
               onOpenReminders={() => setIsRemindersOpen(true)}
+              hasNaggingReminder={hasNaggingReminder}
             />
 
             <Drawer 
@@ -1096,6 +1081,7 @@ return (
               reminders={reminders}
               onToggleComplete={(id, completed) => updateReminder(id, { isCompleted: completed })}
               onDelete={deleteReminder}
+              onSnooze={handleSnooze}
             />
 
             <OrderForm 

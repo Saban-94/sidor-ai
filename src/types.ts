@@ -62,6 +62,10 @@ export interface Reminder {
   dueDate: string; // YYYY-MM-DD
   dueTime: string; // HH:mm
   isCompleted: boolean;
+  priority: 'low' | 'high' | 'urgent';
+  isNagging: boolean;
+  snoozeCount: number;
+  ringtone: string;
   orderId?: string;
   userId: string;
   createdAt?: Timestamp;

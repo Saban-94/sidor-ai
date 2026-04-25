@@ -161,7 +161,7 @@ const OrderForm: React.FC<OrderFormProps> = ({
     if (!successOrder) return;
     const phone = formData.customerPhone.startsWith('0') ? '972' + formData.customerPhone.slice(1) : formData.customerPhone;
     const link = `https://sidor-ai-xi.vercel.app/track/${successOrder.trackingId}`;
-    const message = `שלום ${formData.customerName},   הזמנתך ח.סבן חומרי בניין התקבלה! עקוב אחר ההתקדמות בדף מעקב  שלך כאן מתעדכן בזמן אמת מהסידור: ${link}`;
+    const message = `שלום ${formData.customerName}, הזמנתך מסבן חומרי בניין התקבלה! עקוב אחר ההתקדמות בדף הקסם שלך כאן: ${link}`;
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
   };
 

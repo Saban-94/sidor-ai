@@ -185,6 +185,10 @@ export const createReminder = async (reminderData: Partial<Reminder>) => {
   const fullReminder = {
     ...reminderData,
     isCompleted: false,
+    priority: reminderData.priority || 'low',
+    isNagging: reminderData.isNagging || false,
+    snoozeCount: 0,
+    ringtone: reminderData.ringtone || 'default',
     userId: auth.currentUser.uid,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),

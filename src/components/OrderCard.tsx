@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import React, { useState } from 'react';
+import { motion } from 'motion/react';
 import { 
   Truck, 
   Info, 
@@ -9,6 +9,7 @@ import {
   Sparkles, 
   Send, 
   User,
+  LogOut,
   Pencil,
   AlertCircle,
   Trash2,
@@ -22,78 +23,12 @@ import {
   Package,
   X,
   ExternalLink,
-  ChevronLeft,
-  MessageSquare
+  ChevronLeft
 } from 'lucide-react';
-import { collection, query, orderBy, onSnapshot, limit } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { AnimatePresence } from 'motion/react';
 import { predictOrderEta } from '../services/auraService';
 import { Order, Driver, InventoryItem } from '../types';
 import { highlightText, parseItems, isKnownProduct, cn } from '../lib/utils';
-
-// קומפוננטת בועת הצאט עם אפקט הנדנוד
-const ChatNotificationBadge = ({ orderId, onClick }: { orderId: string, onClick: () => void }) => {
-  const [hasUnread, setHasUnread] = useState(false);
-  const [lastMessage, setLastMessage] = useState<string | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-
-  useEffect(() => {
-    // אתחול סאונד התראה
-    audioRef.current = new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3');
-    
-    const chatRef = collection(db, `orders/${orderId}/chat`);
-    const q = query(chatRef, orderBy('createdAt', 'desc'), limit(1));
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      if (!snapshot.empty) {
-        const msgData = snapshot.docs[0].data();
-        // אם ההודעה האחרונה היא מהלקוח
-        if (msgData.sender === 'customer') {
-          setHasUnread(true);
-          setLastMessage(msgData.text);
-          // הפעלת צלצול
-          audioRef.current?.play().catch(e => console.log("Audio block:", e));
-        }
-      }
-    });
-
-    return () => unsubscribe();
-  }, [orderId]);
-
-  if (!hasUnread) return null;
-
-  return (
-    <motion.div
-      initial={{ scale: 0, opacity: 0 }}
-      animate={{ 
-        scale: 1, 
-        opacity: 1,
-        x: [0, -2, 2, -2, 2, 0], // אפקט נדנוד (Shake)
-      }}
-      transition={{ 
-        x: { repeat: Infinity, duration: 0.5, repeatDelay: 2 }, // מנדנד כל 2 שניות
-        scale: { type: 'spring' } 
-      }}
-      onClick={(e) => {
-        e.stopPropagation();
-        setHasUnread(false);
-        onClick();
-      }}
-      className="absolute -top-3 -right-3 z-[20] cursor-pointer"
-    >
-      <div className="relative">
-        <div className="bg-rose-500 text-white p-3 rounded-2xl shadow-xl border-2 border-white flex items-center gap-2">
-          <MessageSquare size={18} fill="currentColor" />
-          <div className="flex flex-col">
-            <span className="text-[10px] font-black uppercase leading-none mb-0.5">הודעה חדשה</span>
-            {lastMessage && <span className="text-[9px] font-bold opacity-90 truncate max-w-[80px]">{lastMessage}</span>}
-          </div>
-        </div>
-        <div className="absolute inset-0 rounded-2xl bg-rose-500 animate-ping opacity-20 -z-10"></div>
-      </div>
-    </motion.div>
-  );
-};
 
 export const StatusBadge = ({ status }: { status: Order['status'] }) => {
   const configs = {
@@ -130,9 +65,294 @@ interface OrderCardProps {
   searchQuery?: string;
   onUploadDoc?: (file: File, orderId?: string, docType?: any) => Promise<void>;
   isCompact?: boolean;
+  key?: React.Key;
 }
 
-// ... הקוד של ItemsModal ו-DocumentSheet נשאר זהה ...
+const ItemsModal = ({ 
+  order, 
+  inventoryItems = [],
+  onClose 
+}: { 
+  order: Order, 
+  inventoryItems?: InventoryItem[],
+  onClose: () => void 
+}) => {
+  const parsedItems = parseItems(order.items);
+  
+  return (
+    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4" dir="rtl">
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+        className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm transition-opacity"
+      />
+      
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+        className="relative w-full max-w-lg bg-white rounded-[2.5rem] shadow-2xl flex flex-col overflow-hidden max-h-[85vh]"
+      >
+        <div className="flex items-center justify-between p-6 bg-gray-900 text-white">
+          <div className="flex items-center gap-3">
+             <div className="p-3 bg-sky-500 rounded-2xl shadow-lg ring-4 ring-sky-500/20">
+               <Package size={20} />
+             </div>
+             <div>
+               <h2 className="text-xl font-black leading-tight">פירוט פריטי הזמנה</h2>
+               <p className="text-[10px] font-bold text-sky-200 uppercase tracking-widest leading-none mt-1">
+                 {order.customerName} | #{order.orderNumber || order.id?.slice(-4).toUpperCase()}
+               </p>
+             </div>
+          </div>
+          <button 
+            onClick={onClose}
+            className="p-2 hover:bg-white/10 rounded-xl transition-all"
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-6">
+          <table className="w-full text-right border-collapse">
+            <thead>
+              <tr className="border-b border-gray-100">
+                <th className="py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest w-12 text-center">כמות</th>
+                <th className="py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest px-4">תיאור פריט</th>
+                <th className="py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest w-24 text-left">מק"ט</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {parsedItems.map((item, idx) => (
+                <tr key={idx} className="group hover:bg-sky-50/50 transition-colors">
+                  <td className="py-4 text-center">
+                    <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-gray-900 text-white text-xs font-black shadow-sm group-hover:bg-sky-600 transition-colors">
+                      {item.quantity}
+                    </span>
+                  </td>
+                  <td className="py-4 px-4">
+                    <p className={cn(
+                      "text-sm font-black leading-tight",
+                      isKnownProduct(item.name) ? "text-sky-600" : "text-gray-900"
+                    )}>
+                      {item.name}
+                    </p>
+                  </td>
+                  <td className="py-4 text-left">
+                    <div className="flex flex-col items-end gap-1">
+                      {item.sku ? (
+                        <span className="text-[10px] font-bold text-gray-400 bg-gray-100 px-2 py-1 rounded-lg">
+                          {item.sku}
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-bold text-gray-300 italic">לא צוין</span>
+                      )}
+                      
+                      {inventoryItems.find(inv => inv.sku === item.sku) && (
+                        <span className={`text-[9px] font-black px-1.5 py-0.5 rounded ${
+                          (inventoryItems.find(inv => inv.sku === item.sku)?.currentStock || 0) > 0 
+                            ? 'bg-emerald-50 text-emerald-600' 
+                            : 'bg-rose-50 text-rose-600'
+                        }`}>
+                          {(inventoryItems.find(inv => inv.sku === item.sku)?.currentStock || 0) > 0 ? 'במלאי' : 'חסר'}
+                        </span>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          {parsedItems.length === 0 && (
+            <div className="py-12 text-center">
+              <Package size={48} className="mx-auto text-gray-100 mb-4" />
+              <p className="text-gray-400 font-bold">אין פריטים להצגה</p>
+            </div>
+          )}
+        </div>
+
+        <div className="p-6 bg-gray-50 border-t border-gray-100 text-center">
+          <p className="text-[10px] font-bold text-gray-400 mb-4 uppercase tracking-widest">סה"כ {parsedItems.length} שורות פריטים</p>
+          <button 
+            onClick={onClose}
+            className="w-full py-4 bg-white border border-gray-200 text-gray-600 rounded-2xl font-black text-sm flex items-center justify-center gap-2 hover:bg-gray-100 transition-all shadow-sm"
+          >
+            סיימתי לצפות
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+};
+
+const DocumentSheet = ({ 
+  order, 
+  onClose, 
+  onUpload 
+}: { 
+  order: Order, 
+  onClose: () => void,
+  onUpload?: (file: File, type: 'orderForm' | 'deliveryNote') => Promise<void>
+}) => {
+  const [isUploading, setIsUploading] = useState<'orderForm' | 'deliveryNote' | null>(null);
+  const getDriveUrl = (id: string) => id === 'PENDING_SCAN' ? '#' : `https://drive.google.com/file/d/${id}/view`;
+  const isPending = (id?: string) => id === 'PENDING_SCAN';
+  
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, type: 'orderForm' | 'deliveryNote') => {
+    const file = e.target.files?.[0];
+    if (file && onUpload) {
+      setIsUploading(type);
+      try {
+        await onUpload(file, type);
+      } finally {
+        setIsUploading(null);
+      }
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[100] flex overflow-hidden" dir="rtl">
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+        className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm transition-opacity"
+      />
+      
+      <motion.div
+        initial={{ x: '100%' }}
+        animate={{ x: 0 }}
+        exit={{ x: '100%' }}
+        transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+        className="relative w-full max-w-sm bg-white shadow-2xl flex flex-col h-full ml-auto"
+      >
+        <div className="flex items-center justify-between p-6 border-bottom border-gray-100 bg-sky-50/30">
+          <div className="flex items-center gap-3">
+             <div className="p-2.5 bg-sky-600 text-white rounded-2xl shadow-lg ring-4 ring-sky-50">
+               <FileText size={20} />
+             </div>
+             <div>
+               <h2 className="text-xl font-black text-gray-900 leading-tight">ניהול מסמכים</h2>
+               <p className="text-[10px] font-bold text-sky-600 uppercase tracking-widest">הזמנה #{order.orderNumber || order.id?.slice(-4).toUpperCase()}</p>
+             </div>
+          </div>
+          <button 
+            onClick={onClose}
+            className="p-2 text-gray-400 hover:text-gray-900 hover:bg-white rounded-xl transition-all shadow-sm hover:shadow-md"
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-6 space-y-8">
+          {/* Order Details Summary */}
+          <div className="p-4 bg-gray-50 rounded-[1.5rem] border border-gray-100 flex flex-col gap-1">
+            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">לקוח</span>
+            <p className="text-base font-black text-gray-900">{order.customerName}</p>
+            <p className="text-xs font-bold text-gray-500">{order.destination}</p>
+          </div>
+
+          <div className="space-y-6">
+            <h3 className="text-sm font-black text-gray-900 flex items-center gap-2">
+              <Paperclip size={16} className="text-sky-500" />
+              קבצים מצורפים
+            </h3>
+
+            {/* Document Types */}
+            {[
+              { id: order.orderFormId, type: 'orderForm', label: 'טופס הזמנה', themeColor: 'sky' },
+              { id: order.deliveryNoteId, type: 'deliveryNote', label: 'תעודת משלוח', themeColor: 'emerald' }
+            ].map((doc) => (
+              <div key={doc.type} className="group relative">
+                <div className={`p-5 rounded-[2rem] border transition-all duration-300 ${
+                  doc.id ? 
+                  `bg-white border-${doc.themeColor}-100 shadow-md` : 
+                  'bg-gray-50 border-dashed border-gray-200 opacity-80'
+                }`}>
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className={`p-3 rounded-2xl ${
+                        doc.id ? `bg-${doc.themeColor}-100 text-${doc.themeColor}-600` : 'bg-gray-200 text-gray-400'
+                      }`}>
+                        <FileText size={24} />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-black text-gray-900">{doc.label}</h4>
+                        <p className="text-[10px] font-bold text-gray-400">PDF Document</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-3">
+                    {doc.id ? (
+                      isPending(doc.id) ? (
+                        <div className={`flex items-center gap-3 p-3 bg-${doc.themeColor}-50/50 rounded-2xl border border-${doc.themeColor}-100 animate-pulse`}>
+                          <Loader2 size={16} className="animate-spin text-sky-600" />
+                          <span className={`text-xs font-bold text-${doc.themeColor}-700`}>מעבד את המסמך...</span>
+                        </div>
+                      ) : (
+                        <div className="flex gap-2">
+                          <a 
+                            href={getDriveUrl(doc.id)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={`flex-1 flex items-center justify-center gap-2 py-3 bg-${doc.themeColor}-600 text-white rounded-2xl font-black text-xs shadow-lg shadow-${doc.themeColor}-600/20 hover:scale-[1.02] active:scale-95 transition-all`}
+                          >
+                            <ExternalLink size={14} /> צפייה בקובץ
+                          </a>
+                        </div>
+                      )
+                    ) : (
+                      <p className="text-[11px] font-bold text-gray-400 italic bg-gray-100/50 p-3 rounded-xl border border-gray-200">אין מסמך מצורף להזמנה זו</p>
+                    )}
+
+                    <div className="pt-2 border-t border-gray-100 flex items-center justify-between">
+                      <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest decoration-sky-500 decoration-2 underline-offset-4 decoration-dotted">עדכון קובץ</span>
+                      <label className={`flex items-center gap-2 px-4 py-2 rounded-xl border transition-all cursor-pointer shadow-sm ${
+                        isUploading === doc.type ? 
+                        `bg-${doc.themeColor}-50 border-${doc.themeColor}-200` : 
+                        'bg-white border-gray-100 hover:border-sky-300 hover:bg-sky-50 text-sky-600'
+                      }`}>
+                        {isUploading === doc.type ? (
+                          <Loader2 size={16} className="animate-spin" />
+                        ) : (
+                          <>
+                            <FileUp size={14} />
+                            <span className="text-[10px] font-black">העלה חדש</span>
+                          </>
+                        )}
+                        <input 
+                          type="file" 
+                          accept="application/pdf" 
+                          className="hidden" 
+                          disabled={!!isUploading}
+                          onChange={(e) => handleFileChange(e, doc.type as any)} 
+                        />
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="p-6 bg-gray-50 border-t border-gray-100">
+           <button 
+             onClick={onClose}
+             className="w-full py-4 bg-white border border-gray-200 text-gray-600 rounded-[1.5rem] font-black text-sm flex items-center justify-center gap-2 hover:bg-gray-100 transition-all hover:shadow-md"
+           >
+             סגור תצוגה
+           </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+};
 
 export const OrderCard = ({ 
   order, 
@@ -156,6 +376,61 @@ export const OrderCard = ({
   const [isLocalUploading, setIsLocalUploading] = useState(false);
 
   const parsedItemsCount = parseItems(order.items).length;
+
+  const handleQuickUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && onUploadDoc) {
+      setIsLocalUploading(true);
+      try {
+        await onUploadDoc(file, order.id, 'orderForm');
+      } finally {
+        setIsLocalUploading(false);
+      }
+    }
+  };
+
+  const handleSmartPredict = async () => {
+    setIsPredicting(true);
+    try {
+      if ('geolocation' in navigator) {
+        navigator.geolocation.getCurrentPosition(() => {});
+      }
+      const historicalOrders = allOrders.filter(o => o.status === 'delivered');
+      const predictedEta = await predictOrderEta(order, historicalOrders);
+      if (predictedEta) {
+        onUpdateEta(order.id!, predictedEta);
+        onAddToast('חיזוי ETA חכם', `נמצא זמן הגעה משוער: ${predictedEta} על סמך תנועה`, 'success');
+      } else {
+        onAddToast('שגיאה בחיזוי', 'לא הצלחתי לחשב זמן הגעה, אנא נסה שנית', 'warning');
+      }
+    } catch (error) {
+      console.error(error);
+      onAddToast('שגיאה', 'משהו השתבש בחיבור ל-AI', 'warning');
+    } finally {
+      setIsPredicting(false);
+    }
+  };
+
+  const handleShare = () => {
+    const driver = drivers.find(d => d.id === order.driverId);
+    const driverName = driver?.name || order.driverId;
+    const statusHebrew: Record<string, string> = {
+      pending: 'ממתין',
+      preparing: 'בהכנה',
+      ready: 'מוכן',
+      delivered: 'סופק',
+      cancelled: 'בוטל'
+    };
+    const text = `📦 *הזמנה #${order.orderNumber || order.id?.slice(-4).toUpperCase()}*\n👤 לקוח: ${order.customerName}\n📍 יעד: ${order.destination}\n🚛 נהג: ${driverName}\n⏰ שעה: ${order.time}\n📊 סטטוס: ${statusHebrew[order.status] || order.status}`;
+    
+    if (navigator.share) {
+      navigator.share({ title: 'שיתוף הזמנה', text }).catch(console.error);
+    } else {
+      navigator.clipboard.writeText(text);
+      onAddToast('הועתק', 'פרטי ההזמנה הועתקו ללוח', 'success');
+    }
+  };
+
   const driver = drivers.find(d => d.id === order.driverId);
 
   return (
@@ -168,14 +443,6 @@ export const OrderCard = ({
         isCompact ? "p-4" : "p-5"
       )}
     >
-      {/* בועת צאט חכמה עם צלצול ונדנוד */}
-      {order.id && (
-        <ChatNotificationBadge 
-          orderId={order.id} 
-          onClick={() => onAddToast("צ'אט לקוח", "פתיחת ממשק שיחה עם " + order.customerName, "info")} 
-        />
-      )}
-
       <div className={cn(
         "absolute bg-gray-900 text-white px-3 py-1 rounded-full text-[10px] font-black z-10 shadow-lg",
         isCompact ? "top-2 left-2" : "top-4 left-4"
@@ -190,25 +457,60 @@ export const OrderCard = ({
               {(order.orderFormId || order.deliveryNoteId) ? (
                 <button 
                   onClick={() => setShowDocs(!showDocs)}
-                  className="p-1.5 bg-white text-sky-600 border border-sky-100 rounded-full shadow-lg hover:bg-sky-50 transition-all"
+                  disabled={order.orderFormId === 'PENDING_SCAN' || order.deliveryNoteId === 'PENDING_SCAN'}
+                  className={`p-1.5 rounded-full shadow-lg border transition-all ${
+                    showDocs ? 'bg-sky-600 text-white border-sky-600' : 
+                    (order.orderFormId === 'PENDING_SCAN' || order.deliveryNoteId === 'PENDING_SCAN') ? 'bg-gray-100 text-gray-400 border-gray-100 cursor-not-allowed' :
+                    'bg-white text-sky-600 border-sky-100 hover:bg-sky-50'
+                  }`}
+                  title={order.orderFormId === 'PENDING_SCAN' || order.deliveryNoteId === 'PENDING_SCAN' ? "מעבד מסמכים..." : "צפה במסמכים"}
                 >
-                  <Eye size={14} strokeWidth={3} />
+                  {order.orderFormId === 'PENDING_SCAN' || order.deliveryNoteId === 'PENDING_SCAN' ? (
+                    <Loader2 size={14} className="animate-spin" />
+                  ) : (
+                    <Eye size={14} strokeWidth={3} />
+                  )}
                 </button>
               ) : (
-                <label className="p-1.5 bg-white text-sky-600 border border-sky-100 rounded-full shadow-lg cursor-pointer hover:bg-sky-50">
-                  <FileUp size={14} strokeWidth={3} />
-                  <input type="file" className="hidden" onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file && onUploadDoc) onUploadDoc(file, order.id, 'orderForm');
-                  }} />
+                <label 
+                  className={`p-1.5 rounded-full shadow-lg border transition-all cursor-pointer ${
+                    isLocalUploading ? 'bg-sky-50 border-sky-200 text-sky-400' : 'bg-white text-sky-600 border-sky-100 hover:bg-sky-50'
+                  }`}
+                  title="העלאת מסמך מהיר"
+                >
+                  {isLocalUploading ? (
+                    <Loader2 size={14} className="animate-spin" />
+                  ) : (
+                    <FileUp size={14} strokeWidth={3} />
+                  )}
+                  <input 
+                    type="file" 
+                    accept="application/pdf" 
+                    className="hidden" 
+                    disabled={isLocalUploading}
+                    onChange={handleQuickUpload}
+                  />
                 </label>
               )}
             </div>
           )}
+
+          <AnimatePresence>
+            {showDocs && (
+              <DocumentSheet 
+                order={order} 
+                onClose={() => setShowDocs(false)} 
+                onUpload={(file, type) => onUploadDoc ? onUploadDoc(file, order.id, type) : Promise.resolve()}
+              />
+            )}
+          </AnimatePresence>
         </div>
       )}
 
-      <div className={cn("flex gap-4 pt-2", isCompact ? "mb-4" : "mb-6")}>
+      <div className={cn(
+        "flex gap-4 pt-2",
+        isCompact ? "mb-4" : "mb-6"
+      )}>
         <div className={cn(
           "rounded-3xl h-fit border shadow-sm flex items-center justify-center",
           driver?.vehicleType === 'crane' ? 'bg-sky-50 text-sky-600 border-sky-100' : 'bg-blue-50 text-blue-600 border-blue-100',
@@ -217,43 +519,205 @@ export const OrderCard = ({
           <Truck size={isCompact ? 20 : 28} strokeWidth={2.5} />
         </div>
         <div className="flex-1 min-w-0 text-right">
-          <h3 className={cn("font-black text-gray-900 leading-tight mb-1 truncate", isCompact ? "text-base" : "text-xl")}>
+          <h3 className={cn(
+            "font-black text-gray-900 leading-tight mb-1 truncate",
+            isCompact ? "text-base" : "text-xl"
+          )}>
             {highlightText(order.customerName, searchQuery)}
           </h3>
-          <p className="text-[10px] text-gray-400 font-bold flex items-center gap-1">
-             <Info size={10} /> {highlightText(order.destination, searchQuery)}
-          </p>
-        </div>
-      </div>
-
-      <div className={cn("flex items-center justify-between bg-sky-50/50 rounded-2xl p-4 mb-6")}>
-        <div className="flex flex-col gap-1 text-right">
-          <div className="flex items-center gap-2">
-            <span className="font-black text-gray-900 text-sm">{driver?.name || 'טרם שובץ'}</span>
-            <span className="font-black text-sky-600 text-sm">| {order.time}</span>
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-[10px] text-gray-400 font-bold flex items-center gap-1">
+               <Info size={10} /> {highlightText(order.destination, searchQuery)}
+            </p>
           </div>
         </div>
-        <StatusBadge status={order.status} />
       </div>
 
-      <div className="flex items-center gap-2 pt-2 border-t border-gray-100">
+      <div className={cn(
+        "flex items-center justify-between bg-sky-50/50 rounded-2xl border border-sky-50/50",
+        isCompact ? "p-3 mb-4" : "p-4 mb-6"
+      )}>
+        <div className="flex flex-col gap-1 text-right">
+          {!isCompact && <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">נהג וזמן</span>}
+          <div className="flex items-center gap-2">
+            {order.driverId === 'self' ? (
+              <span className={cn("font-black text-gray-900", isCompact ? "text-xs" : "text-sm")}>איסוף עצמי</span>
+            ) : (
+              <div className="flex items-center gap-2">
+                {driver?.avatar ? (
+                  <img 
+                    src={driver.avatar} 
+                    alt={driver.name} 
+                    className={cn("rounded-full object-cover border-2 border-white shadow-sm", isCompact ? "w-5 h-5" : "w-7 h-7")}
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <div className={cn("rounded-full bg-sky-100 flex items-center justify-center border-2 border-white shadow-sm text-sky-600", isCompact ? "w-5 h-5" : "w-7 h-7")}>
+                    <User size={isCompact ? 10 : 14} />
+                  </div>
+                )}
+                <span className={cn("font-black text-gray-900 leading-tight", isCompact ? "text-xs" : "text-sm")}>
+                  {driver?.name.split(' ')[0]}
+                </span>
+              </div>
+            )}
+            <span className={cn("font-black text-sky-600 self-center mr-1", isCompact ? "text-xs" : "text-sm")}>| {order.time}</span>
+          </div>
+        </div>
+        <div className="flex flex-col items-end gap-1">
+          <StatusBadge status={order.status} />
+          {isPredicting ? (
+            <div className="flex items-center gap-1.5 mt-1">
+              <Sparkles size={12} className="text-sky-400 animate-pulse" />
+              <div className="w-16 h-3 bg-sky-100/50 rounded-full overflow-hidden relative border border-sky-100">
+                <div className="absolute inset-0 shimmer-anim" />
+              </div>
+            </div>
+          ) : order.eta && (
+            <span className="text-[10px] font-black text-sky-600 animate-pulse flex items-center gap-1">
+              <Sparkles size={10} />
+              צפי: {order.eta}
+            </span>
+          )}
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        {!isCompact ? (
+          <div className="bg-sky-50/30 p-4 rounded-[1.5rem] border border-sky-100/50 flex items-center justify-between group/items">
+            <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm border border-sky-100 transition-transform group-hover/items:scale-110">
+                  <Package size={20} className="text-sky-600" />
+                </div>
+                <div>
+                  <span className="text-[10px] font-black text-sky-700/60 uppercase tracking-widest block leading-none mb-1">תכולת משלוח</span>
+                  <p className="text-xs font-black text-gray-700 leading-none">
+                    {parsedItemsCount} פריטים רשומים
+                  </p>
+                </div>
+            </div>
+            
+            <button 
+              onClick={() => setShowItems(true)}
+              className="px-4 py-2 bg-white text-sky-600 border border-sky-200 rounded-xl font-black text-[11px] shadow-sm hover:bg-sky-600 hover:text-white hover:border-sky-600 transition-all active:scale-95"
+            >
+              צפייה בפריטים
+            </button>
+          </div>
+        ) : (
+          <button 
+            onClick={() => setShowItems(true)}
+            className="w-full flex items-center justify-between p-3 bg-sky-50/30 hover:bg-sky-100/50 rounded-xl border border-sky-100/50 transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              <Package size={14} className="text-sky-600" />
+              <span className="text-[11px] font-black text-gray-700">{parsedItemsCount} פריטים</span>
+            </div>
+            <ChevronLeft size={14} className="text-sky-400" />
+          </button>
+        )}
+
+        <AnimatePresence>
+          {showItems && (
+            <ItemsModal order={order} inventoryItems={inventoryItems} onClose={() => setShowItems(false)} />
+          )}
+        </AnimatePresence>
+
+        <div className={cn(
+          "flex items-center gap-2 pt-2 border-t border-gray-100",
+          isCompact ? "flex-wrap justify-end" : ""
+        )}>
           <button 
             onClick={() => {
-              const nextMap: any = { pending: 'preparing', preparing: 'ready', ready: 'delivered' };
-              onUpdateStatus(order.id!, nextMap[order.status] || order.status);
+              const nextStatusMap: Record<string, string> = {
+                pending: 'preparing',
+                preparing: 'ready',
+                ready: 'delivered'
+              };
+              onUpdateStatus(order.id!, nextStatusMap[order.status] || order.status);
             }}
-            className="flex-1 bg-sky-600 text-white py-3 rounded-2xl font-black text-xs shadow-lg active:scale-95 transition-all"
+            className={cn(
+              "bg-sky-600 text-white rounded-2xl font-black text-xs flex items-center justify-center gap-2 shadow-lg shadow-sky-600/20 active:scale-95 transition-all",
+              isCompact ? "px-3 py-2" : "flex-1 py-3.5"
+            )}
           >
-            עדכן סטטוס
+            <CheckCircle2 size={isCompact ? 14 : 16} /> 
+            {isCompact ? "קדם" : "עדכן סטטוס"}
           </button>
           
-          <button onClick={() => onEdit(order)} className="p-3 text-gray-400 hover:text-sky-600 hover:bg-sky-50 rounded-2xl transition-all">
-            <Pencil size={18} />
-          </button>
-          
-          <button onClick={() => onDelete(order.id!)} className="p-3 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-2xl transition-all">
-            <Trash2 size={18} />
-          </button>
+          {isCompact ? (
+             <div className="flex items-center gap-1">
+               <button onClick={() => onEdit(order)} className="p-2 text-gray-400 hover:text-sky-600 hover:bg-sky-50 rounded-xl">
+                 <Pencil size={14} />
+               </button>
+               <button onClick={handleShare} className="p-2 text-gray-400 hover:text-sky-600 hover:bg-sky-50 rounded-xl">
+                 <Share2 size={14} />
+               </button>
+               <button 
+                onClick={() => {
+                  if (window.confirm('האם למחוק הזמנה זו?')) onDelete(order.id!);
+                }}
+                className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl"
+               >
+                 <Trash2 size={14} />
+               </button>
+             </div>
+          ) : (
+            <>
+              <button 
+                onClick={handleSmartPredict}
+                disabled={isPredicting}
+                className="bg-gray-900 text-white p-3.5 rounded-2xl hover:bg-sky-700 transition-all flex items-center justify-center gap-2 shadow-lg shadow-gray-900/10 active:scale-95 disabled:opacity-50"
+              >
+                {isPredicting ? (
+                  <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full" />
+                ) : (
+                  <Sparkles size={18} />
+                )}
+                <span className="hidden sm:inline text-xs font-bold">AI ETA</span>
+              </button>
+
+              <button 
+                onClick={handleShare}
+                title="שתף הזמנה"
+                className="bg-white border-2 border-gray-100 text-gray-600 p-3.5 rounded-2xl hover:bg-sky-50 hover:text-sky-600 hover:border-sky-100 transition-all active:scale-95 shadow-sm"
+              >
+                <Share2 size={18} />
+              </button>
+
+              <button 
+                onClick={() => {
+                  if (onCreateCustomer) {
+                    onCreateCustomer(order.customerName, order.customerPhone || '', order.destination || '');
+                  }
+                }}
+                title="פתח כרטיס לקוח"
+                className="p-3.5 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-2xl transition-all"
+              >
+                <User size={18} />
+              </button>
+
+              <button 
+                onClick={() => onRepeat(order)}
+                title="הזמנה חוזרת (שכפול)"
+                className="p-3.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-2xl transition-all"
+              >
+                <RotateCcw size={18} />
+              </button>
+
+              <button 
+                onClick={() => {
+                  if (window.confirm('האם אתה בטוח שברצונך למחוק את ההזמנה לצמיתות?')) {
+                    onDelete(order.id!);
+                  }
+                }}
+                className="p-3.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-2xl transition-all"
+              >
+                <Trash2 size={18} />
+              </button>
+            </>
+          )}
+        </div>
       </div>
     </motion.div>
   );
