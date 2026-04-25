@@ -28,6 +28,7 @@ import {
   getDoc
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
+import { handleFirestoreError, OperationType } from '../lib/firebaseUtils';
 import { Order, Driver } from '../types';
 import { format } from 'date-fns';
 import { he } from 'date-fns/locale';
@@ -59,6 +60,10 @@ export default function MorningReportSystem({ onBack, drivers }: { onBack: () =>
     const unsubscribeOrders = onSnapshot(qOrders, (snapshot) => {
       const ordersList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Order[];
       setOrders(ordersList);
+    }, (error) => {
+      if (error.code !== 'permission-denied') {
+        handleFirestoreError(error, OperationType.LIST, 'orders');
+      }
     });
 
     // Listen for report history
@@ -69,6 +74,10 @@ export default function MorningReportSystem({ onBack, drivers }: { onBack: () =>
     const unsubscribeReports = onSnapshot(qReports, (snapshot) => {
       const reportsList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as MorningReport[];
       setReports(reportsList);
+    }, (error) => {
+      if (error.code !== 'permission-denied') {
+        handleFirestoreError(error, OperationType.LIST, 'morning_reports');
+      }
     });
 
     return () => {
@@ -127,7 +136,7 @@ export default function MorningReportSystem({ onBack, drivers }: { onBack: () =>
       setSelectedOrders([]);
       alert('הדוח נשמר בהצלחה בארכיון! ✅');
     } catch (error) {
-      console.error('Error saving report:', error);
+      handleFirestoreError(error, OperationType.WRITE, 'morning_reports');
       alert('חלה שגיאה בשמירת הדוח. אנא נסה שנית.');
     } finally {
       setIsGenerating(false);

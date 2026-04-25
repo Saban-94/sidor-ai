@@ -12,6 +12,7 @@ import {
   limit
 } from 'firebase/firestore';
 import { db, auth } from '../lib/firebase';
+import { handleFirestoreError, OperationType } from '../lib/firebaseUtils';
 import { Order, Driver, Customer, Reminder } from '../types';
 
 import { listDriveFiles, getFileBase64, createCustomerFolderHierarchy } from './driveService';
@@ -90,16 +91,26 @@ export const createCustomer = async (customerData: Partial<Customer>) => {
     console.error("Failed to create Drive folder for customer:", err);
   }
 
-  const docRef = await addDoc(collection(db, 'customers'), fullCustomer);
-  return { id: docRef.id, ...fullCustomer };
+  try {
+    const docRef = await addDoc(collection(db, 'customers'), fullCustomer);
+    return { id: docRef.id, ...fullCustomer };
+  } catch (error) {
+    handleFirestoreError(error, OperationType.CREATE, 'customers');
+    throw error;
+  }
 };
 
 export const updateCustomer = async (customerId: string, updates: Partial<Customer>) => {
-  const docRef = doc(db, 'customers', customerId);
-  await updateDoc(docRef, {
-    ...updates,
-    updatedAt: serverTimestamp(),
-  });
+  try {
+    const docRef = doc(db, 'customers', customerId);
+    await updateDoc(docRef, {
+      ...updates,
+      updatedAt: serverTimestamp(),
+    });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, `customers/${customerId}`);
+    throw error;
+  }
 };
 
 export const getCustomerByName = async (name: string) => {
@@ -133,16 +144,26 @@ export const createDriver = async (driverData: Partial<Driver>) => {
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   };
-  const docRef = await addDoc(collection(db, 'drivers'), fullDriver);
-  return { id: docRef.id, ...fullDriver };
+  try {
+    const docRef = await addDoc(collection(db, 'drivers'), fullDriver);
+    return { id: docRef.id, ...fullDriver };
+  } catch (error) {
+    handleFirestoreError(error, OperationType.CREATE, 'drivers');
+    throw error;
+  }
 };
 
 export const updateDriver = async (driverId: string, updates: Partial<Driver>) => {
-  const docRef = doc(db, 'drivers', driverId);
-  await updateDoc(docRef, {
-    ...updates,
-    updatedAt: serverTimestamp(),
-  });
+  try {
+    const docRef = doc(db, 'drivers', driverId);
+    await updateDoc(docRef, {
+      ...updates,
+      updatedAt: serverTimestamp(),
+    });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, `drivers/${driverId}`);
+    throw error;
+  }
 };
 
 export const getAllDrivers = async () => {
@@ -402,13 +423,18 @@ export const createOrder = async (orderData: Partial<Order>) => {
     createdBy: auth.currentUser.uid,
   } as Order;
   
-  const docRef = await addDoc(collection(db, 'orders'), fullOrder);
-  return { 
-    id: docRef.id, 
-    ...fullOrder,
-    customerStatus,
-    customerNumber: `CUST-${customerPhone.replace(/[^0-9]/g, '')}`
-  };
+  try {
+    const docRef = await addDoc(collection(db, 'orders'), fullOrder);
+    return { 
+      id: docRef.id, 
+      ...fullOrder,
+      customerStatus,
+      customerNumber: `CUST-${customerPhone.replace(/[^0-9]/g, '')}`
+    };
+  } catch (error) {
+    handleFirestoreError(error, OperationType.CREATE, 'orders');
+    throw error;
+  }
 };
 
 export const updateOrder = async (orderId: string, updates: Partial<Order>) => {

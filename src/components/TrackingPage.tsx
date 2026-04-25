@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { parseItems } from '../lib/utils';
+import { handleFirestoreError, OperationType } from '../lib/firebaseUtils';
 import { Order } from '../types';
 
 const TrackingPage: React.FC = () => {
@@ -61,7 +62,9 @@ const TrackingPage: React.FC = () => {
       }
       setLoading(false);
     }, (err) => {
-      console.error("Firestore error:", err);
+      if (err.code !== 'permission-denied') {
+        handleFirestoreError(err, OperationType.LIST, 'orders');
+      }
       setError("שגיאה בטעינת הנתונים");
       setLoading(false);
     });
@@ -78,7 +81,7 @@ const TrackingPage: React.FC = () => {
       });
       setIsEditing(false);
     } catch (err) {
-      console.error("Update error:", err);
+      handleFirestoreError(err, OperationType.UPDATE, `orders/${order.id}`);
       alert("שגיאה בעדכון ההזמנה");
     }
   };

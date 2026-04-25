@@ -16,6 +16,7 @@ import {
   serverTimestamp, 
   limit 
 } from 'firebase/firestore';
+import { handleFirestoreError, OperationType } from '../lib/firebaseUtils';
 
 export const TeamMessenger = ({ userProfile }: { userProfile: UserProfile }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -30,7 +31,7 @@ export const TeamMessenger = ({ userProfile }: { userProfile: UserProfile }) => 
     if (!userProfile?.id) return;
 
     const q = query(
-      collection(db, 'internal_team_chats'),
+      collection(db, 'office_messages'),
       orderBy('timestamp', 'asc'),
       limit(50)
     );
@@ -50,6 +51,10 @@ export const TeamMessenger = ({ userProfile }: { userProfile: UserProfile }) => 
       setTimeout(() => {
         scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
       }, 100);
+    }, (error) => {
+      if (error.code !== 'permission-denied') {
+        handleFirestoreError(error, OperationType.LIST, 'office_messages');
+      }
     });
 
     return () => unsubscribe();
@@ -60,7 +65,7 @@ export const TeamMessenger = ({ userProfile }: { userProfile: UserProfile }) => 
     if (!newMessage.trim() || !userProfile?.id) return;
 
     try {
-      await addDoc(collection(db, 'internal_team_chats'), {
+      await addDoc(collection(db, 'office_messages'), {
         senderId: userProfile.id,
         senderName: userProfile.name,
         text: newMessage,
@@ -68,7 +73,7 @@ export const TeamMessenger = ({ userProfile }: { userProfile: UserProfile }) => 
       });
       setNewMessage('');
     } catch (error) {
-      console.error(error);
+      handleFirestoreError(error, OperationType.WRITE, 'office_messages');
     }
   };
 

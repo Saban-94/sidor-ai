@@ -69,6 +69,7 @@ import {
 } from 'date-fns';
 import { he } from 'date-fns/locale';
 import { auth, loginWithGoogle, logout, db } from './lib/firebase';
+import { handleFirestoreError, OperationType } from './lib/firebaseUtils';
 import MorningReportSystem from './components/MorningReportSystem';
 import { OrderCard, StatusBadge } from './components/OrderCard';
 import { KanbanBoard } from './components/KanbanBoard';
@@ -814,10 +815,6 @@ export default function App() {
         }
         
         if (change.type === 'modified') {
-          const oldData = change.oldIndex !== -1 ? null : null; // Snapshot changes don't easily provide previous fields without state tracking
-          // We'll track previous status in a specialized hook/ref if we wanted perfection, 
-          // but for now let's refine the message to be more specific.
-          
           const title = 'עדכון סטטוס! 🔄';
           const statusLabels: Record<string, string> = {
             pending: 'ממתין',
@@ -835,6 +832,10 @@ export default function App() {
           }
         }
       });
+    }, (error) => {
+      if (error.code !== 'permission-denied') {
+        handleFirestoreError(error, OperationType.LIST, 'orders');
+      }
     });
 
     return () => {
@@ -891,6 +892,10 @@ export default function App() {
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Order[];
       setOrders(docs);
+    }, (error) => {
+      if (error.code !== 'permission-denied') {
+        handleFirestoreError(error, OperationType.LIST, 'orders');
+      }
     });
 
     return () => unsubscribe();
@@ -955,6 +960,10 @@ export default function App() {
           }
         }
       }
+    }, (error) => {
+      if (error.code !== 'permission-denied') {
+        handleFirestoreError(error, OperationType.LIST, 'drivers');
+      }
     });
 
     return () => unsubscribe();
@@ -974,6 +983,10 @@ export default function App() {
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Reminder[];
       setReminders(docs);
+    }, (error) => {
+      if (error.code !== 'permission-denied') {
+        handleFirestoreError(error, OperationType.LIST, 'reminders');
+      }
     });
 
     return () => unsubscribe();
@@ -986,6 +999,10 @@ export default function App() {
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as InventoryItem[];
       setInventoryItems(docs);
+    }, (error) => {
+      if (error.code !== 'permission-denied') {
+        handleFirestoreError(error, OperationType.LIST, 'inventory');
+      }
     });
     return () => unsubscribe();
   }, [user]);

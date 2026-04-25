@@ -33,6 +33,7 @@ import {
   getDocs 
 } from 'firebase/firestore';
 import { db, auth } from '../lib/firebase';
+import { handleFirestoreError, OperationType } from '../lib/firebaseUtils';
 import { InventoryItem, SaleRecord, Order } from '../types';
 import { format } from 'date-fns';
 import { he } from 'date-fns/locale';
@@ -59,12 +60,20 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({ orders = [] 
       const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as InventoryItem[];
       setItems(docs);
       setLoading(false);
+    }, (error) => {
+      if (error.code !== 'permission-denied') {
+        handleFirestoreError(error, OperationType.LIST, 'inventory');
+      }
     });
 
     const qSales = query(collection(db, 'sales'), orderBy('date', 'desc'));
     const unsubscribeSales = onSnapshot(qSales, (snapshot) => {
       const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as SaleRecord[];
       setSales(docs.slice(0, 50)); // Show last 50 sales
+    }, (error) => {
+      if (error.code !== 'permission-denied') {
+        handleFirestoreError(error, OperationType.LIST, 'sales');
+      }
     });
 
     return () => {
@@ -112,13 +121,8 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({ orders = [] 
       setIsAddingItem(false);
       setEditingItem(null);
     } catch (error: any) {
-      console.error("Error saving item to Firestore:", error);
-      if (error?.code === 'permission-denied') {
-        console.error("DEBUG: Current user email:", auth.currentUser?.email);
-        alert("אין לך הרשאות מתאימות לביצוע פעולה זו. וודא שאתה מחובר עם המייל המורשה.");
-      } else {
-        alert("שגיאה בשמירת המוצר: " + (error?.message || "שגיאה לא ידועה"));
-      }
+      handleFirestoreError(error, editingItem ? OperationType.UPDATE : OperationType.CREATE, 'inventory');
+      alert("שגיאה בשמירת המוצר: " + (error?.message || "שגיאה לא ידועה"));
     } finally {
       setIsSubmitting(false);
     }
