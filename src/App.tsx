@@ -85,6 +85,9 @@ import TrackingPage from './components/TrackingPage';
 import { RemindersSidebar } from './components/RemindersSidebar';
 import { GlobalAlertBanner } from './components/GlobalAlertBanner';
 import { ReminderForm } from './components/ReminderForm';
+import { UserAdminPanel } from './components/UserAdminPanel';
+import { UserMagicPage } from './components/UserMagicPage';
+import { TeamMessenger } from './components/TeamMessenger';
 import { 
   createOrder, 
   getOrderByTrackingId,
@@ -285,6 +288,7 @@ const Drawer = ({
               { id: 'import', label: 'יבוא אקסל (Export.xls)', icon: FileSpreadsheet },
               { id: 'reports', label: 'דוח בוקר (ארכיון)', icon: FileText },
               { id: 'table', label: 'סטטוס מלאי', icon: Table },
+              { id: 'admin_users', label: 'ניהול משתמשי VIP', icon: Users },
             ].map((item) => {
               const Icon = item.icon;
               const isActive = viewMode === item.id;
@@ -292,7 +296,11 @@ const Drawer = ({
                 <button
                   key={item.id}
                   onClick={() => {
-                    setViewMode(item.id);
+                    if (item.id === 'admin_users') {
+                      window.location.href = '/admin/users';
+                    } else {
+                      setViewMode(item.id);
+                    }
                     onClose();
                   }}
                   className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all ${
@@ -1120,6 +1128,8 @@ export default function App() {
   return (
     <Routes>
       <Route path="/track/:id" element={<TrackingPage />} />
+      <Route path="/admin/users" element={<UserAdminPanel />} />
+      <Route path="/user/:id" element={<UserMagicPage />} />
       <Route path="*" element={
         !user ? (
           <div className="h-screen w-full flex flex-col items-center justify-center bg-white p-6 relative overflow-hidden" dir="rtl">
@@ -1212,6 +1222,17 @@ export default function App() {
                 addToast('תזכורת חדשה', 'התזכורת התווספה למערכת ✅', 'success');
               }}
             />
+
+            {user && (
+              <div className="hidden md:block">
+                <TeamMessenger userProfile={{ 
+                  id: user.uid.slice(0,4), 
+                  name: user.displayName || 'סבאן', 
+                  avatarUrl: user.photoURL || '',
+                  role: 'צוות SabanOS'
+                } as any} />
+              </div>
+            )}
 
             <OrderForm 
               isOpen={isAddingOrder || !!editingOrder}

@@ -100,3 +100,24 @@ export interface SaleRecord {
   priceAtSale?: number;
   createdAt?: Timestamp;
 }
+
+export interface UserProfile {
+  id: string; // 4 digits
+  name: string;
+  phone: string;
+  email: string;
+  role: string;
+  avatarUrl: string;
+  lastSeen: any;
+  createdAt?: any;
+  updatedAt?: any;
+}
+
+export interface TeamChatMessage {
+  id?: string;
+  senderId: string;
+  senderName: string;
+  text: string;
+  timestamp: any;
+  recipientId?: string; // Optional for private team messages
+}

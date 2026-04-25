@@ -128,9 +128,46 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["itemId", "customerName", "quantity", "date"]
+    },
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "VIP User profile for Magic Pages",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "phone": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string" },
+        "avatarUrl": { "type": "string" },
+        "lastSeen": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name"]
+    },
+    "TeamChatMessage": {
+      "title": "Team Chat Message",
+      "description": "Internal message shared between team members",
+      "type": "object",
+      "properties": {
+        "senderId": { "type": "string" },
+        "senderName": { "type": "string" },
+        "text": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["senderId", "senderName", "text", "timestamp"]
     }
   },
   "firestore": {
+    "/user_magic_pages/{userId}": {
+      "schema": "UserProfile",
+      "description": "VIP User Magic Pages collection"
+    },
+    "/internal_team_chats/{chatId}": {
+      "schema": "TeamChatMessage",
+      "description": "Internal team communication chat"
+    },
     "/orders/{orderId}": {
       "schema": "Order",
       "description": "Collection of logistics orders"
