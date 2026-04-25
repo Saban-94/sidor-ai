@@ -96,7 +96,7 @@ import {
 import { Order, Driver, Customer, Reminder, InventoryItem } from './types';
 import { useUserMemory } from './hooks/useUserMemory';
 import { uploadFileToDrive } from './services/driveService';
-
+import TrackingPage from './components/TrackingPage';
 // --- Components ---
 
 const TrackingView = ({ trackingId }: { trackingId: string }) => {
