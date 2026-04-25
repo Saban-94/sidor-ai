@@ -1033,13 +1033,15 @@ export default function App() {
   const deliveredOrders = filteredOrders.filter(o => o.status === 'delivered').length;
   const totalOrders = filteredOrders.length;
 
-  return (
+return (
     <Routes>
+      {/* דף קסם - נתיב ציבורי שנגיש לכולם ללא התחברות */}
       <Route path="/track/:id" element={<TrackingPage />} />
+       {/* כל שאר הנתיבים במערכת */}
       <Route path="*" element={
         !user ? (
+          /* מסך לוגין למשתמשים לא מחוברים */
           <div className="h-screen w-full flex flex-col items-center justify-center bg-white p-6 relative overflow-hidden" dir="rtl">
-            {/* Background Orbs */}
             <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-sky-100/30 rounded-full blur-3xl animate-pulse" />
             <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-100/20 rounded-full blur-3xl animate-pulse" />
             
@@ -1065,17 +1067,8 @@ export default function App() {
               </div>
             </div>
           </div>
-        ) : viewMode === 'reports' ? (
-          <MorningReportSystem onBack={() => setViewMode('list')} drivers={drivers} />
-        ) : viewMode === 'chat' ? (
-          <NoaChat 
-            chatHistory={chatHistory}
-            chatScrollRef={chatScrollRef}
-            onBack={() => setViewMode('list')}
-            onAction={handleAuraAction}
-            orders={orders}
-          />
         ) : (
+          /* ממשק המערכת המלא למשתמש מחובר (ראמי והצוות) */
           <div className="min-h-screen bg-gray-50 flex flex-col font-sans mb-20 md:mb-0" dir="rtl">
             <Header 
               user={user} 
