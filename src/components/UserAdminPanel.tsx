@@ -21,6 +21,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { UserProfile } from '../types';
 import { db } from '../lib/firebase';
 import { collection, onSnapshot, query, addDoc, deleteDoc, doc, updateDoc, serverTimestamp, setDoc } from 'firebase/firestore';
+import { handleFirestoreError, OperationType } from '../lib/firebaseUtils';
 
 export const UserAdminPanel = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -47,6 +48,8 @@ export const UserAdminPanel = () => {
       const usersData = snapshot.docs.map(doc => ({ ...doc.data() } as UserProfile));
       setUsers(usersData);
       setLoading(false);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'user_magic_pages');
     });
     return () => unsubscribe();
   }, [isAuthenticated]);
@@ -81,7 +84,7 @@ export const UserAdminPanel = () => {
       setEditingUser(null);
       setFormData({ id: '', name: '', phone: '', email: '', role: '', avatarUrl: '' });
     } catch (error) {
-      console.error(error);
+      handleFirestoreError(error, OperationType.WRITE, `user_magic_pages/${formData.id}`);
       alert('שגיאה בשמירת המשתמש');
     }
   };
@@ -91,6 +94,7 @@ export const UserAdminPanel = () => {
     try {
       await deleteDoc(doc(db, 'user_magic_pages', id));
     } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `user_magic_pages/${id}`);
       alert('שגיאה במחיקת המשתמש');
     }
   };

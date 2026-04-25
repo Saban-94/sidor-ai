@@ -24,25 +24,37 @@ service cloud.firestore {
     }
 
     // --- User Magic Pages ---
+    function isValidUserProfile(data) {
+      return data.id is string && data.id.size() <= 10 &&
+             data.name is string && data.name.size() <= 100 &&
+             data.role is string && data.role.size() <= 100;
+    }
+
     match /user_magic_pages/{userId} {
       allow get: if true;
       allow list: if isSignedIn();
       
-      allow create, update: if isSignedIn() && (
-        incoming().keys().hasAll(['id', 'name', 'role']) &&
-        incoming().name is string && incoming().name.size() < 100 &&
-        incoming().role is string && incoming().role.size() < 100 &&
-        incoming().id == userId
+      allow create: if isSignedIn() && isValidUserProfile(incoming());
+      
+      allow update: if isSignedIn() && (
+        // Action: Update Profile (Requires all fields)
+        (isValidUserProfile(incoming()) && incoming().diff(existing()).affectedKeys().hasOnly(['id', 'name', 'role', 'phone', 'email', 'avatarUrl', 'updatedAt', 'lastSeen'])) ||
+        // Action: Heartbeat (Only lastSeen)
+        (incoming().diff(existing()).affectedKeys().hasOnly(['lastSeen']))
       );
+      
       allow delete: if isSignedIn();
     }
 
     // --- Internal Team Chats (Office Messages) ---
+    function isValidMessage(data) {
+      return data.senderId is string && data.senderId.size() <= 128 &&
+             data.text is string && data.text.size() <= 2000;
+    }
+
     match /office_messages/{messageId} {
       allow read: if isSignedIn();
-      allow create: if isSignedIn() && (
-        isValidId(incoming().senderId) &&
-        incoming().text is string && incoming().text.size() < 2000 &&
+      allow create: if isSignedIn() && isValidMessage(incoming()) && (
         incoming().timestamp == request.time
       );
       allow update, delete: if false; 

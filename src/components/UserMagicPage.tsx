@@ -31,6 +31,7 @@ import {
   serverTimestamp, 
   limit 
 } from 'firebase/firestore';
+import { handleFirestoreError, OperationType } from '../lib/firebaseUtils';
 
 // --- Main Page ---
 export const UserMagicPage = () => {
@@ -45,6 +46,8 @@ export const UserMagicPage = () => {
         setUserProfile({ ...docSnap.data() } as UserProfile);
       }
       setLoading(false);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, `user_magic_pages/${id}`);
     });
     return () => unsubscribe();
   }, [id]);

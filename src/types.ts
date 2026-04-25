@@ -120,6 +120,9 @@ export interface TeamChatMessage {
   senderAvatar?: string;
   text: string;
   imageUrl?: string;
+  fileUrl?: string;
+  fileName?: string;
+  type?: 'text' | 'image' | 'file';
   mentionedUserIds?: string[];
   priority?: 'normal' | 'urgent';
   timestamp: any;

@@ -29,6 +29,7 @@ import {
   updateDoc
 } from 'firebase/firestore';
 import { MessageBubble } from './MessageBubble';
+import { handleFirestoreError, OperationType } from '../lib/firebaseUtils';
 
 interface TeamMessengerContainerProps {
   currentUserProfile: UserProfile;
@@ -56,6 +57,8 @@ export const TeamMessengerContainer: React.FC<TeamMessengerContainerProps> = ({ 
     const unsubscribeMembers = onSnapshot(collection(db, 'user_magic_pages'), (snapshot) => {
       const members = snapshot.docs.map(doc => doc.data() as UserProfile);
       setTeamMembers(members);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'user_magic_pages');
     });
 
     // Update last seen
@@ -63,7 +66,11 @@ export const TeamMessengerContainer: React.FC<TeamMessengerContainerProps> = ({ 
       if (currentUserProfile?.id) {
         updateDoc(doc(db, 'user_magic_pages', currentUserProfile.id), {
           lastSeen: serverTimestamp()
-        }).catch(err => console.error('Failed to update last seen', err));
+        }).catch(err => {
+          console.error('Failed to update last seen', err);
+          // Don't throw here to avoid breaking the interval, but log it correctly
+          handleFirestoreError(err, OperationType.UPDATE, `user_magic_pages/${currentUserProfile.id}`);
+        });
       }
     }, 60000);
 
@@ -103,6 +110,8 @@ export const TeamMessengerContainer: React.FC<TeamMessengerContainerProps> = ({ 
       setTimeout(() => {
         scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
       }, 100);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'office_messages');
     });
 
     return () => unsubscribe();
@@ -136,6 +145,7 @@ export const TeamMessengerContainer: React.FC<TeamMessengerContainerProps> = ({ 
         senderAvatar: currentUserProfile.avatarUrl,
         text: newMessage,
         mentionedUserIds,
+        type: 'text',
         priority: isPriorityUrgent ? 'urgent' : 'normal',
         timestamp: serverTimestamp()
       });
@@ -143,7 +153,7 @@ export const TeamMessengerContainer: React.FC<TeamMessengerContainerProps> = ({ 
       setIsPriorityUrgent(false);
       setShowMentions(false);
     } catch (error) {
-      console.error(error);
+      handleFirestoreError(error, OperationType.WRITE, 'office_messages');
     }
   };
 
@@ -152,25 +162,29 @@ export const TeamMessengerContainer: React.FC<TeamMessengerContainerProps> = ({ 
     if (!file) return;
 
     setIsUploading(true);
-    // In a real app we'd upload to Drive here. 
-    // For now we'll simulate it or use a placeholder URL 
-    // mapping to show rich media functionality.
     try {
-        // Placeholder simulation of drive upload
+        // Simulation of drive upload
         await new Promise(r => setTimeout(r, 1500));
-        const fakeUrl = "https://images.unsplash.com/photo-1586769852044-692d6e671c6e?w=800&auto=format&fit=crop&q=60";
+        
+        const isImg = file.type.startsWith('image/');
+        const fakeUrl = isImg 
+          ? "https://images.unsplash.com/photo-1586769852044-692d6e671c6e?w=800&auto=format&fit=crop&q=60"
+          : "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf";
         
         await addDoc(collection(db, 'office_messages'), {
             senderId: currentUserProfile.id,
             senderName: currentUserProfile.name,
             senderAvatar: currentUserProfile.avatarUrl,
-            text: "שלח קובץ מצורף",
-            imageUrl: fakeUrl,
+            text: isImg ? "שלח תמונה" : `קובץ: ${file.name}`,
+            imageUrl: isImg ? fakeUrl : null,
+            fileUrl: !isImg ? fakeUrl : null,
+            fileName: file.name,
+            type: isImg ? 'image' : 'file',
             priority: 'normal',
             timestamp: serverTimestamp()
         });
     } catch (error) {
-        console.error(error);
+        handleFirestoreError(error, OperationType.WRITE, 'office_messages');
     } finally {
         setIsUploading(false);
     }
