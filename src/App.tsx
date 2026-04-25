@@ -83,6 +83,8 @@ import OrderForm from './components/OrderForm';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import TrackingPage from './components/TrackingPage';
 import { RemindersSidebar } from './components/RemindersSidebar';
+import { GlobalAlertBanner } from './components/GlobalAlertBanner';
+import { ReminderForm } from './components/ReminderForm';
 import { 
   createOrder, 
   getOrderByTrackingId,
@@ -119,6 +121,7 @@ const Header = ({
   onFileUpload,
   isUploading,
   onOpenReminders,
+  onAddReminder,
   hasNaggingReminder
 }: { 
   user: FirebaseUser, 
@@ -129,6 +132,7 @@ const Header = ({
   onFileUpload: (file: File) => void,
   isUploading?: boolean,
   onOpenReminders: () => void,
+  onAddReminder: () => void,
   hasNaggingReminder?: boolean
 }) => (
   <header className="flex items-center justify-between px-6 py-4 bg-white/80 backdrop-blur-md border-b border-sky-100 sticky top-0 z-30">
@@ -164,6 +168,15 @@ const Header = ({
           <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 border-2 border-white rounded-full" />
         )}
       </button>
+
+      <button 
+        onClick={onAddReminder}
+        className="p-2.5 rounded-xl bg-gray-900 text-white hover:bg-sky-600 transition-all shadow-lg"
+        title="הוסף תזכורת"
+      >
+        <Plus size={20} />
+      </button>
+
       <label className={`p-2.5 rounded-xl transition-all border shadow-sm flex items-center gap-2 cursor-pointer ${
         isUploading ? 'bg-sky-50 border-sky-200' : 'bg-white text-sky-600 border-sky-100 hover:bg-sky-50'
       }`} title="העלאת מסמך לדרייב">
@@ -365,13 +378,107 @@ export default function App() {
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [isRemindersOpen, setIsRemindersOpen] = useState(false);
+  const [isAddingReminder, setIsAddingReminder] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
+
+  const [activeAlertReminder, setActiveAlertReminder] = useState<Reminder | null>(null);
+  const loopAudioRef = useRef<HTMLAudioElement | null>(null);
+  const [isScreenShaking, setIsScreenShaking] = useState(false);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     audioRef.current = new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3');
   }, []);
+
+  const RINGTONE_URLS: Record<string, string> = {
+    classic: 'https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3',
+    alert: 'https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3',
+    urgent: 'https://assets.mixkit.co/active_storage/sfx/951/951-preview.mp3',
+    digital: 'https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3',
+  };
+
+  // Critical Notification Engine
+  useEffect(() => {
+    if (!user) return;
+
+    const interval = setInterval(() => {
+      const now = new Date();
+      
+      const upcoming = reminders.find(r => {
+        if (r.isCompleted || r.status === 'completed') return false;
+        if (!r.reminderTime) return false;
+        
+        const rTime = parseISO(r.reminderTime);
+        const diff = differenceInMinutes(rTime, now);
+        
+        // Show alert if within 5 minutes of reminderTime
+        return diff <= 5;
+      });
+
+      if (upcoming) {
+        setActiveAlertReminder(upcoming);
+        
+        // If it's exactly time or past time, play loop sound
+        const rTime = parseISO(upcoming.reminderTime!);
+        const isTime = differenceInMinutes(now, rTime) >= 0;
+
+        if (isTime && !loopAudioRef.current) {
+          const ringUrl = RINGTONE_URLS[upcoming.ringtone] || RINGTONE_URLS.classic;
+          loopAudioRef.current = new Audio(ringUrl);
+          loopAudioRef.current.loop = true;
+          loopAudioRef.current.play().catch(e => console.log('Loop audio failed:', e));
+          
+          if (upcoming.priority === 'critical') {
+            setIsScreenShaking(true);
+          }
+        }
+      } else {
+        // Reset if no active alert
+        if (loopAudioRef.current) {
+          loopAudioRef.current.pause();
+          loopAudioRef.current = null;
+        }
+        setIsScreenShaking(false);
+      }
+    }, 30000); // Every 30s as requested
+
+    return () => clearInterval(interval);
+  }, [user, reminders]);
+
+  const handleReminderAction = async (id: string) => {
+    try {
+      await updateReminder(id, { isCompleted: true, status: 'completed' });
+      setActiveAlertReminder(null);
+      if (loopAudioRef.current) {
+        loopAudioRef.current.pause();
+        loopAudioRef.current = null;
+      }
+      setIsScreenShaking(false);
+      addToast('הושלם', 'התזכורת נסגרה בהצלחה ✅', 'success');
+    } catch (error) {
+      addToast('שגיאה', 'לא הצלחתי לעדכן את התזכורת', 'warning');
+    }
+  };
+
+  const handleAlertSnooze = async (id: string) => {
+    try {
+      const reminder = reminders.find(r => r.id === id);
+      if (!reminder || !reminder.reminderTime) return;
+
+      const newTime = addMinutes(parseISO(reminder.reminderTime), 10).toISOString();
+      await updateReminder(id, { reminderTime: newTime, status: 'snoozed' });
+      setActiveAlertReminder(null);
+      if (loopAudioRef.current) {
+        loopAudioRef.current.pause();
+        loopAudioRef.current = null;
+      }
+      setIsScreenShaking(false);
+      addToast('סנוז', 'נתראה בעוד 10 דקות 🕒', 'info');
+    } catch (error) {
+      addToast('שגיאה', 'לא הצלחתי לדחות את התזכורת', 'warning');
+    }
+  };
 
   const naggingReminders = reminders.filter(r => !r.isCompleted && r.isNagging);
   const hasNaggingReminder = naggingReminders.some(r => {
@@ -1053,7 +1160,12 @@ export default function App() {
             orders={orders}
           />
         ) : (
-          <div className="min-h-screen bg-gray-50 flex flex-col font-sans mb-20 md:mb-0" dir="rtl">
+          <motion.div 
+            animate={isScreenShaking ? { x: [-2, 2, -2, 2, 0] } : {}}
+            transition={isScreenShaking ? { repeat: Infinity, duration: 0.1 } : {}}
+            className="min-h-screen bg-gray-50 flex flex-col font-sans mb-20 md:mb-0" 
+            dir="rtl"
+          >
             <Header 
               user={user} 
               notificationsEnabled={notificationsEnabled} 
@@ -1062,7 +1174,15 @@ export default function App() {
               onInstallApp={installPrompt ? handleInstallClick : null}
               onFileUpload={handleDriveFileUpload}
               onOpenReminders={() => setIsRemindersOpen(true)}
+              onAddReminder={() => setIsAddingReminder(true)}
               hasNaggingReminder={hasNaggingReminder}
+            />
+
+            <GlobalAlertBanner 
+              reminder={activeAlertReminder}
+              onAction={handleReminderAction}
+              onSnooze={handleAlertSnooze}
+              onDismiss={() => setActiveAlertReminder(null)}
             />
 
             <Drawer 
@@ -1082,6 +1202,15 @@ export default function App() {
               onToggleComplete={(id, completed) => updateReminder(id, { isCompleted: completed })}
               onDelete={deleteReminder}
               onSnooze={handleSnooze}
+            />
+
+            <ReminderForm 
+              isOpen={isAddingReminder}
+              onClose={() => setIsAddingReminder(false)}
+              onSave={async (data) => {
+                await createReminder(data);
+                addToast('תזכורת חדשה', 'התזכורת התווספה למערכת ✅', 'success');
+              }}
             />
 
             <OrderForm 
@@ -1605,7 +1734,7 @@ export default function App() {
         </AnimatePresence>
       </div>
 
-      </div>
+      </motion.div>
       )} />
     </Routes>
   );

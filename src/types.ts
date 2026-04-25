@@ -61,11 +61,13 @@ export interface Reminder {
   description?: string;
   dueDate: string; // YYYY-MM-DD
   dueTime: string; // HH:mm
+  reminderTime?: string; // ISO string for precise alert
   isCompleted: boolean;
-  priority: 'low' | 'high' | 'urgent';
+  priority: 'low' | 'high' | 'urgent' | 'critical';
   isNagging: boolean;
   snoozeCount: number;
-  ringtone: string;
+  ringtone: 'classic' | 'alert' | 'urgent' | 'digital' | string;
+  status: 'active' | 'completed' | 'snoozed';
   orderId?: string;
   userId: string;
   createdAt?: Timestamp;
