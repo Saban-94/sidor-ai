@@ -47,11 +47,24 @@ export const DriverCard = ({
     .filter(o => o.driverId === driver.id && o.status === 'delivered')
     .sort((a, b) => b.date.localeCompare(a.date));
 
+  const shakeAnimation = {
+    shake: {
+      x: [0, -2, 2, -2, 2, 0],
+      transition: { 
+        duration: 0.4, 
+        repeat: Infinity,
+        repeatType: "mirror" as const,
+        repeatDelay: 2
+      }
+    }
+  };
+
   return (
     <motion.div
       layout
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
+      whileHover={{ y: -5 }}
       className="bg-white rounded-[2.5rem] border border-gray-100 shadow-xl overflow-hidden mb-8"
       dir="rtl"
     >
@@ -59,7 +72,11 @@ export const DriverCard = ({
       <div className="p-6 md:p-8 bg-gradient-to-br from-white to-sky-50/30">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="flex items-center gap-5">
-            <div className={`relative ${driver.avatar ? 'p-0 overflow-hidden' : 'p-5'} rounded-[2rem] shadow-inner ${driver.vehicleType === 'crane' ? 'bg-sky-100 text-sky-600' : 'bg-blue-100 text-blue-600'} w-20 h-20 flex items-center justify-center border-4 border-white shadow-lg`}>
+            <motion.div 
+              variants={shakeAnimation}
+              animate="shake"
+              className={`relative ${driver.avatar ? 'p-0 overflow-hidden' : 'p-5'} rounded-[2rem] shadow-inner ${driver.vehicleType === 'crane' ? 'bg-sky-100 text-sky-600' : 'bg-blue-100 text-blue-600'} w-20 h-20 flex items-center justify-center border-4 border-white shadow-lg`}
+            >
               {driver.avatar ? (
                 <img 
                   src={driver.avatar} 
@@ -70,7 +87,7 @@ export const DriverCard = ({
               ) : (
                 <Truck size={36} strokeWidth={2.5} />
               )}
-            </div>
+            </motion.div>
             <div>
               <h2 className="text-3xl font-black text-gray-900 tracking-tight leading-none mb-2">{driver.name}</h2>
               <div className="flex flex-wrap items-center gap-3">

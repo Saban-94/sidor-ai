@@ -26,13 +26,14 @@ import {
   where,
   getDocs,
   doc,
-  updateDoc
+  setDoc
 } from 'firebase/firestore';
 import { MessageBubble } from './MessageBubble';
 import { handleFirestoreError, OperationType } from '../lib/firebaseUtils';
 import { uploadFileToDrive, getDirectDriveLink } from '../services/driveService';
 import { Avatar } from './Avatar';
 import { cleanupBadMediaUrls } from '../services/cleanupService';
+import { useNotifications } from './NotificationProvider';
 
 interface TeamMessengerContainerProps {
   currentUserProfile: UserProfile;
@@ -45,6 +46,7 @@ export const TeamMessengerContainer: React.FC<TeamMessengerContainerProps> = ({
   fullScreen = false,
   onClose
 }) => {
+  const { playDing, playAlert } = useNotifications();
   const [isOpen, setIsOpen] = useState(fullScreen);
   const [messages, setMessages] = useState<TeamChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
@@ -74,8 +76,6 @@ export const TeamMessengerContainer: React.FC<TeamMessengerContainerProps> = ({
   }, [isUploading]);
   
   const scrollRef = useRef<HTMLDivElement>(null);
-  const beepRef = useRef<HTMLAudioElement | null>(null);
-  const dingRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     if (fullScreen) setIsOpen(true);
@@ -86,9 +86,6 @@ export const TeamMessengerContainer: React.FC<TeamMessengerContainerProps> = ({
   }, []);
 
   useEffect(() => {
-    beepRef.current = new Audio('https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3');
-    dingRef.current = new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3');
-
     // Fetch team members
     const unsubscribeMembers = onSnapshot(collection(db, 'user_magic_pages'), (snapshot) => {
       const members = snapshot.docs.map(doc => doc.data() as UserProfile);
@@ -100,15 +97,17 @@ export const TeamMessengerContainer: React.FC<TeamMessengerContainerProps> = ({
     });
 
     // Update last seen
-    const intervalLastSeen = setInterval(() => {
+    const intervalLastSeen = setInterval(async () => {
       if (currentUserProfile?.id && auth.currentUser) {
-        updateDoc(doc(db, 'user_magic_pages', currentUserProfile.id), {
-          lastSeen: serverTimestamp()
-        }).catch(err => {
+        try {
+          await setDoc(doc(db, 'user_magic_pages', currentUserProfile.id), {
+            lastSeen: serverTimestamp()
+          }, { merge: true });
+        } catch (err: any) {
           if (err.code !== 'permission-denied') {
-            handleFirestoreError(err, OperationType.UPDATE, `user_magic_pages/${currentUserProfile.id}`);
+            handleFirestoreError(err, OperationType.WRITE, `user_magic_pages/${currentUserProfile.id}`);
           }
-        });
+        }
       }
     }, 60000);
 
@@ -132,12 +131,9 @@ export const TeamMessengerContainer: React.FC<TeamMessengerContainerProps> = ({
         const lastMsg = msgs[msgs.length - 1];
         if (lastMsg.senderId !== currentUserProfile.id) {
           if (lastMsg.priority === 'urgent') {
-            const urgentAudio = new Audio('https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3');
-            urgentAudio.loop = true;
-            urgentAudio.play().catch(e => console.log('Audio failed', e));
-            (window as any)._urgentAudio = urgentAudio;
+            playAlert();
           } else {
-            dingRef.current?.play().catch(e => console.log('Audio failed', e));
+            playDing();
           }
         }
       }

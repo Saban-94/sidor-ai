@@ -16,7 +16,8 @@
   html {
     -webkit-text-size-adjust: 100%;
     scroll-behavior: smooth;
-    height: 100%;
+    height: 100dvh;
+    overscroll-behavior: none;
   }
 
   body {
@@ -29,8 +30,10 @@
     overflow-x: hidden;
     width: 100%;
     position: relative;
-    min-height: 100dvh;
+    height: 100dvh;
     padding-bottom: var(--safe-area-inset-bottom);
+    padding-top: var(--safe-area-inset-top);
+    touch-action: pan-y;
   }
 
   /* Support for smooth scrolling on iOS */
@@ -38,10 +41,27 @@
     -webkit-overflow-scrolling: touch;
   }
 
+  /* Full impact Hebrew Typography */
+  h1, h2, h3, h4, h5, h6, button, b, strong, .font-bold {
+    @apply font-black tracking-tight;
+  }
+
+  /* Mobile Button Defaults */
+  button {
+    @apply transition-all active:scale-95 touch-manipulation;
+    cursor: pointer;
+  }
+
+  .btn-native {
+    @apply min-h-[54px] px-6 rounded-2xl flex items-center justify-center gap-3 font-black text-sm;
+  }
+
   /* Ensure scroll-only-vertical for containers that need it */
   .scroll-v {
     overflow-y: auto;
     overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
   }
 
   /* Responsive containers for tables or wide items */

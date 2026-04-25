@@ -1,164 +1,203 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { 
-  doc, 
-  getDoc, 
-  setDoc, 
-  onSnapshot, 
-  serverTimestamp 
-} from 'firebase/firestore';
-import { db } from '../lib/firebase';
-import { motion, AnimatePresence } from 'motion/react';
 import { 
   User, 
   Phone, 
   Mail, 
   MessageSquare, 
-  ArrowRight,
-  ShieldCheck,
-  Globe
+  Send, 
+  CheckCircle2, 
+  Loader2, 
+  AlertCircle,
+  Clock,
+  Navigation,
+  ExternalLink,
+  ChevronLeft,
+  X,
+  Volume2
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { UserProfile, TeamChatMessage } from '../types';
+import { MobileWrapper } from './MobileWrapper';
+import { Avatar } from './Avatar';
+import { TeamMessenger } from './TeamMessenger';
+import { db } from '../lib/firebase';
+import { 
+  doc, 
+  getDoc, 
+  onSnapshot, 
+  collection, 
+  query, 
+  orderBy, 
+  addDoc, 
+  serverTimestamp, 
+  setDoc,
+  limit 
+} from 'firebase/firestore';
+import { handleFirestoreError, OperationType } from '../lib/firebaseUtils';
 
-const UserMagicPage: React.FC = () => {
-  const { id } = useParams<{ id: string }>(); // זה ה-ID בן 4 הספרות (למשל 1001)
-  const navigate = useNavigate();
-  const [userData, setUserData] = useState<any>(null);
+// --- Main Page ---
+export const UserMagicPage = () => {
+  const { id } = useParams();
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // אפקט לעדכון סטטוס Online בזמן אמת - מתוקן למניעת שגיאת No Document
   useEffect(() => {
     if (!id) return;
-
-    // הגדרת רפרנס למסמך - וודא שהקולקציה תואמת לאדמין (user_magic_pages)
-    const userDocRef = doc(db, 'user_magic_pages', id);
-
-    const updateStatus = async () => {
-      try {
-        // שימוש ב-setDoc עם merge: true במקום updateDoc
-        // זה מונע את השגיאה במידה והמסמך עוד לא נוצר באדמין
-        await setDoc(userDocRef, {
-          lastSeen: serverTimestamp(),
-          status: 'online',
-          // אנחנו מוסיפים את ה-id ליתר ביטחון אם המסמך נוצר עכשיו
-          id: id 
-        }, { merge: true });
-      } catch (error) {
-        // לוג נקי במקום קריסה של האפליקציה
-        console.warn(`[SabanOS] שים לב: לא ניתן לעדכן סטטוס למשתמש ${id}. וודא שהמסמך קיים או שהרשאות ה-Firestore תקינות.`);
-      }
-    };
-
-    // עדכון ראשוני
-    updateStatus();
-
-    // הגדרת אינטרוול לעדכון כל דקה
-    const interval = setInterval(updateStatus, 60000);
-
-    // ניקוי ביציאה מהדף
-    return () => {
-      clearInterval(interval);
-      // עדכון אופציונלי לסטטוס offline ביציאה
-      setDoc(userDocRef, { status: 'offline' }, { merge: true }).catch(() => {});
-    };
-  }, [id]);
-
-  // האזנה לנתוני המשתמש בזמן אמת
-  useEffect(() => {
-    if (!id) return;
-
-    const userDocRef = doc(db, 'user_magic_pages', id);
-    const unsubscribe = onSnapshot(userDocRef, (docSnap) => {
+    const unsubscribe = onSnapshot(doc(db, 'user_magic_pages', id), (docSnap) => {
       if (docSnap.exists()) {
-        setUserData(docSnap.data());
+        setUserProfile({ ...docSnap.data() } as UserProfile);
       }
       setLoading(false);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, `user_magic_pages/${id}`);
     });
 
-    return () => unsubscribe();
+    // Heartbeat to stabilize real-time status
+    const updateStatus = async () => {
+      if (!id) return;
+      try {
+        const userRef = doc(db, 'user_magic_pages', id);
+        // Use setDoc with merge:true to avoid "No document to update" errors
+        await setDoc(userRef, {
+          lastSeen: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+      } catch (error) {
+        console.warn("Status update skipped (document might not exist yet or permission denied):", id);
+      }
+    };
+
+    // Run once on load and then every minute
+    updateStatus();
+    const interval = setInterval(updateStatus, 60000);
+
+    return () => {
+      unsubscribe();
+      clearInterval(interval);
+    };
   }, [id]);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-        <motion.div 
-          animate={{ scale: [1, 1.2, 1], opacity: [0.5, 1, 0.5] }}
-          transition={{ repeat: Infinity, duration: 2 }}
-          className="text-sky-500 font-black italic text-2xl"
-        >
-          SabanOS Magic...
-        </motion.div>
-      </div>
-    );
-  }
+  if (loading) return (
+    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center">
+      <Loader2 className="animate-spin text-sky-600 mb-4" size={40} />
+      <p className="text-gray-400 font-bold italic tracking-widest uppercase text-xs">טוען פרופיל קסם...</p>
+    </div>
+  );
+
+  if (!userProfile) return (
+    <div className="min-h-screen bg-white flex flex-col items-center justify-center p-6 text-center" dir="rtl">
+      <AlertCircle size={80} className="text-red-500 mb-6" />
+      <h1 className="text-3xl font-black text-gray-900 mb-2">משתמש לא נמצא</h1>
+      <p className="text-gray-500 font-bold mb-8">ודא שהקישור תקין או פנה למנהל המערכת</p>
+      <button 
+        onClick={() => window.location.href = '/'}
+        className="bg-gray-900 text-white px-10 py-4 rounded-2xl font-bold shadow-xl"
+      >
+        חזרה לדף הבית
+      </button>
+    </div>
+  );
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white p-4 font-sans" dir="rtl">
-      {/* Header ברמה גבוהה */}
-      <div className="max-w-lg mx-auto pt-8 pb-6 flex items-center justify-between">
-        <button onClick={() => navigate('/')} className="p-2 bg-white/5 rounded-full hover:bg-white/10 transition-all">
-          <ArrowRight size={20} />
-        </button>
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
-          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-500">Live Identity</span>
-        </div>
-      </div>
-
-      <div className="max-w-lg mx-auto space-y-6">
-        {/* פרופיל Hero - Glassmorphism */}
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="relative bg-gradient-to-b from-white/10 to-transparent p-8 rounded-[3rem] border border-white/10 overflow-hidden text-center backdrop-blur-xl"
-        >
-          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-sky-500/50 to-transparent"></div>
+    <div className="min-h-screen bg-gray-50 font-sans" dir="rtl">
+      <div className="w-full max-w-2xl mx-auto p-4 md:p-10 pb-32">
+        {/* Header/Hero Section */}
+        <div className="relative bg-white rounded-[3rem] shadow-xl overflow-hidden border border-sky-100 p-8 pt-16 mb-8 text-center">
+          <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-br from-sky-600 to-blue-700" />
           
-          <div className="relative inline-block mb-4">
-            <div className="w-24 h-24 rounded-[2.5rem] bg-sky-600 p-1">
-              <img 
-                src={userData?.avatarUrl || `https://ui-avatars.com/api/?name=${userData?.name}&background=0284c7&color=fff`} 
-                alt={userData?.name}
-                className="w-full h-full object-cover rounded-[2.3rem] shadow-2xl"
-              />
+          <div className="relative z-10 flex flex-col items-center">
+            <div className="relative mb-6">
+              <motion.div 
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                className="w-32 h-32 relative"
+              >
+                <Avatar 
+                  src={userProfile.avatarUrl} 
+                  name={userProfile.name} 
+                  size="xl" 
+                  className="w-32 h-32"
+                />
+              </motion.div>
+              <div className="absolute bottom-1 right-1 w-8 h-8 bg-emerald-500 rounded-2xl border-4 border-white flex items-center justify-center">
+                <div className="w-2 h-2 bg-white rounded-full animate-ping" />
+              </div>
             </div>
-            <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-emerald-500 border-4 border-slate-950 rounded-full"></div>
-          </div>
 
-          <h1 className="text-2xl font-black mb-1">{userData?.name || 'משתמש SabanOS'}</h1>
-          <p className="text-sky-400 font-bold text-sm mb-6 uppercase tracking-widest">{userData?.role || 'צוות סידור'}</p>
 
-          <div className="flex justify-center gap-4">
-            <a href={`tel:${userData?.phone}`} className="p-4 bg-white/5 rounded-2xl hover:bg-sky-600 transition-all group">
-              <Phone size={20} className="group-hover:scale-110 transition-transform" />
-            </a>
-            <a href={`mailto:${userData?.email}`} className="p-4 bg-white/5 rounded-2xl hover:bg-sky-600 transition-all group">
-              <Mail size={20} className="group-hover:scale-110 transition-transform" />
-            </a>
-          </div>
-        </motion.div>
+            <h1 className="text-4xl font-black text-gray-900 tracking-tight italic mb-1">{userProfile.name}</h1>
+            <div className="bg-sky-50 text-sky-600 px-4 py-1 rounded-full text-xs font-black uppercase tracking-widest mb-6">
+              {userProfile.role}
+            </div>
 
-        {/* כרטיס סטטיסטיקה/מידע */}
-        <div className="grid grid-cols-2 gap-4">
-          <div className="bg-white/5 p-6 rounded-[2rem] border border-white/5">
-            <ShieldCheck className="text-sky-500 mb-2" size={24} />
-            <p className="text-[10px] font-black text-gray-500 uppercase">הרשאות</p>
-            <p className="text-sm font-bold">גישת מנהל</p>
-          </div>
-          <div className="bg-white/5 p-6 rounded-[2rem] border border-white/5">
-            <Globe className="text-emerald-500 mb-2" size={24} />
-            <p className="text-[10px] font-black text-gray-500 uppercase">מזהה מערכת</p>
-            <p className="text-sm font-bold">#{id}</p>
+            <div className="w-full grid grid-cols-2 gap-4">
+              <a 
+                href={`tel:${userProfile.phone}`}
+                className="flex flex-col items-center justify-center p-4 bg-gray-50 rounded-3xl border border-gray-100 hover:border-sky-600 transition-all group"
+              >
+                <div className="bg-white p-3 rounded-2xl shadow-sm mb-2 group-hover:bg-sky-600 group-hover:text-white transition-all">
+                  <Phone size={24} />
+                </div>
+                <span className="text-[10px] font-black text-gray-400 uppercase">התקשר</span>
+                <span className="text-sm font-bold text-gray-800">{userProfile.phone}</span>
+              </a>
+              <a 
+                href={`mailto:${userProfile.email}`}
+                className="flex flex-col items-center justify-center p-4 bg-gray-50 rounded-3xl border border-gray-100 hover:border-sky-600 transition-all group"
+              >
+                <div className="bg-white p-3 rounded-2xl shadow-sm mb-2 group-hover:bg-sky-600 group-hover:text-white transition-all">
+                  <Mail size={24} />
+                </div>
+                <span className="text-[10px] font-black text-gray-400 uppercase">מייל</span>
+                <span className="text-sm font-bold text-gray-800 break-all">{userProfile.email}</span>
+              </a>
+            </div>
           </div>
         </div>
 
-        {/* כפתור צ'אט פנימי מהיר */}
-        <button className="w-full py-5 bg-sky-600 rounded-[2rem] font-black shadow-xl shadow-sky-900/40 flex items-center justify-center gap-3 active:scale-95 transition-all">
-          <MessageSquare size={20} />
-          פתיחת צ'אט צוות
-        </button>
+        {/* Action Board */}
+        <div className="space-y-4">
+          <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-gray-100 flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="bg-emerald-50 text-emerald-600 p-3 rounded-2xl">
+                <Clock size={24} />
+              </div>
+              <div>
+                <h4 className="font-black text-gray-900 italic">סטטוס פעילות</h4>
+                <p className="text-xs text-gray-400 font-bold">מחובר כרגע למערכת סבן</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-emerald-500 uppercase">Live Now</span>
+              <div className="w-2 h-2 bg-emerald-500 rounded-full" />
+            </div>
+          </div>
+
+          <button 
+            onClick={() => window.location.href = '/'}
+            className="w-full bg-gray-900 text-white rounded-[2rem] p-6 shadow-xl flex items-center justify-between hover:bg-sky-600 transition-all group"
+          >
+            <div className="flex items-center gap-4">
+              <div className="bg-white/10 p-3 rounded-2xl group-hover:bg-white/20 transition-all">
+                <Navigation size={24} />
+              </div>
+              <div className="text-right">
+                <h4 className="font-black italic">כניסה למערכת SabanOS</h4>
+                <p className="text-xs text-white/60 font-bold uppercase tracking-widest text-right">Operation Dashboard</p>
+              </div>
+            </div>
+            <ChevronLeft size={24} className="group-hover:-translate-x-2 transition-transform" />
+          </button>
+        </div>
+
+        {/* Messenger */}
+        <TeamMessenger userProfile={userProfile} />
       </div>
+
+      <footer className="fixed bottom-0 left-0 right-0 p-6 bg-white/10 backdrop-blur-md border-t border-white/10 flex justify-center pointer-events-none">
+        <p className="text-[10px] font-black text-gray-300 uppercase tracking-[0.2em] italic">SabanOS Personal Identity Card - VIP Access</p>
+      </footer>
     </div>
   );
 };
-
-export default UserMagicPage;

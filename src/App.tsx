@@ -92,6 +92,7 @@ import { UserMagicPage } from './components/UserMagicPage';
 import { TeamMessengerContainer } from './components/TeamMessengerContainer';
 import { MobileWrapper } from './components/MobileWrapper';
 import { Avatar } from './components/Avatar';
+import { NotificationProvider, useNotifications } from './components/NotificationProvider';
 import { 
   createOrder, 
   getOrderByTrackingId,
@@ -395,7 +396,16 @@ const EmptyState = () => (
 // --- Main App ---
 
 export default function App() {
+  return (
+    <NotificationProvider>
+      <AppContent />
+    </NotificationProvider>
+  );
+}
+
+function AppContent() {
   const [user, setUser] = useState<FirebaseUser | null>(null);
+  const { playDing, playAlert, sendGlobalNotification } = useNotifications();
   const [loading, setLoading] = useState(true);
   const [orders, setOrders] = useState<Order[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
@@ -406,14 +416,8 @@ export default function App() {
   const [selectedDate, setSelectedDate] = useState(new Date());
 
   const [activeAlertReminder, setActiveAlertReminder] = useState<Reminder | null>(null);
-  const loopAudioRef = useRef<HTMLAudioElement | null>(null);
   const [isScreenShaking, setIsScreenShaking] = useState(false);
-
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-
-  useEffect(() => {
-    audioRef.current = new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3');
-  }, []);
+  const loopAudioRef = useRef<HTMLAudioElement | null>(null);
 
   const RINGTONE_URLS: Record<string, string> = {
     classic: 'https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3',
@@ -533,7 +537,7 @@ export default function App() {
       });
 
       if (dueNagging.length > 0) {
-        audioRef.current?.play().catch(e => console.log('Audio play failed:', e));
+        playDing();
         dueNagging.forEach(r => {
           addToast('תזכורת דחופה!', r.title, r.priority === 'urgent' ? 'warning' : 'info');
         });
