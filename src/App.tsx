@@ -62,6 +62,7 @@ import {
   isSameMonth,
   addMonths,
   subMonths,
+  isToday,
   parseISO,
   differenceInMinutes,
   addMinutes
@@ -88,6 +89,7 @@ import { ReminderForm } from './components/ReminderForm';
 import { UserAdminPanel } from './components/UserAdminPanel';
 import { UserMagicPage } from './components/UserMagicPage';
 import { TeamMessengerContainer } from './components/TeamMessengerContainer';
+import { MobileWrapper } from './components/MobileWrapper';
 import { 
   createOrder, 
   getOrderByTrackingId,
@@ -563,7 +565,7 @@ export default function App() {
 
   // --- User Memory Persistence ---
   const [settings, setSettings] = useUserMemory(user?.uid, 'ui_settings', {
-    viewMode: 'kanban' as 'list' | 'calendar' | 'reports' | 'chat' | 'drivers' | 'kanban' | 'import',
+    viewMode: 'kanban' as 'list' | 'calendar' | 'reports' | 'chat' | 'drivers' | 'kanban' | 'import' | 'chat_full' | 'admin_users',
     statusFilter: 'all',
     driverFilter: 'all',
     warehouseFilter: 'all',
@@ -1169,13 +1171,35 @@ export default function App() {
             onAction={handleAuraAction}
             orders={orders}
           />
+        ) : viewMode === 'chat_full' ? (
+          <div className="fixed inset-0 z-[1000] bg-white">
+            <TeamMessengerContainer 
+              currentUserProfile={{ 
+                id: user.uid.slice(0,4), 
+                name: user.displayName || 'סבאן', 
+                avatarUrl: user.photoURL || 'https://via.placeholder.com/150',
+                role: 'צוות SabanOS',
+                phone: '',
+                email: user.email || '',
+                lastSeen: serverTimestamp()
+              }} 
+              fullScreen={true} 
+              onClose={() => setViewMode('list')} 
+            />
+          </div>
         ) : (
-          <motion.div 
-            animate={isScreenShaking ? { x: [-2, 2, -2, 2, 0] } : {}}
-            transition={isScreenShaking ? { repeat: Infinity, duration: 0.1 } : {}}
-            className="min-h-screen bg-gray-50 flex flex-col font-sans mb-20 md:mb-0" 
-            dir="rtl"
+          <MobileWrapper 
+            viewMode={viewMode} 
+            setViewMode={setViewMode} 
+            onAddClick={() => setIsAddingOrder(true)}
+            user={user}
           >
+            <motion.div 
+              animate={isScreenShaking ? { x: [-2, 2, -2, 2, 0] } : {}}
+              transition={isScreenShaking ? { repeat: Infinity, duration: 0.1 } : {}}
+              className="min-h-screen bg-gray-50 flex flex-col font-sans" 
+              dir="rtl"
+            >
             <Header 
               user={user} 
               notificationsEnabled={notificationsEnabled} 
@@ -1254,8 +1278,35 @@ export default function App() {
               }}
             />
 
-            <main className="flex-1 max-w-5xl w-full mx-auto p-4 md:p-8 pb-32 sm:pb-8">
+            <main className="flex-1 max-w-5xl w-full mx-auto p-4 md:p-8">
               <div className="pb-[env(safe-area-inset-bottom)]">
+                {/* Horizontal Week Strip for Mobile Calendar */}
+                {viewMode === 'calendar' && (
+                  <div className="md:hidden mb-6 overflow-x-auto pb-2 scrollbar-none flex gap-3 px-1 no-scrollbar">
+                    {eachDayOfInterval({
+                      start: startOfWeek(new Date(), { weekStartsOn: 0 }),
+                      end: endOfWeek(addDays(new Date(), 14), { weekStartsOn: 0 }),
+                    }).map((day) => {
+                      const isActive = isSameDay(day, startDate);
+                      const isTd = isToday(day);
+                      return (
+                        <button
+                          key={day.toString()}
+                          onClick={() => setStartDate(day)}
+                          className={`flex-shrink-0 w-14 h-20 rounded-2xl flex flex-col items-center justify-center transition-all ${
+                            isActive ? 'bg-sky-600 text-white shadow-lg scale-105' : 'bg-white text-gray-500 border border-gray-100'
+                          }`}
+                        >
+                          <span className="text-[10px] font-black uppercase opacity-60 mb-1">
+                            {format(day, 'EEE', { locale: he })}
+                          </span>
+                          <span className="text-lg font-black">{format(day, 'd')}</span>
+                          {isTd && !isActive && <div className="w-1 h-1 bg-sky-600 rounded-full mt-1" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               {viewMode === 'list' ? (
                 <div className="bg-white/80 backdrop-blur-md p-4 rounded-3xl shadow-sm border border-sky-100 mb-8">
             <div className="flex items-center justify-between mb-4">
@@ -1685,38 +1736,6 @@ export default function App() {
 
       {/* Toasts */}
 
-      {/* Mobile Nav Overlay */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-lg border-t border-sky-100 px-8 pt-3 pb-[calc(12px+env(safe-area-inset-bottom))] flex justify-between items-center z-30 shadow-[0_-5px_20px_rgba(0,0,0,0.05)]">
-        <button 
-          onClick={() => setViewMode('list')}
-          className={`flex flex-col items-center gap-1 min-h-[44px] min-w-[44px] justify-center ${viewMode === 'list' ? 'text-sky-600' : 'text-gray-300'}`}
-        >
-          <Truck size={20} />
-          <span className="text-[10px] font-bold">סידור</span>
-        </button>
-        <button 
-          onClick={() => setViewMode('chat')}
-          className={`flex flex-col items-center gap-1 min-h-[44px] min-w-[44px] justify-center ${viewMode === 'chat' ? 'text-sky-600' : 'text-gray-300'}`}
-        >
-          <MessageSquare size={20} />
-          <span className="text-[10px] font-bold">נועה</span>
-        </button>
-        <button 
-          onClick={() => setViewMode('drivers')}
-          className={`flex flex-col items-center gap-1 min-h-[44px] min-w-[44px] justify-center ${viewMode === 'drivers' ? 'text-sky-600' : 'text-gray-300'}`}
-        >
-          <Users size={20} />
-          <span className="text-[10px] font-bold">נהגים</span>
-        </button>
-        <button 
-          onClick={() => setViewMode('reports')}
-          className={`flex flex-col items-center gap-1 min-h-[44px] min-w-[44px] justify-center ${viewMode === 'reports' ? 'text-sky-600' : 'text-gray-300'}`}
-        >
-          <FileText size={20} />
-          <span className="text-[10px] font-bold">דוחות</span>
-        </button>
-      </div>
-
       {/* Toasts */}
       <div className="fixed top-6 right-6 z-[100] flex flex-col gap-3 pointer-events-none w-full max-w-sm" dir="rtl">
         <AnimatePresence>
@@ -1759,7 +1778,8 @@ export default function App() {
       </div>
 
       </motion.div>
-      )} />
+    </MobileWrapper>
+  )} />
     </Routes>
   );
 }

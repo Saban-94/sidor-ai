@@ -214,7 +214,7 @@ const DocumentSheet = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex overflow-hidden" dir="rtl">
+    <div className="fixed inset-0 z-[200] flex overflow-hidden" dir="rtl">
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -224,116 +224,101 @@ const DocumentSheet = ({
       />
       
       <motion.div
-        initial={{ x: '100%' }}
-        animate={{ x: 0 }}
-        exit={{ x: '100%' }}
-        transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-        className="relative w-full max-w-sm bg-white shadow-2xl flex flex-col h-full ml-auto"
+        initial={{ y: '100%' }}
+        animate={{ y: 0 }}
+        exit={{ y: '100%' }}
+        transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+        className="relative w-full mt-auto bg-white rounded-t-[3rem] shadow-2xl flex flex-col max-h-[90dvh] overflow-hidden sm:max-w-md sm:mx-auto sm:mb-10 sm:rounded-[3rem]"
       >
-        <div className="flex items-center justify-between p-6 border-bottom border-gray-100 bg-sky-50/30">
+        <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mt-4 mb-2" />
+        
+        <div className="flex items-center justify-between p-6 border-b border-gray-100">
           <div className="flex items-center gap-3">
-             <div className="p-2.5 bg-sky-600 text-white rounded-2xl shadow-lg ring-4 ring-sky-50">
-               <FileText size={20} />
+             <div className="p-3 bg-sky-600 text-white rounded-2xl shadow-xl">
+               <FileText size={22} />
              </div>
              <div>
-               <h2 className="text-xl font-black text-gray-900 leading-tight">ניהול מסמכים</h2>
-               <p className="text-[10px] font-bold text-sky-600 uppercase tracking-widest">הזמנה #{order.orderNumber || order.id?.slice(-4).toUpperCase()}</p>
+               <h2 className="text-xl font-black text-gray-900 leading-tight">מסמכי הזמנה</h2>
+               <p className="text-[10px] font-bold text-sky-600 uppercase tracking-widest">#{order.orderNumber || order.id?.slice(-4).toUpperCase()}</p>
              </div>
           </div>
           <button 
             onClick={onClose}
-            className="p-2 text-gray-400 hover:text-gray-900 hover:bg-white rounded-xl transition-all shadow-sm hover:shadow-md"
+            className="p-2 bg-gray-100 text-gray-400 hover:text-gray-900 rounded-xl transition-all"
           >
             <X size={20} />
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6 space-y-8">
-          {/* Order Details Summary */}
-          <div className="p-4 bg-gray-50 rounded-[1.5rem] border border-gray-100 flex flex-col gap-1">
-            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">לקוח</span>
-            <p className="text-base font-black text-gray-900">{order.customerName}</p>
-            <p className="text-xs font-bold text-gray-500">{order.destination}</p>
+        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100">
+             <div className="flex justify-between items-start mb-2">
+                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">מידע לקוח</span>
+                <StatusBadge status={order.status} />
+             </div>
+             <p className="text-lg font-black text-gray-900 leading-tight">{order.customerName}</p>
+             <p className="text-xs font-bold text-gray-500 mt-1">{order.destination}</p>
           </div>
 
-          <div className="space-y-6">
-            <h3 className="text-sm font-black text-gray-900 flex items-center gap-2">
-              <Paperclip size={16} className="text-sky-500" />
-              קבצים מצורפים
+          <div className="space-y-4">
+            <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+              <Paperclip size={14} className="text-sky-500" />
+              קבצים מאובטחים
             </h3>
 
-            {/* Document Types */}
             {[
-              { id: order.orderFormId, type: 'orderForm', label: 'טופס הזמנה', themeColor: 'sky' },
-              { id: order.deliveryNoteId, type: 'deliveryNote', label: 'תעודת משלוח', themeColor: 'emerald' }
+              { id: order.orderFormId, type: 'orderForm', label: 'טופס הזמנה חתום', icon: Package },
+              { id: order.deliveryNoteId, type: 'deliveryNote', label: 'תעודת משלוח', icon: Truck }
             ].map((doc) => (
-              <div key={doc.type} className="group relative">
-                <div className={`p-5 rounded-[2rem] border transition-all duration-300 ${
-                  doc.id ? 
-                  `bg-white border-${doc.themeColor}-100 shadow-md` : 
-                  'bg-gray-50 border-dashed border-gray-200 opacity-80'
+              <div key={doc.type} className="group">
+                <div className={`p-4 rounded-[1.5rem] border transition-all ${
+                  doc.id ? 'bg-white border-sky-100 shadow-md ring-1 ring-sky-50' : 'bg-gray-50 border-dashed border-gray-200 opacity-60'
                 }`}>
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <div className={`p-3 rounded-2xl ${
-                        doc.id ? `bg-${doc.themeColor}-100 text-${doc.themeColor}-600` : 'bg-gray-200 text-gray-400'
-                      }`}>
-                        <FileText size={24} />
-                      </div>
-                      <div>
-                        <h4 className="text-sm font-black text-gray-900">{doc.label}</h4>
-                        <p className="text-[10px] font-bold text-gray-400">PDF Document</p>
-                      </div>
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className={`p-3 rounded-xl ${
+                      doc.id ? 'bg-sky-100 text-sky-600' : 'bg-gray-200 text-gray-400'
+                    }`}>
+                      <doc.icon size={20} />
                     </div>
+                    <div className="flex-1 min-w-0 text-right">
+                      <h4 className="text-sm font-black text-gray-900 truncate">{doc.label}</h4>
+                      <p className="text-[10px] font-bold text-gray-400">
+                        {doc.id ? (isPending(doc.id) ? 'מעבד...' : 'זמין לצפייה') : 'טרם הועלה'}
+                      </p>
+                    </div>
+                    
+                    {doc.id && !isPending(doc.id) && (
+                      <a 
+                        href={getDriveUrl(doc.id)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-2 bg-sky-600 text-white rounded-xl shadow-lg shadow-sky-600/20 active:scale-90 transition-transform"
+                      >
+                         <ExternalLink size={16} />
+                      </a>
+                    )}
                   </div>
 
-                  <div className="flex flex-col gap-3">
-                    {doc.id ? (
-                      isPending(doc.id) ? (
-                        <div className={`flex items-center gap-3 p-3 bg-${doc.themeColor}-50/50 rounded-2xl border border-${doc.themeColor}-100 animate-pulse`}>
-                          <Loader2 size={16} className="animate-spin text-sky-600" />
-                          <span className={`text-xs font-bold text-${doc.themeColor}-700`}>מעבד את המסמך...</span>
-                        </div>
-                      ) : (
-                        <div className="flex gap-2">
-                          <a 
-                            href={getDriveUrl(doc.id)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className={`flex-1 flex items-center justify-center gap-2 py-3 bg-${doc.themeColor}-600 text-white rounded-2xl font-black text-xs shadow-lg shadow-${doc.themeColor}-600/20 hover:scale-[1.02] active:scale-95 transition-all`}
-                          >
-                            <ExternalLink size={14} /> צפייה בקובץ
-                          </a>
-                        </div>
-                      )
-                    ) : (
-                      <p className="text-[11px] font-bold text-gray-400 italic bg-gray-100/50 p-3 rounded-xl border border-gray-200">אין מסמך מצורף להזמנה זו</p>
-                    )}
-
-                    <div className="pt-2 border-t border-gray-100 flex items-center justify-between">
-                      <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest decoration-sky-500 decoration-2 underline-offset-4 decoration-dotted">עדכון קובץ</span>
-                      <label className={`flex items-center gap-2 px-4 py-2 rounded-xl border transition-all cursor-pointer shadow-sm ${
-                        isUploading === doc.type ? 
-                        `bg-${doc.themeColor}-50 border-${doc.themeColor}-200` : 
-                        'bg-white border-gray-100 hover:border-sky-300 hover:bg-sky-50 text-sky-600'
-                      }`}>
+                  <div className="pt-3 border-t border-gray-100 flex items-center justify-between">
+                     <span className="text-[9px] font-bold text-gray-400 uppercase">פעולות</span>
+                     <label className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-[10px] font-black transition-all cursor-pointer ${
+                       isUploading === doc.type ? 'bg-sky-50 text-sky-400' : 'bg-white border border-gray-200 text-sky-600 hover:bg-sky-50'
+                     }`}>
                         {isUploading === doc.type ? (
-                          <Loader2 size={16} className="animate-spin" />
+                          <Loader2 size={12} className="animate-spin" />
                         ) : (
                           <>
-                            <FileUp size={14} />
-                            <span className="text-[10px] font-black">העלה חדש</span>
+                            <FileUp size={12} />
+                            <span>{doc.id ? 'עדכן' : 'העלה'}</span>
                           </>
                         )}
                         <input 
                           type="file" 
                           accept="application/pdf" 
                           className="hidden" 
-                          disabled={!!isUploading}
                           onChange={(e) => handleFileChange(e, doc.type as any)} 
                         />
-                      </label>
-                    </div>
+                     </label>
                   </div>
                 </div>
               </div>
@@ -341,12 +326,12 @@ const DocumentSheet = ({
           </div>
         </div>
 
-        <div className="p-6 bg-gray-50 border-t border-gray-100">
+        <div className="p-6 bg-gray-50 border-t border-gray-100 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
            <button 
              onClick={onClose}
-             className="w-full py-4 bg-white border border-gray-200 text-gray-600 rounded-[1.5rem] font-black text-sm flex items-center justify-center gap-2 hover:bg-gray-100 transition-all hover:shadow-md"
+             className="w-full py-4 bg-gray-900 text-white rounded-2xl font-black text-sm shadow-xl active:scale-95 transition-all"
            >
-             סגור תצוגה
+             סגור
            </button>
         </div>
       </motion.div>
