@@ -145,8 +145,9 @@ const TrackingPage: React.FC = () => {
   );
 
   const statusSteps = [
-    { key: 'pending', label: 'התקבל', icon: Clock },
+    { key: 'pending', label: 'ממתין לאישור הסידור', icon: Clock },
     { key: 'preparing', label: 'בהכנה', icon: Package },
+    { key: 'preparing', label: 'מעמיס', icon: Package },
     { key: 'on_the_way', label: 'בדרך אליך', icon: Truck },
     { key: 'delivered', label: 'סופק', icon: CheckCircle2 },
   ];
