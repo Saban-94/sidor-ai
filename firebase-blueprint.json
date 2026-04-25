@@ -164,9 +164,9 @@
       "schema": "UserProfile",
       "description": "VIP User Magic Pages collection"
     },
-    "/internal_team_chats/{chatId}": {
+    "/office_messages/{messageId}": {
       "schema": "TeamChatMessage",
-      "description": "Internal team communication chat"
+      "description": "Internal team communication chat (OneSignal synced)"
     },
     "/orders/{orderId}": {
       "schema": "Order",

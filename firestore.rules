@@ -37,12 +37,11 @@ service cloud.firestore {
       allow delete: if isSignedIn();
     }
 
-    // --- Internal Team Chats ---
-    match /internal_team_chats/{chatId} {
+    // --- Internal Team Chats (Office Messages) ---
+    match /office_messages/{messageId} {
       allow read: if isSignedIn();
       allow create: if isSignedIn() && (
-        incoming().senderId is string &&
-        incoming().senderName is string &&
+        isValidId(incoming().senderId) &&
         incoming().text is string && incoming().text.size() < 2000 &&
         incoming().timestamp == request.time
       );

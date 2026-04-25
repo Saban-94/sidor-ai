@@ -87,7 +87,7 @@ import { GlobalAlertBanner } from './components/GlobalAlertBanner';
 import { ReminderForm } from './components/ReminderForm';
 import { UserAdminPanel } from './components/UserAdminPanel';
 import { UserMagicPage } from './components/UserMagicPage';
-import { TeamMessenger } from './components/TeamMessenger';
+import { TeamMessengerContainer } from './components/TeamMessengerContainer';
 import { 
   createOrder, 
   getOrderByTrackingId,
@@ -1225,12 +1225,15 @@ export default function App() {
 
             {user && (
               <div className="hidden md:block">
-                <TeamMessenger userProfile={{ 
+                <TeamMessengerContainer currentUserProfile={{ 
                   id: user.uid.slice(0,4), 
                   name: user.displayName || 'סבאן', 
-                  avatarUrl: user.photoURL || '',
-                  role: 'צוות SabanOS'
-                } as any} />
+                  avatarUrl: user.photoURL || 'https://via.placeholder.com/150',
+                  role: 'צוות SabanOS',
+                  phone: '',
+                  email: user.email || '',
+                  lastSeen: serverTimestamp()
+                }} />
               </div>
             )}
 

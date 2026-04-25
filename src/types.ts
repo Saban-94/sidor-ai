@@ -117,7 +117,11 @@ export interface TeamChatMessage {
   id?: string;
   senderId: string;
   senderName: string;
+  senderAvatar?: string;
   text: string;
+  imageUrl?: string;
+  mentionedUserIds?: string[];
+  priority?: 'normal' | 'urgent';
   timestamp: any;
   recipientId?: string; // Optional for private team messages
 }
