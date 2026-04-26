@@ -40,7 +40,7 @@ const sanitizeForVoice = (text: string): string => {
 
 // Helper to call Gemini API via Google Apps Script (GAS)
 async function generateContentProxy(payload: { model: string, contents: any[], config?: any }) {
-  const GAS_URL = import.meta.env.VITE_GAS_URL;
+  const GAS_URL = import.meta.env.VITE_GAS_URL_GEMINI;
 
   if (!GAS_URL) {
     throw new Error("כתובת ה-GAS (VITE_GAS_URL) אינה מוגדרת במערכת.");
