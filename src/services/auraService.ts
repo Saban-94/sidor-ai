@@ -42,22 +42,27 @@ const sanitizeForVoice = (text: string): string => {
  * src/services/auraService.ts (או קובץ דומה)
  * פונקציה מעודכנת לקריאה ל-Gemini דרך הצינור של גוגל
  */
+async function generateContentProxy(payload: any) {
+  // ניסיון למשוך את ה-URL החדש, עם גיבוי לישן אם שכחנו להגדיר
+  const rawUrl = import.meta.env.VITE_GAS_URL_GEMINI || import.meta.env.VITE_GAS_URL;
 
-async function generateContentProxy(payload: { model: string, contents: any[], config?: any }) {
-  const GAS_AI_URL = import.meta.env.VITE_GAS_URL_GEMINI;
-
-  if (!GAS_AI_URL) {
-    throw new Error("מנוע ה-AI לא הוגדר (חסר URL)");
+  if (!rawUrl) {
+    console.error("GAS URL is missing!");
+    throw new Error("חסר קישור למנוע ה-AI. אנא בדוק את הגדרות המערכת.");
   }
+
+  // ניקוי בטוח של ה-URL - רק אם הוא קיים
+  const GAS_URL = rawUrl.replace(/\/+$/, ""); 
 
   try {
     const promptText = payload.contents[0].parts[0].text;
 
-    const response = await fetch(GAS_AI_URL, {
+    // שליחה ב-mode: 'no-cors' כדי לעקוף את חסימת הדפדפן
+    await fetch(GAS_URL, {
       method: "POST",
-      mode: "no-cors", // זה המפתח! עוקף את חסימת ה-CORS
+      mode: "no-cors", 
       headers: {
-        "Content-Type": "text/plain", // גוגל מקבלת את זה בלי לעשות בעיות
+        "Content-Type": "text/plain",
       },
       body: JSON.stringify({
         action: "generateAI",
@@ -65,13 +70,9 @@ async function generateContentProxy(payload: { model: string, contents: any[], c
       }),
     });
 
-    // בגלל mode: "no-cors", הדפדפן לא יתן לנו לקרוא את ה-JSON ישירות.
-    // אם אתה חייב לקרוא את התשובה חזרה ל-ETA, אנחנו צריכים פתרון "עקיף"
-    // אבל עבור שליחת ההתראה זה יעבוד פיקס.
-    
     return {
       candidates: [{
-        content: { parts: [{ text: "הבקשה נשלחה לעיבוד..." }] }
+        content: { parts: [{ text: "הבקשה נשלחה לג'יימס בשיטס... 🚀" }] }
       }]
     };
   } catch (error) {
