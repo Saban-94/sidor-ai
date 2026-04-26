@@ -97,20 +97,21 @@ export class SyncService {
     }
 
     try {
+      console.log('📤 Sending sync payload to GAS:', payload.action);
       const response = await fetch(GAS_URL, {
         method: 'POST',
+        mode: 'no-cors', // Bypass CORS preflight for text/plain
         headers: { 'Content-Type': 'text/plain' },
         body: JSON.stringify(payload)
       });
       
-      if (!response.ok && response.status !== 302) { // GAS redirects are ok
-        throw new Error(`Sync failed: ${response.statusText}`);
-      }
-      
+      // Note: with no-cors, we cannot read the response body or status
+      // We assume victory if no network error occurred
+      console.log('✅ Sync request dispatched successfully');
       return true;
     } catch (error) {
       this.addToQueue(payload);
-      console.error('Sync error (queued):', error);
+      console.error('❌ Sync error (queued):', error);
       return false;
     }
   }

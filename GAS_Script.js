@@ -19,8 +19,21 @@ const CONFIG = {
  */
 function doPost(e) {
   try {
-    const data = JSON.parse(e.postData.contents);
+    const rawContent = e.postData.contents;
+    console.log('DEBUG: Received payload:', rawContent);
+    
+    let data;
+    try {
+      data = JSON.parse(rawContent);
+    } catch(jsonErr) {
+      console.error('DEBUG: JSON Parse failure, attempting fallback');
+      data = e.parameter;
+    }
+
     const action = data.action;
+    if (!action) {
+       return createResponse({ status: 'error', message: 'Missing action key', received: data });
+    }
     
     switch(action) {
       case 'logBlackBox':
