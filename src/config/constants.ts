@@ -1,1 +1,1 @@
-export const GAS_URL = import.meta.env.VITE_GAS_URL_GEMINI || import.meta.env.VITE_GAS_URL || "https://script.google.com/macros/s/AKfycbyFBhKHI9oBKANYo82UHvzZqlhUWyPBjjLVscvWvtyJl76ExPmU8CcXBF63xbvwCEvqfQ/exec";
+export const GAS_URL = import.meta.env.VITE_GAS_URL_GEMINI || import.meta.env.VITE_GAS_URL || "https://script.google.com/macros/s/AKfycbzqGPxFid9M3EHbyx1eqtrluYjHdOEyCNONuQZPuuBphtXWPvNRcF1b9fP7dc82KT9Uiw/exec";
