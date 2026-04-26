@@ -10,8 +10,8 @@
  */
 
 const CONFIG = {
-  FIREBASE_BASE_URL: "https://yo-fire-sab-default-rtdb.firebaseio.com/", // Replace with your Firestore REST base if needed
-  // Note: For Firestore sync, it's better to use the App's Webhook to push to Firestore
+  PROJECT_ID: "saban-ai-drive",
+  DATABASE_ID: "ai-studio-cc5d2687-b402-4b97-b808-5ba700689e0e"
 };
 
 /**
@@ -31,6 +31,8 @@ function doPost(e) {
         return handleOrderSync(data);
       case 'syncChat':
         return handleChatSync(data);
+      case 'syncInventory':
+        return handleInventorySync(data);
       case 'createCustomerFolder':
         return createCustomerFolder(data);
       case 'upload':
@@ -44,6 +46,40 @@ function doPost(e) {
 }
 
 /**
+ * Inventory Sync
+ */
+function handleInventorySync(data) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = getOrCreateSheet(ss, 'Inventory_Stock'); // User might rename this to 'Sidor-noaa - מלאי'
+  
+  const rows = sheet.getDataRange().getValues();
+  let foundIndex = -1;
+  for(let i = 1; i < rows.length; i++) {
+    if(rows[i][0] === data.sku) {
+      foundIndex = i + 1;
+      break;
+    }
+  }
+  
+  const rowData = [
+    data.sku,
+    data.name,
+    data.currentStock,
+    data.minStock,
+    data.unit,
+    new Date()
+  ];
+  
+  if(foundIndex > 0) {
+    sheet.getRange(foundIndex, 1, 1, rowData.length).setValues([rowData]);
+  } else {
+    sheet.appendRow(rowData);
+  }
+  
+  return createResponse({ status: 'success' });
+}
+
+/**
  * BlackBox Logging: Records every critical state change
  */
 function handleBlackBoxLog(data) {
@@ -52,6 +88,7 @@ function handleBlackBoxLog(data) {
   
   sheet.appendRow([
     new Date(),
+    data.origin || 'App',
     data.operation || 'UPDATE',
     data.user || 'System',
     data.collection || 'General',
@@ -134,20 +171,63 @@ function handleChatSync(data) {
 }
 
 /**
- * Detect manual changes in the spreadsheet and sync back (simulated)
+ * Sync manual edits from Sheet back to Firestore
  */
 function onEdit(e) {
   const range = e.range;
   const sheet = range.getSheet();
   const sheetName = sheet.getName();
   
-  // Example: If Order_Tracking status changes, we could trigger a callback
-  if(sheetName === 'Order_Tracking' && range.getColumn() === 4) {
-    const orderId = sheet.getRange(range.getRow(), 1).getValue();
-    const newStatus = range.getValue();
+  // Handle Inventory Edits
+  if(sheetName === 'Inventory_Stock' || sheetName === 'Sidor-noaa - מלאי') {
+    const row = range.getRow();
+    if(row <= 1) return; // Skip header
     
-    console.log(`Manual Status Sync: Order ${orderId} -> ${newStatus}`);
-    // In a real prod environment, you would use UrlFetchApp to notify the App's API
+    const rowData = sheet.getRange(row, 1, 1, 5).getValues()[0];
+    const sku = rowData[0];
+    const currentStock = rowData[2];
+    
+    if(!sku) return;
+
+    console.log(`Syncing Inventory back to Firestore: ${sku} -> ${currentStock}`);
+    
+    // We need to find the document by SKU or use SKU as ID
+    // Simplest: use a lookup via REST or assuming ID = SKU
+    updateFirestoreDocument('inventory', sku, {
+      currentStock: { integerValue: parseInt(currentStock) }
+    });
+
+    handleBlackBoxLog({
+      origin: 'Sheet',
+      operation: 'UPDATE',
+      user: 'Google Sheets Editor',
+      collection: 'inventory',
+      newValue: { sku, currentStock },
+      path: `inventory/${sku}`
+    });
+  }
+}
+
+/**
+ * Helper to update Firestore via REST API
+ */
+function updateFirestoreDocument(collection, docId, fields) {
+  const url = `https://firestore.googleapis.com/v1/projects/${CONFIG.PROJECT_ID}/databases/${CONFIG.DATABASE_ID}/documents/${collection}/${docId}?updateMask.fieldPaths=${Object.keys(fields).join('&updateMask.fieldPaths=')}`;
+  
+  const payload = {
+    name: `projects/${CONFIG.PROJECT_ID}/databases/${CONFIG.DATABASE_ID}/documents/${collection}/${docId}`,
+    fields: fields
+  };
+
+  try {
+    UrlFetchApp.fetch(url, {
+      method: 'patch',
+      contentType: 'application/json',
+      payload: JSON.stringify(payload),
+      muteHttpExceptions: true
+    });
+  } catch(e) {
+    console.error('Firestore REST Error:', e.toString());
   }
 }
 

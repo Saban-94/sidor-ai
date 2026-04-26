@@ -115,6 +115,8 @@ import { Order, Driver, Customer, Reminder, InventoryItem } from './types';
 import { useUserMemory } from './hooks/useUserMemory';
 import { uploadFileToDrive, createCustomerFolderHierarchy } from './services/driveService';
 
+import { SyncService } from './services/syncService';
+
 // --- Components ---
 
 const SortIcon = ({ field, currentSort, direction }: { field: string, currentSort: string, direction: 'asc' | 'desc' }) => {
@@ -833,6 +835,7 @@ function AppContent() {
   // --- Auth & Init ---
   useEffect(() => {
     initOneSignal();
+    SyncService.initListeners();
     return onAuthStateChanged(auth, (u) => {
       setUser(u);
       setLoading(false);
