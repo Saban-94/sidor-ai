@@ -50,7 +50,7 @@ async function startServer() {
   // AI generation proxy
   app.post("/api/ai/generate", async (req, res) => {
     try {
-      const apiKey = process.env.GEMINI_API_KEY?.trim();
+      const apiKey = process.env.VITE_GEMINI_API_KEY?.trim();
       if (!apiKey || apiKey === "undefined" || apiKey.length < 10) {
         return res.status(500).json({ 
           error: "Gemini API key is invalid or not provided.",
