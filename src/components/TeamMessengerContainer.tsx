@@ -127,15 +127,20 @@ export const TeamMessengerContainer: React.FC<TeamMessengerContainerProps> = ({
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const msgs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as TeamChatMessage));
       
-      if (msgs.length > messages.length && messages.length > 0) {
-        const lastMsg = msgs[msgs.length - 1];
-        if (lastMsg.senderId !== currentUserProfile.id) {
-          if (lastMsg.priority === 'urgent') {
-            playAlert();
-          } else {
-            playDing();
+      // Improved logic: Only play sound for messages added AFTER initial load
+      if (messages.length > 0) {
+        snapshot.docChanges().forEach((change) => {
+          if (change.type === 'added') {
+            const newMsg = change.doc.data() as TeamChatMessage;
+            if (newMsg.senderId !== currentUserProfile.id) {
+              if (newMsg.priority === 'urgent') {
+                playAlert();
+              } else {
+                playDing();
+              }
+            }
           }
-        }
+        });
       }
       
       setMessages(msgs);

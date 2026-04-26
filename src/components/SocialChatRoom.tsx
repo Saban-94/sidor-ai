@@ -49,7 +49,7 @@ export const SocialChatRoom: React.FC<SocialChatRoomProps> = ({
   currentUserProfile, 
   onClose 
 }) => {
-  const { playDing } = useNotifications();
+  const { playDing, playAlert } = useNotifications();
   const [messages, setMessages] = useState<TeamChatMessage[]>([]);
   const [teamMembers, setTeamMembers] = useState<UserProfile[]>([]);
   const [selectedMember, setSelectedMember] = useState<UserProfile | null>(null);
@@ -95,14 +95,23 @@ export const SocialChatRoom: React.FC<SocialChatRoomProps> = ({
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const msgs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as TeamChatMessage));
       
-      // Notification Logic: Only if new messages arrive after initial load
-      if (msgs.length > messages.length && messages.length > 0) {
-        const lastMsg = msgs[msgs.length - 1];
-        if (lastMsg.senderId !== currentUserProfile.id) {
-          playDing();
-          // Update hasUnread for recipient if private, or for Rami/others if global
-          // (Handled partially by logic below or by global state)
-        }
+      // Improved Notification Logic: Use docChanges to detect exactly when a new message is added
+      // We skip the first load (when snapshot.metadata.fromCache or messages is empty)
+      if (messages.length > 0) {
+        snapshot.docChanges().forEach((change) => {
+          if (change.type === 'added') {
+            const newMsg = change.doc.data() as TeamChatMessage;
+            // Only play if it's not from us
+            if (newMsg.senderId !== currentUserProfile.id) {
+              // Priority based sound
+              if (newMsg.priority === 'urgent') {
+                playAlert();
+              } else {
+                playDing();
+              }
+            }
+          }
+        });
       }
       
       setMessages(msgs);

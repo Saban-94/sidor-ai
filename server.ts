@@ -12,7 +12,7 @@ const __dirname = path.dirname(__filename);
 
 async function startServer() {
   // Diagnostic: Check for API Key presence at start
-  const startupKey = process.env.VITE_GEMINI_API_KEY;
+  const startupKey = process.env.GEMINI_API_KEY;
   if (!startupKey) {
     console.warn("⚠️ WARNING: GEMINI_API_KEY is not defined in the environment at startup.");
   } else {
@@ -50,7 +50,7 @@ async function startServer() {
   // AI generation proxy
   app.post("/api/ai/generate", async (req, res) => {
     try {
-      const apiKey = process.env.VITE_GEMINI_API_KEY?.trim();
+      const apiKey = process.env.GEMINI_API_KEY?.trim();
       if (!apiKey || apiKey === "undefined" || apiKey.length < 10) {
         return res.status(500).json({ 
           error: "Gemini API key is invalid or not provided.",
