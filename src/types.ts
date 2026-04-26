@@ -109,6 +109,9 @@ export interface UserProfile {
   role: string;
   avatarUrl: string;
   lastSeen: any;
+  isTyping?: boolean;
+  typingTo?: string;
+  lastTyped?: any;
   createdAt?: any;
   updatedAt?: any;
 }
