@@ -38,29 +38,21 @@ const sanitizeForVoice = (text: string): string => {
     .trim();
 };
 
-/**
- * src/services/auraService.ts (או קובץ דומה)
- * פונקציה מעודכנת לקריאה ל-Gemini דרך הצינור של גוגל
- */
 async function generateContentProxy(payload: any) {
-  // ניסיון למשוך את ה-URL החדש, עם גיבוי לישן אם שכחנו להגדיר
-  const rawUrl = import.meta.env.VITE_GAS_URL_GEMINI || import.meta.env.VITE_GAS_URL;
+  // מוודא שאנחנו לוקחים את ה-URL של המוח
+  const GAS_URL = import.meta.env.VITE_GAS_URL_GEMINI;
 
-  if (!rawUrl) {
-    console.error("GAS URL is missing!");
-    throw new Error("חסר קישור למנוע ה-AI. אנא בדוק את הגדרות המערכת.");
+  if (!GAS_URL || GAS_URL.startsWith("AIza")) {
+    throw new Error("שגיאה: ה-URL של המוח לא הוגדר נכון בוורסל (יתכן שהזנת API KEY במקום URL)");
   }
-
-  // ניקוי בטוח של ה-URL - רק אם הוא קיים
-  const GAS_URL = rawUrl.replace(/\/+$/, ""); 
 
   try {
     const promptText = payload.contents[0].parts[0].text;
 
-    // שליחה ב-mode: 'no-cors' כדי לעקוף את חסימת הדפדפן
-    await fetch(GAS_URL, {
+    // שליחה לסקריפט המוח
+    const response = await fetch(GAS_URL, {
       method: "POST",
-      mode: "no-cors", 
+      mode: "no-cors", // עוקף את חסימת ה-CORS שראינו בלוג
       headers: {
         "Content-Type": "text/plain",
       },
@@ -72,11 +64,11 @@ async function generateContentProxy(payload: any) {
 
     return {
       candidates: [{
-        content: { parts: [{ text: "הבקשה נשלחה לג'יימס בשיטס... 🚀" }] }
+        content: { parts: [{ text: "הבקשה נשלחה למוח של ג'יימס... 🧠" }] }
       }]
     };
   } catch (error) {
-    console.error("Gemini GAS Proxy Error:", error);
+    console.error("James Brain Error:", error);
     throw error;
   }
 }
