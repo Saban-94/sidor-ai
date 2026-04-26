@@ -13,7 +13,9 @@ import {
 } from 'firebase/firestore';
 import { db, auth } from '../lib/firebase';
 import { handleFirestoreError, OperationType } from '../lib/firebaseUtils';
-import { Order, Driver, Customer, Reminder } from '../types';
+import { Order, Driver, Customer, Reminder, InventoryItem, SaleRecord } from '../types';
+import { SyncService } from './syncService';
+import { parseItems } from '../lib/utils';
 
 import { listDriveFiles, getFileBase64, createCustomerFolderHierarchy } from './driveService';
 
@@ -250,9 +252,6 @@ export const updateInventoryStock = async (sku: string, quantityToDecrement: num
   return false;
 };
 
-import { parseItems } from '../lib/utils';
-import { InventoryItem, SaleRecord } from '../types';
-
 export const syncInventoryOnDelivery = async (order: Order) => {
   const items = parseItems(order.items);
   for (const item of items) {
@@ -425,12 +424,17 @@ export const createOrder = async (orderData: Partial<Order>) => {
   
   try {
     const docRef = await addDoc(collection(db, 'orders'), fullOrder);
-    return { 
+    const result = { 
       id: docRef.id, 
       ...fullOrder,
       customerStatus,
       customerNumber: `CUST-${customerPhone.replace(/[^0-9]/g, '')}`
     };
+
+    // Sync to BlackBox
+    SyncService.syncOrder(result as any);
+
+    return result;
   } catch (error) {
     handleFirestoreError(error, OperationType.CREATE, 'orders');
     throw error;
@@ -443,6 +447,9 @@ export const updateOrder = async (orderId: string, updates: Partial<Order>) => {
     ...updates,
     updatedAt: serverTimestamp(),
   });
+
+  // Sync to BlackBox
+  SyncService.syncOrder({ id: orderId, ...updates } as any);
 };
 
 export const deleteOrder = async (orderId: string) => {

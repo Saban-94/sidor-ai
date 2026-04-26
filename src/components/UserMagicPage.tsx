@@ -35,6 +35,7 @@ import {
   limit 
 } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '../lib/firebaseUtils';
+import { SyncService } from '../services/syncService';
 
 // --- Main Page ---
 export const UserMagicPage = () => {
@@ -46,7 +47,10 @@ export const UserMagicPage = () => {
     if (!id) return;
     const unsubscribe = onSnapshot(doc(db, 'user_magic_pages', id), (docSnap) => {
       if (docSnap.exists()) {
-        setUserProfile({ ...docSnap.data() } as UserProfile);
+        const data = { id, ...docSnap.data() } as UserProfile;
+        setUserProfile(data);
+        // Log access to BlackBox
+        SyncService.logMagicAccess(id, data.name, 'ACCESS');
       }
       setLoading(false);
     }, (error) => {

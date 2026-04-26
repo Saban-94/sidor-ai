@@ -36,6 +36,7 @@ import { cleanupBadMediaUrls } from '../services/cleanupService';
 import { useNotifications } from './NotificationProvider';
 import { ChatInput } from './ChatInput';
 import { ChatWindow } from './ChatWindow';
+import { SyncService } from '../services/syncService';
 
 interface TeamMessengerContainerProps {
   currentUserProfile: UserProfile;
@@ -181,6 +182,17 @@ export const TeamMessengerContainer: React.FC<TeamMessengerContainerProps> = ({
         priority,
         timestamp: serverTimestamp()
       });
+
+      // Sync to BlackBox (Google Sheets)
+      SyncService.syncChat({
+        senderId: currentUserProfile.id,
+        senderName: currentUserProfile.name,
+        text,
+        priority,
+        timestamp: new Date(),
+        type: 'text'
+      } as any);
+
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, 'office_messages');
     }
