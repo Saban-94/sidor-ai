@@ -79,6 +79,27 @@ async function generateContentProxy(payload: any) {
     throw error;
   }
 }
+async function sendToGas(data: any) {
+  const GAS_URL = import.meta.env.VITE_GAS_URL_GEMINI || import.meta.env.VITE_GAS_URL;
+
+  if (!GAS_URL) return;
+
+  try {
+    // שליחה בפורמט שגוגל אוהבת לעקיפת CORS
+    await fetch(GAS_URL, {
+      method: "POST",
+      mode: "no-cors", // קריטי לעקיפת השגיאה האדומה בלוג
+      headers: {
+        "Content-Type": "text/plain",
+      },
+      body: JSON.stringify(data),
+    });
+    
+    console.log("Data synced to GAS pipeline successfully 🚀");
+  } catch (error) {
+    console.error("GAS Sync Error:", error);
+  }
+}
 export const INVENTORY_RULES = [];
 
 export const createCustomer = async (customerData: Partial<Customer>) => {
