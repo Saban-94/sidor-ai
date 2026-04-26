@@ -38,39 +38,53 @@ const sanitizeForVoice = (text: string): string => {
     .trim();
 };
 
-import { GoogleGenAI } from "@google/genai";
-
-// Helper to call Gemini API via server proxy
+// Helper to call Gemini API via Google Apps Script (GAS)
 async function generateContentProxy(payload: { model: string, contents: any[], config?: any }) {
+  const GAS_URL = import.meta.env.VITE_GAS_URL;
+
+  if (!GAS_URL) {
+    throw new Error("כתובת ה-GAS (VITE_GAS_URL) אינה מוגדרת במערכת.");
+  }
+
   try {
-    const response = await fetch("/api/ai/generate", {
+    // אנחנו שולחים את הפרומפט לצינור של גוגל
+    const prompt = payload.contents[0].parts[0].text;
+
+    const response = await fetch(GAS_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      // שימוש ב-text/plain או שליחה רגילה כדי לעקוף בעיות CORS ב-POST מורכב
       body: JSON.stringify({
-        ...payload,
-        model: payload.model === "gemini-3-flash-preview" ? "gemini-1.5-flash" : payload.model
+        action: "generateAI",
+        prompt: prompt,
+        model: "gemini-3-flash-preview" 
       }),
     });
-    
-    if (!response.ok) {
-      const errData = await response.json().catch(() => ({}));
-      throw new Error(errData.error || `AI generation failed with status ${response.status}`);
+
+    // בגלל המבנה של GAS, לפעמים נקבל Redirect, ה-fetch מטפל בזה.
+    const result = await response.json();
+
+    if (result.status === "error") {
+      throw new Error(result.message);
     }
-    
-    return await response.json();
+
+    // מחזירים את התשובה במבנה שהאפליקציה מצפה לו (כדי לא לשבור חלקים אחרים)
+    return {
+      candidates: [{
+        content: {
+          parts: [{ text: result.answer }]
+        }
+      }]
+    };
+
   } catch (error: any) {
-    console.error("Gemini Proxy Error:", error);
-    if (error.message?.includes("not configured on the server")) {
-      throw new Error("מפתח ה-API של Gemini אינו מוגדר בשרת. אנא וודא שהגדרת את ה-GEMINI_API_KEY בהגדרות המערכת.");
-    }
-    throw error;
+    console.error("Gemini GAS Proxy Error:", error);
+    throw new Error("ג'יימס (AI) מתקשה לענות כרגע. בדוק את החיבור ל-GAS.");
   }
 }
 
 async function callGeminiApi(payload: any) {
   return generateContentProxy(payload);
 }
-
 export const INVENTORY_RULES = [];
 
 export const createCustomer = async (customerData: Partial<Customer>) => {
