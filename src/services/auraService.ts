@@ -41,7 +41,7 @@ const sanitizeForVoice = (text: string): string => {
 async function generateContentProxy(payload: any) {
   // 1. משיכת ה-URL בצורה בטוחה
   // אנחנו בודקים קודם את המשתנה של המוח, ואם הוא חסר לוקחים את הכללי
-  const rawUrl = import.meta.env.VITE_GAS_URL_GEMINI || import.meta.env.VITE_GAS_URL;
+  const rawUrl = import.meta.env.VITE_GAS_URL_AI || import.meta.env.VITE_GAS_URL;
 
   // הגנה: אם אין URL בכלל, אל תנסה לעשות replace (זה מה שגרם לקריסה)
   if (!rawUrl) {
