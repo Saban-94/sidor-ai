@@ -12,7 +12,8 @@ import {
   MessageCircle,
   Plus,
   Minus,
-  Search
+  Search,
+  Truck
 } from 'lucide-react';
 import { InventoryItem, Order } from '../types';
 import { createOrder } from '../services/auraService';
@@ -40,11 +41,11 @@ const OrderForm: React.FC<OrderFormProps> = ({
     destination: '',
     warehouse: 'החרש' as 'החרש' | 'התלמיד',
     orderNumber: '',
+    driverId: 'pending' as 'ali' | 'hikmat' | 'pending',
   });
 
   const [selectedItems, setSelectedItems] = useState<{item: InventoryItem, quantity: number}[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-
   const [manualItems, setManualItems] = useState('');
   const [isManualItems, setIsManualItems] = useState(false);
 
@@ -56,6 +57,7 @@ const OrderForm: React.FC<OrderFormProps> = ({
         destination: editingOrder.destination || '',
         warehouse: editingOrder.warehouse || 'החרש',
         orderNumber: editingOrder.orderNumber || '',
+        driverId: (editingOrder.driverId as any) || 'pending',
       });
       setManualItems(editingOrder.items || '');
       setIsManualItems(!!editingOrder.items);
@@ -67,6 +69,7 @@ const OrderForm: React.FC<OrderFormProps> = ({
         destination: '',
         warehouse: 'החרש',
         orderNumber: '',
+        driverId: 'pending',
       });
       setManualItems('');
       setIsManualItems(false);
@@ -90,10 +93,6 @@ const OrderForm: React.FC<OrderFormProps> = ({
     });
   };
 
-  const handleRemoveItem = (itemId: string) => {
-    setSelectedItems(prev => prev.filter(i => i.item.id !== itemId));
-  };
-
   const updateQuantity = (itemId: string, delta: number) => {
     setSelectedItems(prev => prev.map(i => {
       if (i.item.id === itemId) {
@@ -102,6 +101,10 @@ const OrderForm: React.FC<OrderFormProps> = ({
       }
       return i;
     }));
+  };
+
+  const handleRemoveItem = (itemId: string) => {
+    setSelectedItems(prev => prev.filter(i => i.item.id !== itemId));
   };
 
   const validatePhone = (phone: string) => {
@@ -133,16 +136,16 @@ const OrderForm: React.FC<OrderFormProps> = ({
         items: itemsString,
         warehouse: formData.warehouse,
         orderNumber: formData.orderNumber,
+        driverId: formData.driverId,
         date: editingOrder ? editingOrder.date : new Date().toISOString().split('T')[0],
         time: editingOrder ? editingOrder.time : new Date().toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', hour12: false }),
-        driverId: editingOrder ? editingOrder.driverId : 'pending',
         status: editingOrder ? editingOrder.status : 'pending'
       };
 
       if (editingOrder?.id) {
         const { updateOrder } = await import('../services/auraService');
         await updateOrder(editingOrder.id, orderData);
-        onSuccess({...editingOrder, ...orderData});
+        onSuccess({...editingOrder, ...orderData} as Order);
         onClose();
       } else {
         const result = await createOrder(orderData);
@@ -196,17 +199,44 @@ const OrderForm: React.FC<OrderFormProps> = ({
                   <p className="text-gray-400 text-xs font-bold uppercase tracking-widest">SabanOS Order Engine</p>
                 </div>
               </div>
-              <button 
-                onClick={onClose}
-                className="p-2 hover:bg-white/10 rounded-2xl transition-all"
-              >
+              <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-2xl transition-all">
                 <X size={24} />
               </button>
             </div>
 
             <div className="overflow-y-auto p-8 space-y-8 custom-scrollbar">
               <form onSubmit={handleSubmit} className="space-y-8">
-                {/* Customer Details Section */}
+                
+                {/* Driver Assignment Section - NEW */}
+                <div className="space-y-3">
+                  <label className="flex items-center gap-2 text-xs font-black text-gray-400 uppercase tracking-wider px-1">
+                    <Truck size={14} className="text-sky-600" />
+                    שיבוץ נהג לסידור
+                  </label>
+                  <div className="grid grid-cols-3 gap-3">
+                    {[
+                      { id: 'ali', name: 'עלי 🚛', color: 'bg-emerald-500' },
+                      { id: 'hikmat', name: 'חכמת 🏗️', color: 'bg-orange-500' },
+                      { id: 'pending', name: 'ממתין ⏳', color: 'bg-gray-400' }
+                    ].map((driver) => (
+                      <button
+                        key={driver.id}
+                        type="button"
+                        onClick={() => setFormData({...formData, driverId: driver.id as any})}
+                        className={`py-4 rounded-2xl text-sm font-black transition-all border-2 flex flex-col items-center gap-1 ${
+                          formData.driverId === driver.id 
+                            ? `border-sky-600 bg-sky-50 text-sky-900 shadow-md` 
+                            : 'bg-gray-50 border-transparent text-gray-400 hover:bg-gray-100'
+                        }`}
+                      >
+                        <span className={formData.driverId === driver.id ? 'text-sky-600' : 'text-gray-400'}>
+                          {driver.name}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <label className="flex items-center gap-2 text-xs font-black text-gray-400 uppercase tracking-wider px-1">
@@ -219,7 +249,7 @@ const OrderForm: React.FC<OrderFormProps> = ({
                       placeholder="שם מלא של הלקוח"
                       value={formData.customerName}
                       onChange={(e) => setFormData({...formData, customerName: e.target.value})}
-                      className="w-full bg-gray-50 border-2 border-transparent rounded-2xl px-6 py-4 text-sm font-bold focus:bg-white focus:border-sky-600 focus:ring-4 focus:ring-sky-600/5 outline-none transition-all"
+                      className="w-full bg-gray-50 border-2 border-transparent rounded-2xl px-6 py-4 text-sm font-bold focus:bg-white focus:border-sky-600 outline-none transition-all"
                     />
                   </div>
 
@@ -234,7 +264,7 @@ const OrderForm: React.FC<OrderFormProps> = ({
                       placeholder="05XXXXXXXX"
                       value={formData.customerPhone}
                       onChange={(e) => setFormData({...formData, customerPhone: e.target.value})}
-                      className="w-full bg-gray-50 border-2 border-transparent rounded-2xl px-6 py-4 text-sm font-bold focus:bg-white focus:border-sky-600 focus:ring-4 focus:ring-sky-600/5 outline-none transition-all"
+                      className="w-full bg-gray-50 border-2 border-transparent rounded-2xl px-6 py-4 text-sm font-bold focus:bg-white focus:border-sky-600 outline-none transition-all"
                     />
                   </div>
                 </div>
@@ -251,7 +281,7 @@ const OrderForm: React.FC<OrderFormProps> = ({
                       placeholder="כתובת מלאה ומדויקת"
                       value={formData.destination}
                       onChange={(e) => setFormData({...formData, destination: e.target.value})}
-                      className="w-full bg-gray-50 border-2 border-transparent rounded-2xl px-6 py-4 text-sm font-bold focus:bg-white focus:border-sky-600 focus:ring-4 focus:ring-sky-600/5 outline-none transition-all"
+                      className="w-full bg-gray-50 border-2 border-transparent rounded-2xl px-6 py-4 text-sm font-bold focus:bg-white focus:border-sky-600 outline-none transition-all"
                     />
                   </div>
                   <div className="space-y-2">
@@ -264,7 +294,7 @@ const OrderForm: React.FC<OrderFormProps> = ({
                       placeholder="מס' נתור / הזמנה"
                       value={formData.orderNumber}
                       onChange={(e) => setFormData({...formData, orderNumber: e.target.value})}
-                      className="w-full bg-gray-50 border-2 border-transparent rounded-2xl px-6 py-4 text-sm font-bold focus:bg-white focus:border-sky-600 focus:ring-4 focus:ring-sky-600/5 outline-none transition-all"
+                      className="w-full bg-gray-50 border-2 border-transparent rounded-2xl px-6 py-4 text-sm font-bold focus:bg-white focus:border-sky-600 outline-none transition-all"
                     />
                   </div>
                 </div>
@@ -292,7 +322,6 @@ const OrderForm: React.FC<OrderFormProps> = ({
                   </div>
                 </div>
 
-                {/* Items Selection Section */}
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <label className="flex items-center gap-2 text-xs font-black text-gray-400 uppercase tracking-wider px-1">
@@ -314,15 +343,14 @@ const OrderForm: React.FC<OrderFormProps> = ({
                       onChange={(e) => setManualItems(e.target.value)}
                       placeholder="הזן פריטים וכמויות (טקסט חופשי)..."
                       rows={4}
-                      className="w-full bg-gray-50 border-2 border-transparent rounded-2xl px-6 py-4 text-sm font-bold focus:bg-white focus:border-sky-600 focus:ring-4 focus:ring-sky-600/5 outline-none transition-all"
+                      className="w-full bg-gray-50 border-2 border-transparent rounded-2xl px-6 py-4 text-sm font-bold focus:bg-white focus:border-sky-600 outline-none transition-all"
                     />
                   ) : (
                     <>
-                      {/* Selected Items Tags */}
                       {selectedItems.length > 0 && (
                         <div className="flex flex-wrap gap-2 mb-4">
                           {selectedItems.map(({ item, quantity }) => (
-                            <div key={item.id} className="flex items-center gap-2 bg-sky-50 border border-sky-100 rounded-xl px-3 py-1.5 animate-in fade-in slide-in-from-top-1 text-xs">
+                            <div key={item.id} className="flex items-center gap-2 bg-sky-50 border border-sky-100 rounded-xl px-3 py-1.5 text-xs">
                               <span className="font-black text-sky-700">{item.name}</span>
                               <div className="flex items-center gap-2 border-r border-sky-200 pr-2">
                                 <button type="button" onClick={() => updateQuantity(item.id!, -1)} className="p-0.5 hover:bg-sky-200 rounded-md transition-colors">
@@ -332,7 +360,7 @@ const OrderForm: React.FC<OrderFormProps> = ({
                                 <button type="button" onClick={() => updateQuantity(item.id!, 1)} className="p-0.5 hover:bg-sky-200 rounded-md transition-colors">
                                   <Plus size={12} className="text-sky-600" />
                                 </button>
-                                <button type="button" onClick={() => handleRemoveItem(item.id!)} className="p-1 hover:bg-red-100 rounded-md transition-colors mr-1">
+                                <button type="button" onClick={() => handleRemoveItem(item.id!)} className="p-1 hover:bg-red-100 rounded-md mr-1">
                                   <X size={12} className="text-red-500" />
                                 </button>
                               </div>
@@ -348,7 +376,7 @@ const OrderForm: React.FC<OrderFormProps> = ({
                           placeholder="חיפוש פריט במלאי..."
                           value={searchQuery}
                           onChange={(e) => setSearchQuery(e.target.value)}
-                          className="w-full bg-gray-50 border-none rounded-2xl px-12 py-4 text-sm font-bold focus:ring-2 focus:ring-sky-600/10 outline-none transition-all"
+                          className="w-full bg-gray-50 border-none rounded-2xl px-12 py-4 text-sm font-bold outline-none focus:ring-2 focus:ring-sky-600/10 transition-all"
                         />
                       </div>
 
@@ -378,7 +406,7 @@ const OrderForm: React.FC<OrderFormProps> = ({
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full py-5 bg-sky-600 text-white rounded-[2rem] font-black text-lg shadow-xl shadow-sky-600/20 hover:bg-sky-700 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:hover:scale-100"
+                  className="w-full py-5 bg-sky-600 text-white rounded-[2rem] font-black text-lg shadow-xl shadow-sky-600/20 hover:bg-sky-700 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-3 disabled:opacity-50"
                 >
                   {loading ? (
                     <Loader2 className="animate-spin" size={24} />
@@ -389,11 +417,6 @@ const OrderForm: React.FC<OrderFormProps> = ({
                     </>
                   )}
                 </button>
-                {editingOrder && (
-                  <p className="text-center text-[10px] font-bold text-gray-400">
-                    * ניתן להוסיף תעודת משלוח/PDF דרך כרטיס ההזמנה הראשי
-                  </p>
-                )}
               </form>
             </div>
           </>
