@@ -78,8 +78,9 @@ export async function getFileBase64(fileId: string): Promise<string> {
  * Upload a file to the specified Drive folder.
  * Uses a Google Apps Script (GAS) bridge to bypass client-side CORS and API key restrictions.
  */
-export async function uploadFileToDrive(file: File, folderId: string = FOLDER_ID || ''): Promise<any> {
+export async function uploadFileToDrive(file: File, folderId: string = FOLDER_ID || '', onProgress?: (progress: number) => void): Promise<any> {
   try {
+    if (onProgress) onProgress(10); // Simulated start
     const base64Content = await new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => {
@@ -89,6 +90,8 @@ export async function uploadFileToDrive(file: File, folderId: string = FOLDER_ID
       reader.onerror = reject;
       reader.readAsDataURL(file);
     });
+
+    if (onProgress) onProgress(30); // Simulated reading done
 
     const payload = {
       name: file.name,
@@ -107,6 +110,8 @@ export async function uploadFileToDrive(file: File, folderId: string = FOLDER_ID
       },
       body: JSON.stringify(payload)
     });
+
+    if (onProgress) onProgress(90); // Simulated response awaiting
 
     if (!response.ok) {
       throw new Error(`Upload failed: ${response.statusText} (${response.status})`);

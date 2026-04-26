@@ -112,7 +112,7 @@ import {
   deleteReminder,
   syncInventoryOnDelivery
 } from './services/auraService';
-import { Order, Driver, Customer, Reminder, InventoryItem } from './types';
+import { Order, Driver, Customer, Reminder, InventoryItem, UserProfile, TeamChatMessage } from './types';
 import { useUserMemory } from './hooks/useUserMemory';
 import { uploadFileToDrive, createCustomerFolderHierarchy } from './services/driveService';
 

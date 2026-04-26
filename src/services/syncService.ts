@@ -56,8 +56,8 @@ export class SyncService {
       });
     });
 
-    // 3. Chat Listener (Last 10 messages only to prevent spam)
-    const chatQuery = query(collection(db, 'office_messages'), orderBy('timestamp', 'desc'), limit(1));
+    // 3. Chat Listener (Last 10 messages only to track new additions)
+    const chatQuery = query(collection(db, 'office_messages'), orderBy('timestamp', 'desc'), limit(10));
     onSnapshot(chatQuery, (snapshot) => {
       if (this.isInitialLoad.office_messages) {
         this.isInitialLoad.office_messages = false;
@@ -206,7 +206,8 @@ export class SyncService {
       sender: message.senderName,
       senderId: message.senderId,
       text: message.text,
-      priority: message.priority
+      priority: message.priority,
+      recipientId: message.recipientId || 'global'
     });
   }
 }

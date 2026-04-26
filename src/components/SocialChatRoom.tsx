@@ -34,6 +34,7 @@ import { ChatWindow } from './ChatWindow';
 import { useNotifications } from './NotificationProvider';
 import { Avatar } from './Avatar';
 import { handleFirestoreError, OperationType } from '../lib/firebaseUtils';
+import { uploadFileToDrive } from '../services/driveService';
 
 interface SocialChatRoomProps {
   currentUserProfile: UserProfile;
@@ -116,6 +117,34 @@ export const SocialChatRoom: React.FC<SocialChatRoomProps> = ({
 
     return () => unsubscribe();
   }, [messages.length, currentUserProfile.id, playDing]);
+
+  const handleFileUpload = async (file: File) => {
+    setIsUploading(true);
+    setUploadProgress(0);
+    try {
+      const { webViewLink } = await uploadFileToDrive(file, '', (progress) => {
+        setUploadProgress(progress);
+      });
+      
+      await addDoc(collection(db, 'office_messages'), {
+        senderId: currentUserProfile.id,
+        senderName: currentUserProfile.name,
+        senderAvatar: currentUserProfile.avatarUrl,
+        text: `שלח קובץ: ${file.name}`,
+        fileUrl: webViewLink,
+        fileName: file.name,
+        type: file.type.startsWith('image/') ? 'image' : 'file',
+        priority: 'normal',
+        timestamp: serverTimestamp(),
+        recipientId: selectedMember?.id || 'global'
+      });
+    } catch (error) {
+      console.error('File upload error:', error);
+    } finally {
+      setIsUploading(false);
+      setUploadProgress(0);
+    }
+  };
 
   const handleSendMessage = async (text: string, priority: 'normal' | 'urgent') => {
     if (!text.trim() && !isUploading) return;

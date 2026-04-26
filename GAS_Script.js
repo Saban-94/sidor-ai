@@ -164,7 +164,8 @@ function handleChatSync(data) {
     data.sender,
     data.text,
     data.priority || 'normal',
-    data.senderId || ''
+    data.senderId || '',
+    data.recipientId || 'global'
   ]);
   
   return createResponse({ status: 'success' });
@@ -242,7 +243,7 @@ function getOrCreateSheet(ss, name) {
       'BlackBox_Logs': ['Timestamp', 'Action', 'User', 'Collection', 'OldValue', 'NewValue', 'Path'],
       'User_Magic_Logs': ['Timestamp', 'UserID', 'Name', 'Action'],
       'Order_Tracking': ['OrderID', 'TrackingID', 'Customer', 'Status', 'LastUpdated', 'Items'],
-      'Chat_History': ['Timestamp', 'Sender', 'Message', 'Priority', 'SenderID']
+      'Chat_History': ['Timestamp', 'Sender', 'Message', 'Priority', 'SenderID', 'RecipientID']
     };
     if(headers[name]) sheet.appendRow(headers[name]);
   }
