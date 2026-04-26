@@ -6,4 +6,4 @@ export const GAS_URL =
   import.meta.env.VITE_GAS_URL_AI || 
   import.meta.env.VITE_GAS_URL_GEMINI || 
   import.meta.env.VITE_GAS_URL || 
-  "https://script.google.com/macros/s/AKfycbxpG2Qg7zNbnnUiHisvUNYCl1SHUHR1GUyz68_7BeHkpeDCNTgtIZGjeRCTUOPVPZex/exec";
+  "https://script.google.com/macros/s/AKfycbyYtJI5Jl7tsDUsfRBIvP7X67PtMgcxJztL-XOwcblDEszIRzj6HuesIraA_Z7pH1lv7Q/exec";
