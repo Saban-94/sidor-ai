@@ -112,6 +112,8 @@ export interface UserProfile {
   isTyping?: boolean;
   typingTo?: string;
   lastTyped?: any;
+  hasUnread?: boolean;
+  lastReadChat?: any;
   createdAt?: any;
   updatedAt?: any;
 }

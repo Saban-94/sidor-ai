@@ -90,6 +90,7 @@ import { ReminderForm } from './components/ReminderForm';
 import { UserAdminPanel } from './components/UserAdminPanel';
 import { UserMagicPage } from './components/UserMagicPage';
 import { TeamMessengerContainer } from './components/TeamMessengerContainer';
+import { SocialChatRoom } from './components/SocialChatRoom';
 import { MobileWrapper } from './components/MobileWrapper';
 import { Avatar } from './components/Avatar';
 import { NotificationProvider, useNotifications } from './components/NotificationProvider';
@@ -309,6 +310,7 @@ const Drawer = ({
             </div>
             {[
               { id: 'chat', label: 'דברו עם נועה (AI)', icon: MessageSquare },
+              { id: 'chat_full', label: "חדר צ'אט חברתי (חדש!)", icon: Sparkles },
               { id: 'list', label: 'לוח הזמנות', icon: LayoutList },
               { id: 'kanban', label: 'לוח קנבן', icon: Trello },
               { id: 'calendar', label: 'סידור עבודה שבועי', icon: CalendarDays },
@@ -407,6 +409,7 @@ export default function App() {
 
 function AppContent() {
   const [user, setUser] = useState<FirebaseUser | null>(null);
+  const [currentUserProfile, setCurrentUserProfile] = useState<UserProfile | null>(null);
   const { playDing, playAlert, sendGlobalNotification } = useNotifications();
   const [loading, setLoading] = useState(true);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -841,6 +844,33 @@ function AppContent() {
       setLoading(false);
     });
   }, []);
+
+  useEffect(() => {
+    if (!user) {
+      setCurrentUserProfile(null);
+      return;
+    }
+    const q = query(
+      collection(db, 'user_magic_pages'),
+      where('email', '==', user.email)
+    );
+    return onSnapshot(q, (snapshot) => {
+      if (!snapshot.empty) {
+        setCurrentUserProfile({ id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as UserProfile);
+      } else {
+        // Fallback for Rami if no profile exists yet
+        setCurrentUserProfile({
+          id: '1000',
+          name: user.displayName || 'ראמי סבן',
+          email: user.email || '',
+          role: 'מנהל',
+          avatarUrl: user.photoURL || '',
+          phone: '',
+          lastSeen: serverTimestamp()
+        } as UserProfile);
+      }
+    });
+  }, [user]);
 
   // --- Background Notification Listener ---
   useEffect(() => {
@@ -1730,7 +1760,12 @@ function AppContent() {
         </div>
 
         <div className="space-y-4">
-          {viewMode === 'import' ? (
+          {viewMode === 'chat_full' && currentUserProfile ? (
+            <SocialChatRoom 
+              currentUserProfile={currentUserProfile} 
+              onClose={() => setViewMode('list')} 
+            />
+          ) : viewMode === 'import' ? (
             <DeliveryImport />
           ) : viewMode === 'table' ? (
             <InventoryManager orders={orders} />
