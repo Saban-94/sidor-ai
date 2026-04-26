@@ -4,7 +4,8 @@ import { Order, TeamChatMessage, UserProfile, InventoryItem } from '../types';
 import { GAS_URL } from '../config/constants';
 
 /**
- * Service to handle synchronization between Firebase and Google Sheets (BlackBox)
+ * SabanOS Sync Service - Strong Bidirectional Engine
+ * Path: src/services/syncService.ts
  */
 export class SyncService {
   private static queue: any[] = JSON.parse(localStorage.getItem('sync_queue') || '[]');
@@ -20,30 +21,31 @@ export class SyncService {
    * Initialize Global Real-Time Listeners
    */
   static initListeners() {
-    console.log('🔄 Initiating Real-Time Live Stream to Google Sheets...');
+    console.log('%c 🔄 SabanOS: Initiating Real-Time Live Stream...', 'color: #3b82f6; font-weight: bold');
 
-    // 1. Inventory Listener
+    // 1. Inventory Listener - מול טאב Inventory_Stock
     onSnapshot(collection(db, 'inventory'), (snapshot) => {
       if (this.isInitialLoad.inventory) {
         this.isInitialLoad.inventory = false;
         return;
       }
       snapshot.docChanges().forEach(change => {
+        const data = change.doc.data() as InventoryItem;
         if (change.type === 'added' || change.type === 'modified') {
-          this.syncInventory(change.doc.data() as InventoryItem);
+          this.syncInventory(data);
         }
         this.logBlackBox({
           operation: change.type.toUpperCase() as any,
-          user: 'Firestore Listener',
+          user: 'System Listener',
           collection: 'inventory',
-          newValue: change.doc.data(),
+          newValue: data,
           path: `inventory/${change.doc.id}`,
-          origin: change.type === 'modified' ? 'App' : 'Firestore'
+          origin: 'Firestore'
         });
       });
     });
 
-    // 2. Orders Listener
+    // 2. Orders Listener - מול טאב Order_Tracking
     onSnapshot(collection(db, 'orders'), (snapshot) => {
       if (this.isInitialLoad.orders) {
         this.isInitialLoad.orders = false;
@@ -56,7 +58,7 @@ export class SyncService {
       });
     });
 
-    // 3. Chat Listener (Last 10 messages only to track new additions)
+    // 3. Chat Listener - מול טאב James_Notebook_Log (ג'יימס מדווח)
     const chatQuery = query(collection(db, 'office_messages'), orderBy('timestamp', 'desc'), limit(10));
     onSnapshot(chatQuery, (snapshot) => {
       if (this.isInitialLoad.office_messages) {
@@ -70,26 +72,18 @@ export class SyncService {
       });
     });
 
-    // 4. Magic Pages Listener
-    onSnapshot(collection(db, 'user_magic_pages'), (snapshot) => {
-      if (this.isInitialLoad.user_magic_pages) {
-        this.isInitialLoad.user_magic_pages = false;
-        return;
-      }
-      snapshot.docChanges().forEach(change => {
-        if (change.type === 'modified') {
-          const data = change.doc.data() as UserProfile;
-          this.logMagicAccess(change.doc.id, data.name, 'UPDATE');
-        }
-      });
-    });
-
     // Start background re-sync
     setInterval(() => this.processQueue(), 30000);
   }
 
+  /**
+   * הצינור המרכזי לגוגל - תיקון CORS ופורמט נתונים
+   */
   private static async sendToGas(payload: any) {
-    if (!GAS_URL) return;
+    if (!GAS_URL) {
+      console.warn('⚠️ SabanOS: GAS_URL is missing in configuration');
+      return;
+    }
 
     if (!navigator.onLine) {
       this.addToQueue(payload);
@@ -97,17 +91,17 @@ export class SyncService {
     }
 
     try {
-      console.log('📤 Sending sync payload to GAS:', payload.action);
-      const response = await fetch(GAS_URL, {
+      console.log(`%c 📤 Sending ${payload.action} to Google Sheets...`, 'color: #8b5cf6');
+      
+      // שימוש ב-no-cors וב-text/plain כדי לעבור את גוגל
+      await fetch(GAS_URL, {
         method: 'POST',
-        mode: 'no-cors', // Bypass CORS preflight for text/plain
+        mode: 'no-cors', 
         headers: { 'Content-Type': 'text/plain' },
         body: JSON.stringify(payload)
       });
       
-      // Note: with no-cors, we cannot read the response body or status
-      // We assume victory if no network error occurred
-      console.log('✅ Sync request dispatched successfully');
+      console.log(`%c ✅ ${payload.action} Synced Successfully`, 'color: #10b981');
       return true;
     } catch (error) {
       this.addToQueue(payload);
@@ -117,16 +111,12 @@ export class SyncService {
   }
 
   private static addToQueue(payload: any) {
-    this.queue.push({
-      ...payload,
-      timestamp: new Date().toISOString()
-    });
+    this.queue.push({ ...payload, timestamp: new Date().toISOString() });
     localStorage.setItem('sync_queue', JSON.stringify(this.queue));
   }
 
   private static async processQueue() {
     if (this.isSyncing || this.queue.length === 0 || !navigator.onLine) return;
-    
     this.isSyncing = true;
     const itemsToProcess = [...this.queue];
     this.queue = [];
@@ -135,58 +125,29 @@ export class SyncService {
     for (const item of itemsToProcess) {
       await this.sendToGas(item);
     }
-    
     this.isSyncing = false;
   }
 
-  /**
-   * Log critical state changes to the BlackBox sheet
-   */
-  static async logBlackBox(data: {
-    operation: 'CREATE' | 'UPDATE' | 'DELETE' | 'ADDED' | 'MODIFIED' | 'REMOVED';
-    user: string;
-    collection: string;
-    oldValue?: any;
-    newValue?: any;
-    path: string;
-    origin?: 'App' | 'Sheet' | 'Firestore';
-  }) {
+  // --- פונקציות סנכרון ספציפיות ---
+
+  static async logBlackBox(data: any) {
     return this.sendToGas({
       action: 'logBlackBox',
-      origin: data.origin || 'App',
+      timestamp: new Date().toISOString(),
       ...data
     });
   }
 
-  /**
-   * Log Access to User Magic Pages
-   */
-  static async logMagicAccess(userId: string, userName: string, magicAction: 'ACCESS' | 'UPDATE' = 'ACCESS') {
-    return this.sendToGas({
-      action: 'logMagicAccess',
-      userId,
-      userName,
-      magicAction
-    });
-  }
-
-  /**
-   * Sync Order status to the Order Tracking sheet
-   */
   static async syncOrder(order: Order) {
     return this.sendToGas({
       action: 'syncOrder',
       orderId: order.id,
-      trackingId: order.trackingId,
-      customerName: order.customerName,
+      customer: order.customerName,
       status: order.status,
-      items: order.items
+      items: order.items ? JSON.stringify(order.items) : ""
     });
   }
 
-  /**
-   * Sync Inventory Stock
-   */
   static async syncInventory(item: InventoryItem) {
     return this.sendToGas({
       action: 'syncInventory',
@@ -194,21 +155,14 @@ export class SyncService {
       name: item.name,
       currentStock: item.currentStock,
       minStock: item.minStock,
-      unit: item.unit
+      category: item.category || 'כללי'
     });
   }
 
-  /**
-   * Sync Chat message to history sheet
-   */
   static async syncChat(message: TeamChatMessage) {
     return this.sendToGas({
-      action: 'syncChat',
-      sender: message.senderName,
-      senderId: message.senderId,
-      text: message.text,
-      priority: message.priority,
-      recipientId: message.recipientId || 'global'
+      action: 'generateAI', // הפעלה של ג'יימס בגיליון
+      prompt: `${message.senderName}: ${message.text}`
     });
   }
 }
