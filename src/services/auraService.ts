@@ -38,36 +38,49 @@ const sanitizeForVoice = (text: string): string => {
     .trim();
 };
 
-// Helper to call Gemini API via Google Apps Script (GAS)
-async function generateContentProxy(payload: { model: string, contents: any[], config?: any }) {
-  const GAS_URL = import.meta.env.VITE_GAS_URL_GEMINI;
+/**
+ * src/services/auraService.ts (או קובץ דומה)
+ * פונקציה מעודכנת לקריאה ל-Gemini דרך הצינור של גוגל
+ */
 
-  if (!GAS_URL) {
-    throw new Error("כתובת ה-GAS (VITE_GAS_URL) אינה מוגדרת במערכת.");
+async function generateContentProxy(payload: { model: string, contents: any[], config?: any }) {
+  // אנחנו משתמשים במשתנה הייעודי החדש שהגדרת
+  const GAS_AI_URL = import.meta.env.VITE_GAS_URL_GEMINI;
+
+  if (!GAS_AI_URL) {
+    console.error("Missing VITE_GAS_URL_GEMINI environment variable");
+    throw new Error("מנוע ה-AI לא הוגדר כראוי במערכת (חסר URL)");
   }
 
   try {
-    // אנחנו שולחים את הפרומפט לצינור של גוגל
-    const prompt = payload.contents[0].parts[0].text;
+    // שליפת הטקסט מהמבנה של Gemini SDK
+    const promptText = payload.contents[0].parts[0].text;
 
-    const response = await fetch(GAS_URL, {
+    const response = await fetch(GAS_AI_URL, {
       method: "POST",
-      // שימוש ב-text/plain או שליחה רגילה כדי לעקוף בעיות CORS ב-POST מורכב
+      // שימוש ב-text/plain עוקף את בדיקת ה-CORS המציקה של הדפדפן מול גוגל
+      headers: {
+        "Content-Type": "text/plain;charset=utf-8",
+      },
       body: JSON.stringify({
         action: "generateAI",
-        prompt: prompt,
-        model: "gemini-3-flash-preview" 
+        prompt: promptText,
+        model: payload.model
       }),
     });
 
-    // בגלל המבנה של GAS, לפעמים נקבל Redirect, ה-fetch מטפל בזה.
-    const result = await response.json();
-
-    if (result.status === "error") {
-      throw new Error(result.message);
+    if (!response.ok) {
+      throw new Error(`GAS responding with status: ${response.status}`);
     }
 
-    // מחזירים את התשובה במבנה שהאפליקציה מצפה לו (כדי לא לשבור חלקים אחרים)
+    const textData = await response.text();
+    const result = JSON.parse(textData);
+    
+    if (result.status === "error") {
+      throw new Error(result.message || "שגיאה פנימית במוח של ג'יימס");
+    }
+
+    // החזרת תשובה במבנה שה-SDK של GoogleGenAI מצפה לקבל
     return {
       candidates: [{
         content: {
@@ -75,13 +88,13 @@ async function generateContentProxy(payload: { model: string, contents: any[], c
         }
       }]
     };
-
   } catch (error: any) {
     console.error("Gemini GAS Proxy Error:", error);
-    throw new Error("ג'יימס (AI) מתקשה לענות כרגע. בדוק את החיבור ל-GAS.");
+    throw new Error("ג'יימס (AI) לא זמין כרגע. וודא שהסקריפט מחובר ופעיל.");
   }
 }
 
+// וודא ששאר הפונקציות קוראות לזו
 async function callGeminiApi(payload: any) {
   return generateContentProxy(payload);
 }
