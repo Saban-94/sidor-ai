@@ -52,12 +52,25 @@ async function generateContentProxy(payload: { model: string, contents: any[], c
       }),
     });
     
+    const contentType = response.headers.get("content-type");
     if (!response.ok) {
-      const errData = await response.json().catch(() => ({}));
-      throw new Error(errData.error || `AI generation failed with status ${response.status}`);
+      if (contentType && contentType.includes("application/json")) {
+        const errData = await response.json();
+        throw new Error(errData.error || `AI generation failed with status ${response.status}`);
+      } else {
+        const text = await response.text();
+        console.error("AI Proxy returned non-JSON error:", text.substring(0, 500));
+        throw new Error(`AI generation failed with status ${response.status}. Server returned non-JSON response.`);
+      }
     }
     
-    return await response.json();
+    if (contentType && contentType.includes("application/json")) {
+      return await response.json();
+    } else {
+      const text = await response.text();
+      console.error("AI Proxy returned non-JSON success response:", text.substring(0, 500));
+      throw new Error("Server returned non-JSON response instead of AI result.");
+    }
   } catch (error: any) {
     console.error("Gemini Proxy Error:", error);
     if (error.message?.includes("not configured on the server")) {

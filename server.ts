@@ -33,7 +33,21 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
-  // Serve manifest.json explicitly with correct content type
+  // Body parser should be early
+  app.use(express.json({ limit: '50mb' }));
+
+  // Request logger for API
+  app.use("/api", (req, res, next) => {
+    console.log(`🌐 API ${req.method} ${req.url}`);
+    next();
+  });
+
+  // Health check
+  app.get("/api/health", (req, res) => {
+    res.json({ status: "ok", time: new Date().toISOString() });
+  });
+
+  // Serve manifest.js explicitly with correct content type
   app.get('/manifest.json', (req, res) => {
     res.sendFile(path.join(process.cwd(), 'public', 'manifest.json'), {
       headers: {
@@ -44,8 +58,6 @@ async function startServer() {
 
   // Serve static assets from public folder
   app.use(express.static(path.join(process.cwd(), 'public')));
-
-  app.use(express.json({ limit: '50mb' }));
 
   // AI generation proxy
   app.post("/api/ai/generate", async (req, res) => {
@@ -65,6 +77,8 @@ async function startServer() {
         model: modelName || "gemini-1.5-flash",
         generationConfig: config
       });
+
+      console.log(`🤖 AI Request: ${modelName || "gemini-1.5-flash"} | Contents length: ${contents?.length}`);
 
       // Pass contents directly if it's an array
       const result = await model.generateContent({ contents });
