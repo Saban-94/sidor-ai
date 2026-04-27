@@ -135,6 +135,23 @@ const TrackingPage: React.FC = () => {
   else if (dbStatus === 'delivered') activeStep = 3;
 
   const canEdit = dbStatus === 'pending';
+  const [etaDetails, setEtaDetails] = useState({ progress: 0, statusMessage: 'מחשב נתונים...' });
+
+  useEffect(() => {
+    const updateETA = async () => {
+      if (!order) return;
+      try {
+        const { ETAEngine } = await import('../lib/ETA_Engine');
+        // If driver info was in order, we could fetch it here.
+        // For now using basic calculation
+        const details = ETAEngine.calculateRefinedETA(order);
+        setEtaDetails({ progress: details.progress, statusMessage: details.statusMessage });
+      } catch (e) {
+        console.error(e);
+      }
+    };
+    updateETA();
+  }, [order]);
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-8 flex flex-col items-center font-sans" dir="rtl">
@@ -170,7 +187,21 @@ const TrackingPage: React.FC = () => {
               <h2 className="text-3xl font-black mb-1">
                 {statusSteps[activeStep].label}
               </h2>
-              <p className="text-sky-100/60 text-sm font-bold">אנחנו דואגים שהכל יגיע בזמן</p>
+              <p className="text-sky-100/60 text-sm font-bold mb-4">{etaDetails.statusMessage}</p>
+              
+              {/* Live Progress Bar */}
+              <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden blur-[0.5px]">
+                <motion.div 
+                  initial={{ width: 0 }}
+                  animate={{ width: `${etaDetails.progress}%` }}
+                  transition={{ duration: 2, ease: "easeOut" }}
+                  className="h-full bg-sky-400 shadow-[0_0_15px_rgba(56,189,248,0.5)]"
+                ></motion.div>
+              </div>
+              <div className="flex justify-between mt-2 px-1">
+                <span className="text-[9px] font-black uppercase text-sky-200/50 italic tracking-widest">Live ETA Engine</span>
+                <span className="text-[9px] font-black uppercase text-sky-200/50 italic tracking-widest">{etaDetails.progress}%</span>
+              </div>
             </div>
           </div>
 

@@ -991,11 +991,23 @@ export async function predictOrderEta(order: Order, historicalOrders: Order[] = 
     ? `היסטוריית נסיעות רלוונטית:\n${slicedHistory.map(o => `- יעד: ${o.destination}, זמן הגעה: ${o.eta}`).join('\n')}`
     : "אין היסטוריה קרובה ליעד זה.";
 
-  const prompt = `
+    let smartEta = '--:--';
+    try {
+      const { ETAEngine } = await import('../lib/ETA_Engine');
+      const drivers = await getAllDrivers();
+      const driver = drivers.find(d => d.id === order.driverId);
+      const res = ETAEngine.calculateRefinedETA(order, driver);
+      smartEta = res.eta;
+    } catch (e) {
+      console.warn("ETAEngine failed, falling back to pure AI", e);
+    }
+
+    const prompt = `
     חשב זמן הגעה משוער (ETA) עבור משלוח חומרי בניין.
     זמן יציאה/נוכחי: ${currentDateTime}
     מקום מוצא: מחסן ${order.warehouse} בהוד השרון.
     יעד למשלוח: ${order.destination}
+    צפי מערכת בסיסי: ${smartEta}
     
     ${historyText}
     

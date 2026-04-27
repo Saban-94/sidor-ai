@@ -10,6 +10,9 @@ interface ChatWindowProps {
   scrollRef: React.RefObject<HTMLDivElement>;
   recipientId?: string;
   variant?: 'standard' | 'glass';
+  onLoadMore?: () => void;
+  isLoadingMore?: boolean;
+  hasMore?: boolean;
 }
 
 export const ChatWindow: React.FC<ChatWindowProps> = ({
@@ -18,7 +21,10 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   teamMembers,
   scrollRef,
   recipientId,
-  variant = 'standard'
+  variant = 'standard',
+  onLoadMore,
+  isLoadingMore,
+  hasMore = false
 }) => {
   const isGlass = variant === 'glass';
   const typingMembers = teamMembers.filter(m => 
@@ -27,12 +33,43 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
     (recipientId ? m.typingTo === recipientId : m.typingTo === 'global')
   );
 
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    if (!onLoadMore || isLoadingMore || !hasMore) return;
+    
+    // If scrolled nearly to the top
+    if (e.currentTarget.scrollTop < 50) {
+      onLoadMore();
+    }
+  };
+
   return (
     <div className="flex-1 overflow-hidden flex flex-col relative">
       <div 
         ref={scrollRef}
+        onScroll={handleScroll}
         className={`flex-1 overflow-y-auto p-4 sm:p-6 space-y-2 ${isGlass ? '' : 'bg-gradient-to-b from-transparent to-sky-50/20'}`}
       >
+        {hasMore && (
+          <div className="flex justify-center pb-4">
+            {isLoadingMore ? (
+              <div className="flex items-center gap-2 text-sky-400 font-bold text-xs animate-pulse">
+                <div className="w-2 h-2 bg-sky-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                <div className="w-2 h-2 bg-sky-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                <div className="w-2 h-2 bg-sky-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                <span>טוען הודעות קודמות...</span>
+              </div>
+            ) : (
+              <span className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">גלול למעלה לטעינת הודעות נוספות</span>
+            )}
+          </div>
+        )}
+
+        {!hasMore && messages.length > 0 && (
+          <div className="flex justify-center pb-4">
+            <span className="text-slate-600 text-[10px] font-bold uppercase tracking-widest opacity-50">תחילת היסטוריית ההודעות</span>
+          </div>
+        )}
+
         {messages.map((msg, i) => (
           <MessageBubble 
             key={msg.id || i}

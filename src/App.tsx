@@ -309,8 +309,8 @@ const Drawer = ({
               </div>
             </div>
             {[
-              { id: 'chat', label: 'דברו עם נועה (AI)', icon: MessageSquare },
               { id: 'chat_full', label: "חדר צ'אט חברתי (חדש!)", icon: Sparkles },
+              { id: 'chat', label: 'דברו עם נועה (AI)', icon: MessageSquare },
               { id: 'list', label: 'לוח הזמנות', icon: LayoutList },
               { id: 'kanban', label: 'לוח קנבן', icon: Trello },
               { id: 'calendar', label: 'סידור עבודה שבועי', icon: CalendarDays },
@@ -338,8 +338,13 @@ const Drawer = ({
                       : 'text-gray-600 hover:bg-gray-50'
                   }`}
                 >
-                  <Icon size={20} strokeWidth={isActive ? 3 : 2} />
-                  <span className="font-bold">{item.label}</span>
+                  <Icon size={20} strokeWidth={isActive ? 3 : 2} className={item.id === 'chat_full' ? 'text-amber-500' : ''} />
+                  <div className="flex-1 flex items-center justify-between">
+                    <span className="font-bold">{item.label}</span>
+                    {item.id === 'chat_full' && !isActive && (
+                      <span className="bg-amber-100 text-amber-600 text-[8px] px-1.5 py-0.5 rounded-full font-black animate-pulse">NEW</span>
+                    )}
+                  </div>
                 </button>
               );
             })}
@@ -557,11 +562,15 @@ function AppContent() {
     if (!reminder) return;
     
     try {
-      const scheduledTime = parseISO(`${reminder.dueDate}T${reminder.dueTime}`);
-      const newTime = addMinutes(scheduledTime, 10);
+      // Calculate new time based on current scheduled time or reminder time
+      const baseTime = reminder.reminderTime ? parseISO(reminder.reminderTime) : parseISO(`${reminder.dueDate}T${reminder.dueTime}`);
+      const newTime = addMinutes(baseTime, 10);
+      
       await updateReminder(id, { 
         dueDate: format(newTime, 'yyyy-MM-dd'),
         dueTime: format(newTime, 'HH:mm'),
+        reminderTime: newTime.toISOString(),
+        status: 'snoozed',
         snoozeCount: (reminder.snoozeCount || 0) + 1
       });
       addToast('נודניק הופעל', 'התזכורת נדחתה ב-10 דקות 🕒', 'info');
@@ -1659,6 +1668,13 @@ function AppContent() {
                 title="נועה AI"
               >
                 <MessageSquare size={20} />
+              </button>
+              <button 
+                onClick={() => setViewMode('chat_full')}
+                className={`p-1.5 rounded-lg transition-all ${viewMode === 'chat_full' ? 'bg-white shadow-sm text-amber-600' : 'text-gray-400 hover:text-amber-500'}`}
+                title="צ'אט חברתי (חדש!)"
+              >
+                <Sparkles size={20} />
               </button>
             </div>
           </div>

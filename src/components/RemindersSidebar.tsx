@@ -202,14 +202,28 @@ export const RemindersSidebar: React.FC<RemindersSidebarProps> = ({
                           )}
                         </div>
 
-                        <button 
-                          onClick={() => {
-                            if (window.confirm('למחוק את התזכורת?')) onDelete(reminder.id!);
-                          }}
-                          className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all opacity-0 group-hover:opacity-100"
-                        >
-                          <Trash2 size={16} />
-                        </button>
+                        <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                          {!reminder.isCompleted && (
+                            <button 
+                              onClick={() => {
+                                onSnooze(reminder.id!);
+                              }}
+                              className="p-2 text-gray-300 hover:text-amber-500 hover:bg-amber-50 rounded-xl transition-all"
+                              title="נודניק (10 דקות)"
+                            >
+                              <Clock size={16} />
+                            </button>
+                          )}
+                          <button 
+                            onClick={() => {
+                              if (window.confirm('למחוק את התזכורת?')) onDelete(reminder.id!);
+                            }}
+                            className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                            title="מחק"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
                       </div>
 
                       {/* Action Bar for Active/Due Reminders */}

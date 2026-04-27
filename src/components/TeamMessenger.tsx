@@ -22,7 +22,12 @@ export const TeamMessenger = ({ userProfile }: { userProfile: UserProfile }) => 
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<TeamChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
+  const [messageLimit, setMessageLimit] = useState(50);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const previousScrollHeight = useRef<number>(0);
+  const isInitialLoad = useRef(true);
   const beepRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
@@ -30,27 +35,51 @@ export const TeamMessenger = ({ userProfile }: { userProfile: UserProfile }) => 
     
     if (!userProfile?.id) return;
 
+    setIsLoadingMore(true);
     const q = query(
       collection(db, 'office_messages'),
-      orderBy('timestamp', 'asc'),
-      limit(50)
+      orderBy('timestamp', 'desc'),
+      limit(messageLimit)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const msgs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as TeamChatMessage));
+      const msgs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as TeamChatMessage)).reverse();
+      
+      setHasMore(snapshot.docs.length === messageLimit);
       
       // Play sound for new message if not from self
-      if (msgs.length > messages.length && messages.length > 0) {
+      if (!isInitialLoad.current && msgs.length > messages.length) {
         const lastMsg = msgs[msgs.length - 1];
         if (lastMsg.senderId !== userProfile.id) {
           beepRef.current?.play().catch(e => console.log('Audio failed', e));
         }
       }
       
+      if (scrollRef.current) {
+        previousScrollHeight.current = scrollRef.current.scrollHeight;
+      }
+
       setMessages(msgs);
-      setTimeout(() => {
-        scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
-      }, 100);
+      setIsLoadingMore(false);
+
+      if (isInitialLoad.current) {
+        setTimeout(() => {
+          if (scrollRef.current) {
+            scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+          }
+          isInitialLoad.current = false;
+        }, 150);
+      } else if (scrollRef.current && !isLoadingMore) {
+        const wasAtBottom = scrollRef.current.scrollHeight - scrollRef.current.scrollTop - scrollRef.current.clientHeight < 100;
+        if (wasAtBottom) {
+          scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+        } else {
+          const heightDiff = scrollRef.current.scrollHeight - previousScrollHeight.current;
+          if (heightDiff > 0) {
+            scrollRef.current.scrollTop += heightDiff;
+          }
+        }
+      }
     }, (error) => {
       if (error.code !== 'permission-denied') {
         handleFirestoreError(error, OperationType.LIST, 'office_messages');
@@ -58,7 +87,14 @@ export const TeamMessenger = ({ userProfile }: { userProfile: UserProfile }) => 
     });
 
     return () => unsubscribe();
-  }, [userProfile?.id, messages.length]);
+  }, [userProfile?.id, messageLimit]);
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    if (isLoadingMore || !hasMore) return;
+    if (e.currentTarget.scrollTop < 50) {
+      setMessageLimit(prev => prev + 50);
+    }
+  };
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -107,8 +143,20 @@ export const TeamMessenger = ({ userProfile }: { userProfile: UserProfile }) => 
 
             <div 
               ref={scrollRef}
+              onScroll={handleScroll}
               className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50/50"
             >
+              {hasMore && (
+                <div className="flex justify-center pb-4">
+                  {isLoadingMore ? (
+                    <div className="flex items-center gap-2 text-sky-400 font-bold text-xs animate-pulse">
+                      <span>טוען הודעות קודמות...</span>
+                    </div>
+                  ) : (
+                    <span className="text-gray-400 text-[10px] font-bold uppercase tracking-wider">גלול למעלה לטעינת הודעות נוספות</span>
+                  )}
+                </div>
+              )}
               {messages.map((msg, i) => {
                 const isMe = msg.senderId === userProfile?.id;
                 return (

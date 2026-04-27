@@ -14,7 +14,7 @@ export interface Order {
   destination: string;
   items: string;
   warehouse: 'החרש' | 'התלמיד';
-  status: 'pending' | 'preparing' | 'ready' | 'delivered' | 'cancelled';
+  status: 'pending' | 'preparing' | 'ready' | 'on_the_way' | 'delivered' | 'cancelled';
   orderFormId?: string;
   deliveryNoteId?: string;
   totalAmount?: number;

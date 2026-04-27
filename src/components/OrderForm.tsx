@@ -12,9 +12,11 @@ import {
   MessageCircle,
   Plus,
   Minus,
-  Search
+  Search,
+  Calendar,
+  Clock
 } from 'lucide-react';
-import { InventoryItem, Order } from '../types';
+import { InventoryItem, Order, Driver } from '../types';
 import { createOrder } from '../services/auraService';
 
 interface OrderFormProps {
@@ -40,6 +42,9 @@ const OrderForm: React.FC<OrderFormProps> = ({
     destination: '',
     warehouse: 'החרש' as 'החרש' | 'התלמיד',
     orderNumber: '',
+    date: new Date().toISOString().split('T')[0],
+    time: new Date().toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', hour12: false }),
+    driverId: 'pending'
   });
 
   const [selectedItems, setSelectedItems] = useState<{item: InventoryItem, quantity: number}[]>([]);
@@ -47,6 +52,77 @@ const OrderForm: React.FC<OrderFormProps> = ({
 
   const [manualItems, setManualItems] = useState('');
   const [isManualItems, setIsManualItems] = useState(false);
+  const [orderHistory, setOrderHistory] = useState<Order[]>([]);
+  const [customerLookup, setCustomerLookup] = useState<string[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [focusedIndex, setFocusedIndex] = useState(-1);
+  const [drivers, setDrivers] = useState<Driver[]>([]);
+
+  useEffect(() => {
+    const loadDrivers = async () => {
+      const { getAllDrivers } = await import('../services/auraService');
+      const all = await getAllDrivers();
+      setDrivers(all);
+    };
+    if (isOpen) loadDrivers();
+  }, [isOpen]);
+
+  const customerNameInputRef = React.useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    // Focus customer name on open if not editing
+    if (isOpen && !editingOrder) {
+      setTimeout(() => customerNameInputRef.current?.focus(), 150);
+    }
+  }, [isOpen, editingOrder]);
+
+  useEffect(() => {
+    // Single fetch for customer lookup data from orders to save bandwidth
+    const loadLookupData = async () => {
+      const { fetchOrders } = await import('../services/auraService');
+      const all = await fetchOrders();
+      setOrderHistory(all);
+      const uniqueNames = Array.from(new Set(all.map(o => o.customerName))).filter(Boolean);
+      setCustomerLookup(uniqueNames);
+    };
+    if (isOpen) loadLookupData();
+  }, [isOpen]);
+
+  const filteredCustomers = customerLookup
+    .filter(name => 
+      name.toLowerCase().includes(formData.customerName.toLowerCase()) && 
+      name !== formData.customerName
+    )
+    .slice(0, 5);
+
+  const handleSelectCustomer = (name: string) => {
+    const lastOrder = [...orderHistory]
+      .reverse()
+      .find(o => o.customerName === name);
+    
+    setFormData({
+      ...formData,
+      customerName: name,
+      customerPhone: lastOrder?.customerPhone || lastOrder?.phone || formData.customerPhone,
+      destination: lastOrder?.destination || formData.destination
+    });
+    setShowSuggestions(false);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (!showSuggestions) return;
+    
+    if (e.key === 'ArrowDown') {
+      setFocusedIndex(prev => (prev < filteredCustomers.length - 1 ? prev + 1 : prev));
+    } else if (e.key === 'ArrowUp') {
+      setFocusedIndex(prev => (prev > 0 ? prev - 1 : 0));
+    } else if (e.key === 'Enter' && focusedIndex >= 0) {
+      e.preventDefault();
+      handleSelectCustomer(filteredCustomers[focusedIndex]);
+    } else if (e.key === 'Escape') {
+      setShowSuggestions(false);
+    }
+  };
 
   useEffect(() => {
     if (editingOrder) {
@@ -56,6 +132,9 @@ const OrderForm: React.FC<OrderFormProps> = ({
         destination: editingOrder.destination || '',
         warehouse: editingOrder.warehouse || 'החרש',
         orderNumber: editingOrder.orderNumber || '',
+        date: editingOrder.date || new Date().toISOString().split('T')[0],
+        time: editingOrder.time || new Date().toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', hour12: false }),
+        driverId: editingOrder.driverId || 'pending'
       });
       setManualItems(editingOrder.items || '');
       setIsManualItems(!!editingOrder.items);
@@ -67,6 +146,9 @@ const OrderForm: React.FC<OrderFormProps> = ({
         destination: '',
         warehouse: 'החרש',
         orderNumber: '',
+        date: new Date().toISOString().split('T')[0],
+        time: new Date().toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', hour12: false }),
+        driverId: 'pending'
       });
       setManualItems('');
       setIsManualItems(false);
@@ -133,9 +215,9 @@ const OrderForm: React.FC<OrderFormProps> = ({
         items: itemsString,
         warehouse: formData.warehouse,
         orderNumber: formData.orderNumber,
-        date: editingOrder ? editingOrder.date : new Date().toISOString().split('T')[0],
-        time: editingOrder ? editingOrder.time : new Date().toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', hour12: false }),
-        driverId: editingOrder ? editingOrder.driverId : 'pending',
+        date: formData.date,
+        time: formData.time,
+        driverId: formData.driverId,
         status: editingOrder ? editingOrder.status : 'pending'
       };
 
@@ -208,19 +290,58 @@ const OrderForm: React.FC<OrderFormProps> = ({
               <form onSubmit={handleSubmit} className="space-y-8">
                 {/* Customer Details Section */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
+                  <div className="space-y-2 relative">
                     <label className="flex items-center gap-2 text-xs font-black text-gray-400 uppercase tracking-wider px-1">
                       <User size={14} className="text-sky-600" />
                       שם לקוח
                     </label>
                     <input 
+                      ref={customerNameInputRef}
                       required
                       type="text" 
                       placeholder="שם מלא של הלקוח"
                       value={formData.customerName}
-                      onChange={(e) => setFormData({...formData, customerName: e.target.value})}
+                      onFocus={() => setShowSuggestions(true)}
+                      onKeyDown={handleKeyDown}
+                      onChange={(e) => {
+                        setFormData({...formData, customerName: e.target.value});
+                        setShowSuggestions(true);
+                      }}
                       className="w-full bg-gray-50 border-2 border-transparent rounded-2xl px-6 py-4 text-sm font-bold focus:bg-white focus:border-sky-600 focus:ring-4 focus:ring-sky-600/5 outline-none transition-all"
                     />
+
+                    <AnimatePresence>
+                      {showSuggestions && filteredCustomers.length > 0 && (
+                        <motion.div 
+                          initial={{ opacity: 0, y: -10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, scale: 0.95 }}
+                          className="absolute z-[101] w-full bg-white rounded-2xl shadow-2xl border border-gray-100 mt-2 overflow-hidden"
+                        >
+                          {filteredCustomers.map((name, i) => (
+                            <motion.button
+                              key={name}
+                              initial={{ opacity: 0, x: -10 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{ delay: i * 0.05 }}
+                              type="button"
+                              onClick={() => handleSelectCustomer(name)}
+                              className={`w-full text-right px-6 py-4 text-sm font-bold flex items-center justify-between hover:bg-sky-50 transition-colors ${
+                                focusedIndex === i ? 'bg-sky-50' : ''
+                              }`}
+                            >
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 bg-sky-100 rounded-full flex items-center justify-center text-sky-600">
+                                  <User size={14} />
+                                </div>
+                                <span>{name}</span>
+                              </div>
+                              <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">לקוח קיים</span>
+                            </motion.button>
+                          ))}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
 
                   <div className="space-y-2">
@@ -266,6 +387,50 @@ const OrderForm: React.FC<OrderFormProps> = ({
                       onChange={(e) => setFormData({...formData, orderNumber: e.target.value})}
                       className="w-full bg-gray-50 border-2 border-transparent rounded-2xl px-6 py-4 text-sm font-bold focus:bg-white focus:border-sky-600 focus:ring-4 focus:ring-sky-600/5 outline-none transition-all"
                     />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-xs font-black text-gray-400 uppercase tracking-wider px-1">
+                      <Calendar size={14} className="text-sky-600" />
+                      תאריך אספקה
+                    </label>
+                    <input 
+                      type="date"
+                      value={formData.date}
+                      onChange={(e) => setFormData({...formData, date: e.target.value})}
+                      className="w-full bg-gray-50 border-2 border-transparent rounded-2xl px-6 py-4 text-sm font-bold focus:bg-white focus:border-sky-600 focus:ring-4 focus:ring-sky-600/5 outline-none transition-all"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-xs font-black text-gray-400 uppercase tracking-wider px-1">
+                      <Clock size={14} className="text-sky-600" />
+                      שעת אספקה
+                    </label>
+                    <input 
+                      type="time"
+                      value={formData.time}
+                      onChange={(e) => setFormData({...formData, time: e.target.value})}
+                      className="w-full bg-gray-50 border-2 border-transparent rounded-2xl px-6 py-4 text-sm font-bold focus:bg-white focus:border-sky-600 focus:ring-4 focus:ring-sky-600/5 outline-none transition-all"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-xs font-black text-gray-400 uppercase tracking-wider px-1">
+                      <User size={14} className="text-sky-600" />
+                      נהג משובץ
+                    </label>
+                    <select
+                      value={formData.driverId}
+                      onChange={(e) => setFormData({...formData, driverId: e.target.value})}
+                      className="w-full bg-gray-50 border-2 border-transparent rounded-2xl px-6 py-4 text-sm font-bold focus:bg-white focus:border-sky-600 focus:ring-4 focus:ring-sky-600/5 outline-none transition-all appearance-none"
+                    >
+                      <option value="pending">ממתין לשיבוץ</option>
+                      <option value="self">איסוף עצמי</option>
+                      {drivers.map(d => (
+                        <option key={d.id} value={d.id}>{d.name} ({d.vehicleType === 'crane' ? 'מנוף' : 'משאית'})</option>
+                      ))}
+                    </select>
                   </div>
                 </div>
 

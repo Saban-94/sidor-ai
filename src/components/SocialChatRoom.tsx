@@ -56,7 +56,12 @@ export const SocialChatRoom: React.FC<SocialChatRoomProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [messageLimit, setMessageLimit] = useState(50);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const previousScrollHeight = useRef<number>(0);
+  const isInitialLoad = useRef(true);
 
   // 1. Mark as Read & Reset Notifications for Rami
   useEffect(() => {
@@ -86,24 +91,26 @@ export const SocialChatRoom: React.FC<SocialChatRoomProps> = ({
 
   // 3. Real-time Messages & Audio Logic
   useEffect(() => {
+    setIsLoadingMore(true);
     const q = query(
       collection(db, 'office_messages'),
-      orderBy('timestamp', 'asc'),
-      limit(150)
+      orderBy('timestamp', 'desc'),
+      limit(messageLimit)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const msgs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as TeamChatMessage));
+      // Reverse to show in asc order for chat
+      const msgs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as TeamChatMessage)).reverse();
       
-      // Improved Notification Logic: Use docChanges to detect exactly when a new message is added
-      // We skip the first load (when snapshot.metadata.fromCache or messages is empty)
-      if (messages.length > 0) {
+      // Update hasMore based on whether we hit the limit
+      setHasMore(snapshot.docs.length === messageLimit);
+      
+      // Improved Notification Logic
+      if (messages.length > 0 && !isInitialLoad.current) {
         snapshot.docChanges().forEach((change) => {
           if (change.type === 'added') {
             const newMsg = change.doc.data() as TeamChatMessage;
-            // Only play if it's not from us
             if (newMsg.senderId !== currentUserProfile.id) {
-              // Priority based sound
               if (newMsg.priority === 'urgent') {
                 playAlert();
               } else {
@@ -114,18 +121,53 @@ export const SocialChatRoom: React.FC<SocialChatRoomProps> = ({
         });
       }
       
+      // Scroll state management
+      if (scrollRef.current) {
+        previousScrollHeight.current = scrollRef.current.scrollHeight;
+      }
+
       setMessages(msgs);
+      setIsLoadingMore(false);
       
-      // Auto-Scroll
-      setTimeout(() => {
-        if (scrollRef.current) {
-          scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      // Auto-Scroll Logic
+      if (isInitialLoad.current) {
+        setTimeout(() => {
+          if (scrollRef.current) {
+            scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+          }
+          isInitialLoad.current = false;
+        }, 150);
+      } else if (scrollRef.current && !isLoadingMore) {
+        // If we were at the bottom or loading more, handle scroll preservation
+        const wasAtBottom = scrollRef.current.scrollHeight - scrollRef.current.scrollTop - scrollRef.current.clientHeight < 100;
+        
+        if (wasAtBottom) {
+          setTimeout(() => {
+            if (scrollRef.current) {
+              scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+            }
+          }, 50);
+        } else {
+          // Preserve scroll position when loading more from top
+          const newScrollHeight = scrollRef.current.scrollHeight;
+          if (previousScrollHeight.current > 0) {
+            const heightDiff = newScrollHeight - previousScrollHeight.current;
+            if (heightDiff > 0) {
+              scrollRef.current.scrollTop += heightDiff;
+            }
+          }
         }
-      }, 150);
+      }
     });
 
     return () => unsubscribe();
-  }, [messages.length, currentUserProfile.id, playDing]);
+  }, [messageLimit, currentUserProfile.id, playDing]);
+
+  const handleLoadMore = () => {
+    if (!isLoadingMore && hasMore) {
+      setMessageLimit(prev => prev + 50);
+    }
+  };
 
   const handleFileUpload = async (file: File) => {
     setIsUploading(true);
@@ -326,6 +368,9 @@ export const SocialChatRoom: React.FC<SocialChatRoomProps> = ({
               scrollRef={scrollRef}
               recipientId={selectedMember?.id}
               variant="glass"
+              onLoadMore={handleLoadMore}
+              isLoadingMore={isLoadingMore}
+              hasMore={hasMore}
            />
         </div>
 

@@ -359,6 +359,35 @@ export const OrderCard = ({
   const [showDocs, setShowDocs] = useState(false);
   const [showItems, setShowItems] = useState(false);
   const [isLocalUploading, setIsLocalUploading] = useState(false);
+  const [isRescheduling, setIsRescheduling] = useState(false);
+  const [rescheduleData, setRescheduleData] = useState({ date: order.date, time: order.time });
+
+  const handleReschedule = async () => {
+     try {
+       const { updateOrder } = await import('../services/auraService');
+       const { SyncService } = await import('../services/syncService');
+       
+       await updateOrder(order.id!, { 
+         date: rescheduleData.date, 
+         time: rescheduleData.time 
+       });
+       
+       // Explicit log for rescheduling
+       SyncService.logBlackBox({
+         operation: 'UPDATE',
+         user: 'System Quick Reschedule',
+         collection: 'orders',
+         newValue: rescheduleData,
+         path: `orders/${order.id}/schedule`,
+         origin: 'App'
+       });
+
+       onAddToast('עודכן', 'מועד האספקה עודכן בהצלחה', 'success');
+       setIsRescheduling(false);
+     } catch (err) {
+       onAddToast('שגיאה', 'עדכון המועד נכשל', 'warning');
+     }
+  };
 
   const parsedItemsCount = parseItems(order.items).length;
 
@@ -547,6 +576,13 @@ export const OrderCard = ({
               </div>
             )}
             <span className={cn("font-black text-sky-600 self-center mr-1", isCompact ? "text-xs" : "text-sm")}>| {order.time}</span>
+            <button 
+              onClick={() => setIsRescheduling(true)}
+              className="p-1 text-sky-400 hover:text-sky-600 hover:bg-sky-50 rounded-lg transition-colors ml-1"
+              title="שינוי מועד מהיר"
+            >
+              <Clock size={isCompact ? 10 : 12} />
+            </button>
           </div>
         </div>
         <div className="flex flex-col items-end gap-1">
@@ -605,6 +641,51 @@ export const OrderCard = ({
         <AnimatePresence>
           {showItems && (
             <ItemsModal order={order} inventoryItems={inventoryItems} onClose={() => setShowItems(false)} />
+          )}
+          {isRescheduling && (
+            <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsRescheduling(false)} className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm" />
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.9, y: 20 }} 
+                animate={{ opacity: 1, scale: 1, y: 0 }} 
+                exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                className="relative bg-white rounded-[2rem] p-6 w-full max-w-sm shadow-2xl space-y-6"
+                dir="rtl"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-sky-100 text-sky-600 rounded-xl flex items-center justify-center">
+                    <Clock size={20} />
+                  </div>
+                  <h3 className="text-xl font-black text-gray-900">תזמון מחדש</h3>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mr-1">תאריך</label>
+                    <input 
+                      type="date"
+                      value={rescheduleData.date}
+                      onChange={(e) => setRescheduleData({...rescheduleData, date: e.target.value})}
+                      className="w-full bg-gray-50 border-transparent rounded-xl px-4 py-3 text-xs font-bold focus:bg-white focus:ring-2 focus:ring-sky-600/10 outline-none transition-all"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mr-1">שעה</label>
+                    <input 
+                      type="time"
+                      value={rescheduleData.time}
+                      onChange={(e) => setRescheduleData({...rescheduleData, time: e.target.value})}
+                      className="w-full bg-gray-50 border-transparent rounded-xl px-4 py-3 text-xs font-bold focus:bg-white focus:ring-2 focus:ring-sky-600/10 outline-none transition-all"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex gap-3">
+                  <button onClick={handleReschedule} className="flex-1 py-3 bg-sky-600 text-white rounded-xl font-black text-xs shadow-lg shadow-sky-600/20 active:scale-95 transition-all">שמור מועד</button>
+                  <button onClick={() => setIsRescheduling(false)} className="flex-1 py-3 bg-gray-100 text-gray-500 rounded-xl font-black text-xs active:scale-95 transition-all">ביטול</button>
+                </div>
+              </motion.div>
+            </div>
           )}
         </AnimatePresence>
 
