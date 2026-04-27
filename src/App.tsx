@@ -132,6 +132,7 @@ const Header = ({
   onOpenDrawer,
   onInstallApp,
   onFileUpload,
+  onLogout,
   isUploading,
   onOpenReminders,
   onAddReminder,
@@ -144,6 +145,7 @@ const Header = ({
   onOpenDrawer: () => void,
   onInstallApp: () => void | null,
   onFileUpload: (file: File) => void,
+  onLogout: () => void,
   isUploading?: boolean,
   onOpenReminders: () => void,
   onAddReminder: () => void,
@@ -244,7 +246,7 @@ const Header = ({
 
       <div className="hidden md:flex flex-col items-end mr-2">
         <span className="text-sm font-semibold text-gray-800">{user.displayName}</span>
-        <button onClick={logout} className="text-xs text-red-500 hover:text-red-600 transition-colors flex items-center gap-1">
+        <button onClick={onLogout} className="text-xs text-red-500 hover:text-red-600 transition-colors flex items-center gap-1">
           <LogOut size={12} /> התנתק
         </button>
       </div>
@@ -260,7 +262,8 @@ const Drawer = ({
   viewMode, 
   setViewMode,
   installPrompt,
-  onOpenReminders
+  onOpenReminders,
+  onLogout
 }: { 
   isOpen: boolean, 
   onClose: () => void, 
@@ -268,7 +271,8 @@ const Drawer = ({
   viewMode: string,
   setViewMode: (v: any) => void,
   installPrompt: any,
-  onOpenReminders: () => void
+  onOpenReminders: () => void,
+  onLogout: () => void
 }) => (
   <AnimatePresence>
     {isOpen && (
@@ -376,7 +380,7 @@ const Drawer = ({
             
             <button 
               onClick={() => {
-                logout();
+                onLogout();
                 onClose();
               }}
               className="w-full flex items-center justify-center gap-2 text-red-500 font-bold p-4 hover:bg-red-50 rounded-2xl transition-colors"
@@ -426,6 +430,7 @@ function AppContent() {
   const [selectedDate, setSelectedDate] = useState(new Date());
 
   const [activeAlertReminder, setActiveAlertReminder] = useState<Reminder | null>(null);
+  const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
   const [isScreenShaking, setIsScreenShaking] = useState(false);
   const loopAudioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -1329,6 +1334,7 @@ function AppContent() {
               onOpenDrawer={() => setIsDrawerOpen(true)}
               onInstallApp={installPrompt ? handleInstallClick : null}
               onFileUpload={handleDriveFileUpload}
+              onLogout={() => setIsLogoutConfirmOpen(true)}
               isUploading={isUploadingDoc}
               uploadProgress={uploadProgress}
               onOpenReminders={() => setIsRemindersOpen(true)}
@@ -1351,6 +1357,7 @@ function AppContent() {
               setViewMode={setViewMode}
               installPrompt={installPrompt}
               onOpenReminders={() => setIsRemindersOpen(true)}
+              onLogout={() => setIsLogoutConfirmOpen(true)}
             />
 
             <RemindersSidebar 
@@ -1401,6 +1408,56 @@ function AppContent() {
                 }
               }}
             />
+
+            <AnimatePresence>
+              {isLogoutConfirmOpen && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                  <motion.div 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    onClick={() => setIsLogoutConfirmOpen(false)}
+                    className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm"
+                  />
+                  <motion.div 
+                    initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                    className="relative bg-white rounded-[2rem] p-8 w-full max-w-sm shadow-2xl overflow-hidden"
+                    dir="rtl"
+                  >
+                    <div className="absolute top-0 right-0 left-0 h-2 bg-red-500" />
+                    
+                    <div className="flex flex-col items-center text-center">
+                      <div className="w-20 h-20 bg-red-50 rounded-3xl flex items-center justify-center mb-6">
+                        <LogOut className="text-red-500" size={40} />
+                      </div>
+                      
+                      <h3 className="text-2xl font-black text-gray-900 mb-2">התנתקות מהמערכת</h3>
+                      <p className="text-gray-500 font-medium mb-8">האם אתה בטוח שברצונך להתנתק? תצטרך להיכנס מחדש כדי לגשת לנתונים.</p>
+                      
+                      <div className="flex flex-col w-full gap-3">
+                        <button 
+                          onClick={() => {
+                            logout();
+                            setIsLogoutConfirmOpen(false);
+                          }}
+                          className="w-full py-4 bg-red-500 text-white rounded-2xl font-black text-lg shadow-xl shadow-red-500/20 hover:bg-red-600 active:scale-[0.98] transition-all"
+                        >
+                          כן, התנתק
+                        </button>
+                        <button 
+                          onClick={() => setIsLogoutConfirmOpen(false)}
+                          className="w-full py-4 bg-gray-100 text-gray-600 rounded-2xl font-bold hover:bg-gray-200 transition-all"
+                        >
+                          ביטול
+                        </button>
+                      </div>
+                    </div>
+                  </motion.div>
+                </div>
+              )}
+            </AnimatePresence>
 
             <main className="flex-1 max-w-5xl w-full mx-auto p-4 md:p-8">
               <div className="pb-[env(safe-area-inset-bottom)]">
