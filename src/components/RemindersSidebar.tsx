@@ -11,11 +11,14 @@ import {
   Volume2,
   VolumeX,
   History,
-  Check
+  Check,
+  AlertCircle,
+  Flag,
+  CalendarDays
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Reminder } from '../types';
-import { format, differenceInMinutes, parseISO, addMinutes } from 'date-fns';
+import { format, differenceInMinutes, parseISO, addMinutes, isToday, isBefore, isTomorrow } from 'date-fns';
 
 interface RemindersSidebarProps {
   isOpen: boolean;
@@ -35,7 +38,6 @@ export const RemindersSidebar: React.FC<RemindersSidebarProps> = ({
   onSnooze
 }) => {
   const [now, setNow] = useState(new Date());
-  const [mutedReminders, setMutedReminders] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 1000);
@@ -59,6 +61,18 @@ export const RemindersSidebar: React.FC<RemindersSidebarProps> = ({
     }
   };
 
+  const getDueStatusInfo = (dueDate: string, dueTime: string) => {
+    try {
+      const scheduledTime = parseISO(`${dueDate}T${dueTime}`);
+      if (isBefore(scheduledTime, now)) return { label: 'באיחור', color: 'text-red-500', bg: 'bg-red-50' };
+      if (isToday(scheduledTime)) return { label: 'היום', color: 'text-amber-600', bg: 'bg-amber-50' };
+      if (isTomorrow(scheduledTime)) return { label: 'מחר', color: 'text-sky-600', bg: 'bg-sky-50' };
+      return { label: format(scheduledTime, 'dd/MM'), color: 'text-gray-400', bg: 'bg-gray-50' };
+    } catch (e) {
+      return { label: '--', color: 'text-gray-300', bg: 'bg-gray-100' };
+    }
+  };
+
   const isDue = (dueDate: string, dueTime: string) => {
     try {
       const scheduledTime = parseISO(`${dueDate}T${dueTime}`);
@@ -68,9 +82,25 @@ export const RemindersSidebar: React.FC<RemindersSidebarProps> = ({
     }
   };
 
+  const getPriorityInfo = (priority: string) => {
+    switch (priority) {
+      case 'critical': return { label: 'קריטי', color: 'text-red-600', bg: 'bg-red-100', icon: AlertCircle };
+      case 'urgent': return { label: 'דחוף', color: 'text-rose-500', bg: 'bg-rose-100', icon: AlertTriangle };
+      case 'high': return { label: 'גבוה', color: 'text-amber-500', bg: 'bg-amber-100', icon: Flag };
+      default: return { label: 'רגיל', color: 'text-sky-500', bg: 'bg-sky-100', icon: CheckCircle };
+    }
+  };
+
   const sortedReminders = [...reminders].sort((a, b) => {
     if (a.isCompleted && !b.isCompleted) return 1;
     if (!a.isCompleted && b.isCompleted) return -1;
+    
+    // Within same completion status, sort by priority
+    const priorityWeight = { critical: 0, urgent: 1, high: 2, low: 3 };
+    if (priorityWeight[a.priority] !== priorityWeight[b.priority]) {
+      return priorityWeight[a.priority] - priorityWeight[b.priority];
+    }
+
     const timeA = parseISO(`${a.dueDate}T${a.dueTime}`).getTime();
     const timeB = parseISO(`${b.dueDate}T${b.dueTime}`).getTime();
     return timeA - timeB;
@@ -129,7 +159,10 @@ export const RemindersSidebar: React.FC<RemindersSidebarProps> = ({
               ) : (
                 sortedReminders.map((reminder) => {
                   const itemsDue = isDue(reminder.dueDate, reminder.dueTime);
-                  const isUrgent = reminder.priority === 'urgent' && !reminder.isCompleted;
+                  const isUrgent = (reminder.priority === 'urgent' || reminder.priority === 'critical') && !reminder.isCompleted;
+                  const priority = getPriorityInfo(reminder.priority);
+                  const dueInfo = getDueStatusInfo(reminder.dueDate, reminder.dueTime);
+                  const PriorityIcon = priority.icon;
                   
                   return (
                     <motion.div 
@@ -142,86 +175,99 @@ export const RemindersSidebar: React.FC<RemindersSidebarProps> = ({
                         x: isUrgent && itemsDue ? [0, -2, 2, -2, 2, 0] : 0 
                       }}
                       transition={isUrgent && itemsDue ? { repeat: Infinity, duration: 0.5 } : {}}
-                      className={`relative group p-5 rounded-[2rem] border-2 transition-all overflow-hidden ${
+                      className={`relative group p-5 rounded-[2.5rem] border-2 transition-all flex flex-col gap-4 ${
                         reminder.isCompleted 
-                          ? 'bg-gray-50 border-transparent opacity-60' 
+                          ? 'bg-gray-50/50 border-transparent opacity-60' 
                           : isUrgent && itemsDue
-                            ? 'bg-red-50 border-red-200 shadow-xl shadow-red-500/10'
-                            : reminder.isNagging && itemsDue
-                              ? 'bg-amber-50 border-amber-200 shadow-lg shadow-amber-500/5'
-                              : 'bg-white border-sky-50 shadow-sm hover:shadow-md hover:border-sky-100'
+                            ? 'bg-red-50/80 border-red-200 shadow-xl shadow-red-500/10'
+                            : reminder.priority === 'critical'
+                              ? 'bg-red-50/30 border-red-100 shadow-lg'
+                              : reminder.isNagging && itemsDue
+                                ? 'bg-amber-50/50 border-amber-200 shadow-sm'
+                                : 'bg-white border-white shadow-xl shadow-gray-200/20 hover:shadow-2xl hover:shadow-sky-600/5 hover:border-sky-50'
                       }`}
                     >
-                      {/* Priority Indicator */}
-                      {!reminder.isCompleted && (
-                        <div className={`absolute top-0 right-0 w-12 h-1 ${
-                          reminder.priority === 'urgent' ? 'bg-red-500' : reminder.priority === 'high' ? 'bg-amber-500' : 'bg-sky-400'
-                        }`} />
-                      )}
-
                       <div className="flex items-start gap-4">
                         <button 
                           onClick={() => onToggleComplete(reminder.id!, !reminder.isCompleted)}
-                          className={`shrink-0 w-10 h-10 rounded-2xl flex items-center justify-center transition-all ${
+                          className={`shrink-0 w-12 h-12 rounded-2xl flex items-center justify-center transition-all ${
                             reminder.isCompleted 
                               ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' 
-                              : 'bg-gray-100 text-gray-400 hover:bg-sky-600 hover:text-white hover:shadow-lg'
+                              : 'bg-white border-2 border-gray-100 text-gray-300 hover:border-sky-500 hover:text-sky-500 hover:shadow-xl hover:shadow-sky-500/10'
                           }`}
                         >
-                          <Check size={20} strokeWidth={3} />
+                          <Check size={24} strokeWidth={3} className={reminder.isCompleted ? "scale-100" : "scale-0 group-hover:scale-100 transition-transform"} />
                         </button>
 
-                        <div className="flex-1 space-y-1">
-                          <div className="flex items-center justify-between">
-                            <h4 className={`text-sm font-black tracking-tight ${reminder.isCompleted ? 'line-through text-gray-400' : 'text-gray-900'}`}>
-                              {reminder.title}
-                            </h4>
+                        <div className="flex-1 space-y-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex flex-wrap items-center gap-2">
+                              {!reminder.isCompleted && (
+                                <span className={`px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-widest flex items-center gap-1 ${priority.bg} ${priority.color}`}>
+                                  <PriorityIcon size={10} strokeWidth={3} />
+                                  {priority.label}
+                                </span>
+                              )}
+                              <span className={`px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-widest ${dueInfo.bg} ${dueInfo.color}`}>
+                                {dueInfo.label}
+                              </span>
+                            </div>
                             {!reminder.isCompleted && reminder.isNagging && (
-                              <BellRing size={14} className={itemsDue ? "text-red-500 animate-bounce" : "text-gray-300"} />
+                              <div className={`p-1.5 rounded-full ${itemsDue ? "bg-red-100 text-red-500 animate-pulse" : "bg-gray-100 text-gray-300"}`}>
+                                <BellRing size={12} strokeWidth={3} />
+                              </div>
                             )}
                           </div>
 
-                          <div className="flex items-center gap-3">
-                            <div className="flex items-center gap-1">
-                              <Clock size={12} className={itemsDue && !reminder.isCompleted ? "text-red-500" : "text-sky-400"} />
-                              <span className={`text-[10px] font-black uppercase ${itemsDue && !reminder.isCompleted ? "text-red-600" : "text-gray-400"}`}>
+                          <h4 className={`text-base font-black tracking-tight leading-tight ${reminder.isCompleted ? 'line-through text-gray-400' : 'text-gray-900 group-hover:text-sky-600 transition-colors'}`}>
+                            {reminder.title}
+                          </h4>
+
+                          <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-1.5">
+                              <div className={`p-1 rounded-lg ${itemsDue && !reminder.isCompleted ? "bg-red-100 text-red-500" : "bg-sky-50 text-sky-400"}`}>
+                                <Clock size={12} strokeWidth={3} />
+                              </div>
+                              <span className={`text-[11px] font-black tracking-tight ${itemsDue && !reminder.isCompleted ? "text-red-600" : "text-gray-500"}`}>
                                 {reminder.dueTime}
                               </span>
                             </div>
-                            <span className="text-gray-200">|</span>
-                            <div className="flex items-center gap-1">
-                              <History size={12} className="text-sky-400" />
-                              <span className="text-[10px] font-black text-gray-400 uppercase">
+                            <span className="w-1 h-1 rounded-full bg-gray-200" />
+                            <div className="flex items-center gap-1.5">
+                              <div className="p-1 rounded-lg bg-sky-50 text-sky-400">
+                                <History size={12} strokeWidth={3} />
+                              </div>
+                              <span className="text-[11px] font-black tracking-tight text-gray-500 italic">
                                 {getCountdown(reminder.dueDate, reminder.dueTime)}
                               </span>
                             </div>
                           </div>
 
                           {reminder.description && (
-                            <p className="text-[11px] font-medium text-gray-500 leading-relaxed pt-1">{reminder.description}</p>
+                            <p className="text-[12px] font-medium text-gray-500 leading-relaxed pt-1 line-clamp-2">{reminder.description}</p>
                           )}
                         </div>
 
-                        <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                        <div className="flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-all">
                           {!reminder.isCompleted && (
                             <button 
                               onClick={() => {
                                 onSnooze(reminder.id!);
                               }}
-                              className="p-2 text-gray-300 hover:text-amber-500 hover:bg-amber-50 rounded-xl transition-all"
+                              className="p-2.5 text-gray-300 hover:text-amber-500 hover:bg-amber-50 rounded-2xl transition-all border border-transparent hover:border-amber-100"
                               title="נודניק (10 דקות)"
                             >
-                              <Clock size={16} />
+                              <Clock size={18} />
                             </button>
                           )}
                           <button 
                             onClick={() => {
                               if (window.confirm('למחוק את התזכורת?')) onDelete(reminder.id!);
                             }}
-                            className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                            className="p-2.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-2xl transition-all border border-transparent hover:border-red-100"
                             title="מחק"
                           >
-                            <Trash2 size={16} />
+                            <Trash2 size={18} />
                           </button>
                         </div>
                       </div>

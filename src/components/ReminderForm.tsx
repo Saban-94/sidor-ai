@@ -197,40 +197,58 @@ export const ReminderForm: React.FC<ReminderFormProps> = ({ isOpen, onClose, onS
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-[10px] font-black text-gray-400 mb-2 uppercase mr-4">עדיפות</label>
-                    <select 
-                      value={priority}
-                      onChange={e => setPriority(e.target.value as any)}
-                      className="w-full bg-gray-50 rounded-2xl px-6 py-3 text-sm font-bold outline-none focus:ring-2 focus:ring-sky-600 transition-all cursor-pointer"
-                    >
-                      <option value="low">נמוכה</option>
-                      <option value="high">גבוהה</option>
-                      <option value="urgent">דחופה</option>
-                      <option value="critical">🆘 קריטית</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-black text-gray-400 mb-2 uppercase mr-4">צליל התראה</label>
-                    <div className="flex gap-2">
-                      <select 
-                        value={ringtone}
-                        onChange={e => setRingtone(e.target.value)}
-                        className="flex-1 bg-gray-50 rounded-2xl px-6 py-3 text-sm font-bold outline-none focus:ring-2 focus:ring-sky-600 transition-all cursor-pointer"
-                      >
-                        {RINGTONES.map(r => (
-                          <option key={r.id} value={r.id}>{r.name}</option>
-                        ))}
-                      </select>
-                      <button 
+                <div className="grid grid-cols-1 gap-4">
+                  <label className="block text-[10px] font-black text-gray-400 mb-2 uppercase mr-4">עדיפות התזכורת</label>
+                  <div className="grid grid-cols-4 gap-2">
+                    {[
+                      { id: 'low', label: 'נמוכה', color: 'bg-sky-50 text-sky-600 border-sky-100', active: 'bg-sky-600 text-white border-sky-600 shadow-lg shadow-sky-600/20' },
+                      { id: 'high', label: 'גבוהה', color: 'bg-amber-50 text-amber-600 border-amber-100', active: 'bg-amber-500 text-white border-amber-500 shadow-lg shadow-amber-500/20' },
+                      { id: 'urgent', label: 'דחופה', color: 'bg-rose-50 text-rose-600 border-rose-100', active: 'bg-rose-500 text-white border-rose-500 shadow-lg shadow-rose-500/20' },
+                      { id: 'critical', label: '🆘 קריטית', color: 'bg-red-50 text-red-600 border-red-100', active: 'bg-red-600 text-white border-red-600 shadow-lg shadow-red-600/20' }
+                    ].map((p) => (
+                      <button
+                        key={p.id}
                         type="button"
-                        onClick={handleTestSound}
-                        className="p-3 bg-sky-100 text-sky-600 rounded-2xl hover:bg-sky-200 transition-all"
+                        onClick={() => setPriority(p.id as any)}
+                        className={`py-3 px-1 rounded-2xl text-[11px] font-black border-2 transition-all ${
+                          priority === p.id ? p.active : p.color + ' hover:border-gray-200'
+                        }`}
                       >
-                        {isPlaying ? <Square size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" />}
+                        {p.label}
                       </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4">
+                  <label className="block text-[10px] font-black text-gray-400 mb-2 uppercase mr-4">צליל התראה</label>
+                  <div className="flex gap-2">
+                    <div className="flex-1 grid grid-cols-2 gap-2">
+                      {RINGTONES.map(r => (
+                        <button
+                          key={r.id}
+                          type="button"
+                          onClick={() => setRingtone(r.id)}
+                          className={`py-3 px-4 rounded-2xl text-[11px] font-black border-2 transition-all flex items-center justify-center gap-2 ${
+                            ringtone === r.id 
+                              ? 'bg-gray-900 text-white border-gray-900 shadow-lg' 
+                              : 'bg-gray-50 text-gray-500 border-transparent hover:border-gray-200'
+                          }`}
+                        >
+                          <Music size={14} className={ringtone === r.id ? 'text-sky-400' : 'text-gray-400'} />
+                          {r.name}
+                        </button>
+                      ))}
                     </div>
+                    <button 
+                      type="button"
+                      onClick={handleTestSound}
+                      className={`w-14 rounded-2xl flex items-center justify-center transition-all ${
+                        isPlaying ? 'bg-red-500 text-white shadow-lg shadow-red-500/20' : 'bg-sky-100 text-sky-600 hover:bg-sky-200'
+                      }`}
+                    >
+                      {isPlaying ? <Square size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" />}
+                    </button>
                   </div>
                 </div>
               </div>
