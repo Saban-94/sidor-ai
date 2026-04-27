@@ -365,7 +365,7 @@ export const OrderCard = ({
   const handleReschedule = async () => {
      try {
        const { updateOrder } = await import('../services/auraService');
-       const { SyncService } = await import('../services/syncService');
+       const { GasService } = await import('../services/gasService');
        
        await updateOrder(order.id!, { 
          date: rescheduleData.date, 
@@ -373,7 +373,7 @@ export const OrderCard = ({
        });
        
        // Explicit log for rescheduling
-       SyncService.logBlackBox({
+       GasService.logBlackBox({
          operation: 'UPDATE',
          user: 'System Quick Reschedule',
          collection: 'orders',

@@ -14,7 +14,6 @@ import {
 import { db, auth } from '../lib/firebase';
 import { handleFirestoreError, OperationType } from '../lib/firebaseUtils';
 import { Order, Driver, Customer, Reminder, InventoryItem, SaleRecord } from '../types';
-import { SyncService } from './syncService';
 import { parseItems } from '../lib/utils';
 
 import { listDriveFiles, getFileBase64, createCustomerFolderHierarchy } from './driveService';
@@ -444,9 +443,6 @@ export const createOrder = async (orderData: Partial<Order>) => {
       customerNumber: `CUST-${customerPhone.replace(/[^0-9]/g, '')}`
     };
 
-    // Sync to BlackBox
-    SyncService.syncOrder(result as any);
-
     return result;
   } catch (error) {
     handleFirestoreError(error, OperationType.CREATE, 'orders');
@@ -460,9 +456,6 @@ export const updateOrder = async (orderId: string, updates: Partial<Order>) => {
     ...updates,
     updatedAt: serverTimestamp(),
   });
-
-  // Sync to BlackBox
-  SyncService.syncOrder({ id: orderId, ...updates } as any);
 };
 
 export const deleteOrder = async (orderId: string) => {

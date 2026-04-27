@@ -36,7 +36,7 @@ import { cleanupBadMediaUrls } from '../services/cleanupService';
 import { useNotifications } from './NotificationProvider';
 import { ChatInput } from './ChatInput';
 import { ChatWindow } from './ChatWindow';
-import { SyncService } from '../services/syncService';
+import { GasService } from '../services/gasService';
 
 interface TeamMessengerContainerProps {
   currentUserProfile: UserProfile;
@@ -189,7 +189,7 @@ export const TeamMessengerContainer: React.FC<TeamMessengerContainerProps> = ({
       });
 
       // Sync to BlackBox (Google Sheets)
-      SyncService.syncChat({
+      GasService.syncChat({
         senderId: currentUserProfile.id,
         senderName: currentUserProfile.name,
         text,

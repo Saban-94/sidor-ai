@@ -35,7 +35,7 @@ import {
   limit 
 } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '../lib/firebaseUtils';
-import { SyncService } from '../services/syncService';
+import { GasService } from '../services/gasService';
 
 // --- Main Page ---
 export const UserMagicPage = () => {
@@ -49,8 +49,8 @@ export const UserMagicPage = () => {
       if (docSnap.exists()) {
         const data = { id, ...docSnap.data() } as UserProfile;
         setUserProfile(data);
-        // Log access to BlackBox
-        SyncService.logMagicAccess(id, data.name, 'ACCESS');
+        // Log access to BlackBox via GAS
+        GasService.push('logMagicAccess', { userId: id, userName: data.name, magicAction: 'ACCESS' });
       }
       setLoading(false);
     }, (error) => {

@@ -116,7 +116,9 @@ import { Order, Driver, Customer, Reminder, InventoryItem, UserProfile, TeamChat
 import { useUserMemory } from './hooks/useUserMemory';
 import { uploadFileToDrive, createCustomerFolderHierarchy } from './services/driveService';
 
-import { SyncService } from './services/syncService';
+import { useAuth } from './hooks/useAuth';
+import { SyncStatus } from './components/SyncStatus';
+import { useToast } from './providers/ToastProvider';
 
 // --- Components ---
 
@@ -181,6 +183,9 @@ const Header = ({
     </div>
     
     <div className="flex items-center gap-2">
+      <div className="hidden lg:block">
+        <SyncStatus />
+      </div>
       <button 
         onClick={onOpenReminders}
         className="p-2.5 rounded-xl bg-white text-sky-600 border border-sky-100 hover:bg-sky-50 relative"
@@ -417,10 +422,10 @@ export default function App() {
 }
 
 function AppContent() {
-  const [user, setUser] = useState<FirebaseUser | null>(null);
+  const { user, loading, token } = useAuth();
+  const { addToast } = useToast();
   const [currentUserProfile, setCurrentUserProfile] = useState<UserProfile | null>(null);
   const { playDing, playAlert, sendGlobalNotification } = useNotifications();
-  const [loading, setLoading] = useState(true);
   const [orders, setOrders] = useState<Order[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
@@ -589,7 +594,6 @@ function AppContent() {
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const [isUploadingDoc, setIsUploadingDoc] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
-  const [toasts, setToasts] = useState<any[]>([]);
 
   // Simulate progress for Drive uploads
   useEffect(() => {
@@ -841,22 +845,9 @@ function AppContent() {
     }
   };
 
-  const addToast = (title: string, message: string, type: 'info' | 'success' | 'warning' = 'info') => {
-    const id = Math.random().toString(36).substr(2, 9);
-    setToasts(prev => [...prev, { id, title, message, type }]);
-    setTimeout(() => {
-      setToasts(prev => prev.filter(t => t.id !== id));
-    }, 5000);
-  };
-
   // --- Auth & Init ---
   useEffect(() => {
     initOneSignal();
-    SyncService.initListeners();
-    return onAuthStateChanged(auth, (u) => {
-      setUser(u);
-      setLoading(false);
-    });
   }, []);
 
   useEffect(() => {
@@ -1928,47 +1919,6 @@ function AppContent() {
       </main>
 
       {/* Toasts */}
-
-      {/* Toasts */}
-      <div className="fixed top-6 right-6 z-[100] flex flex-col gap-3 pointer-events-none w-full max-w-sm" dir="rtl">
-        <AnimatePresence>
-          {toasts.map(toast => (
-            <motion.div
-              key={toast.id}
-              initial={{ opacity: 0, x: 20, scale: 0.9 }}
-              animate={{ opacity: 1, x: 0, scale: 1 }}
-              exit={{ opacity: 0, x: 20, scale: 0.9 }}
-              className="pointer-events-auto bg-white/90 backdrop-blur-md rounded-2xl shadow-2xl border border-sky-100 p-4 flex gap-4 overflow-hidden relative"
-            >
-              <div className={`w-1 absolute right-0 top-0 bottom-0 ${
-                toast.type === 'success' ? 'bg-green-500' : 
-                toast.type === 'warning' ? 'bg-sky-500' : 'bg-blue-500'
-              }`} />
-              
-              <div className={`p-2 rounded-xl h-fit ${
-                toast.type === 'success' ? 'bg-green-50' : 
-                toast.type === 'warning' ? 'bg-sky-50' : 'bg-blue-50'
-              }`}>
-                {toast.type === 'success' && <CheckCircle size={20} className="text-green-600" />}
-                {toast.type === 'warning' && <AlertTriangle size={20} className="text-sky-600" />}
-                {toast.type === 'info' && <Info size={20} className="text-blue-600" />}
-              </div>
-
-              <div className="flex-1">
-                <h4 className="font-black text-gray-900 text-sm mb-0.5">{toast.title}</h4>
-                <p className="text-gray-500 text-xs leading-relaxed">{toast.message}</p>
-              </div>
-
-              <button 
-                onClick={() => setToasts(prev => prev.filter(t => t.id !== toast.id))}
-                className="text-gray-300 hover:text-gray-500 transition-colors"
-              >
-                <X size={16} />
-              </button>
-            </motion.div>
-          ))}
-        </AnimatePresence>
-      </div>
 
       </motion.div>
     </MobileWrapper>
