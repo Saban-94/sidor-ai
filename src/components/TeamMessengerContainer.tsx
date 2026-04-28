@@ -52,6 +52,10 @@ export const TeamMessengerContainer: React.FC<TeamMessengerContainerProps> = ({
   const { playDing, playAlert } = useNotifications();
   const [isOpen, setIsOpen] = useState(fullScreen);
   const [messages, setMessages] = useState<TeamChatMessage[]>([]);
+  const [lastSeenMsgTime, setLastSeenMsgTime] = useState<number>(() => {
+    const saved = localStorage.getItem('lastSeenMsgTime');
+    return saved ? parseInt(saved, 10) : Date.now();
+  });
   const [teamMembers, setTeamMembers] = useState<UserProfile[]>([]);
   const [selectedMember, setSelectedMember] = useState<UserProfile | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -166,8 +170,11 @@ export const TeamMessengerContainer: React.FC<TeamMessengerContainerProps> = ({
   useEffect(() => {
     if (isOpen) {
       stopUrgentAudio();
+      const now = Date.now();
+      setLastSeenMsgTime(now);
+      localStorage.setItem('lastSeenMsgTime', now.toString());
     }
-  }, [isOpen]);
+  }, [isOpen, messages.length]);
 
   const handleSendMessage = async (text: string, priority: 'normal' | 'urgent') => {
     if (!text.trim() && !isUploading) return;
@@ -244,6 +251,13 @@ export const TeamMessengerContainer: React.FC<TeamMessengerContainerProps> = ({
     const lastSeenDate = lastSeen.toDate ? lastSeen.toDate() : new Date(lastSeen);
     return (now.getTime() - lastSeenDate.getTime()) < 5 * 60 * 1000;
   };
+
+  const unreadCount = messages.filter(m => {
+    if (m.senderId === currentUserProfile.id) return false;
+    if (!m.timestamp) return false;
+    const mTime = m.timestamp.toDate ? m.timestamp.toDate().getTime() : new Date(m.timestamp).getTime();
+    return mTime > lastSeenMsgTime;
+  }).length;
 
   return (
     <div className={fullScreen ? "h-full w-full" : "fixed bottom-6 left-6 z-[200]"} dir="rtl">
@@ -382,13 +396,13 @@ export const TeamMessengerContainer: React.FC<TeamMessengerContainerProps> = ({
         >
           <MessageSquare size={32} />
           <AnimatePresence>
-            {!isOpen && messages.length > 0 && (
+            {!isOpen && unreadCount > 0 && (
                <motion.span 
                  initial={{ scale: 0 }}
                  animate={{ scale: 1 }}
                  className="absolute -top-1 -right-1 w-6 h-6 bg-red-500 rounded-full border-4 border-white flex items-center justify-center text-[10px] font-black"
                >
-                 {messages.length}
+                 {unreadCount}
                </motion.span>
             )}
           </AnimatePresence>

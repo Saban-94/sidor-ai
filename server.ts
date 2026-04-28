@@ -78,6 +78,11 @@ async function startServer() {
     }
   });
 
+  // Fallback for API routes to prevent Vite takeover
+  app.all("/api/*", (req, res) => {
+    res.status(404).json({ error: `Not Found: ${req.method} ${req.url}` });
+  });
+
   // Serve manifest.js explicitly with correct content type
   app.get('/manifest.json', (req, res) => {
     res.sendFile(path.join(process.cwd(), 'public', 'manifest.json'), {

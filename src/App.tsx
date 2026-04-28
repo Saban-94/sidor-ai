@@ -433,6 +433,10 @@ function AppContent() {
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [isRemindersOpen, setIsRemindersOpen] = useState(false);
   const [isAddingReminder, setIsAddingReminder] = useState(false);
+  const [lastSeenRemindersAt, setLastSeenRemindersAt] = useState<number>(() => {
+    const saved = localStorage.getItem('lastSeenRemindersAt');
+    return saved ? parseInt(saved, 10) : Date.now();
+  });
   const [selectedDate, setSelectedDate] = useState(new Date());
 
   const [activeAlertReminder, setActiveAlertReminder] = useState<Reminder | null>(null);
@@ -533,7 +537,8 @@ function AppContent() {
   const hasNaggingReminder = naggingReminders.some(r => {
     try {
       const scheduledTime = parseISO(`${r.dueDate}T${r.dueTime}`);
-      return differenceInMinutes(new Date(), scheduledTime) >= 0;
+      const isDue = differenceInMinutes(new Date(), scheduledTime) >= 0;
+      return isDue && scheduledTime.getTime() > lastSeenRemindersAt;
     } catch (e) {
       return false;
     }
@@ -1329,7 +1334,12 @@ function AppContent() {
               onLogout={() => setIsLogoutConfirmOpen(true)}
               isUploading={isUploadingDoc}
               uploadProgress={uploadProgress}
-              onOpenReminders={() => setIsRemindersOpen(true)}
+              onOpenReminders={() => {
+                setIsRemindersOpen(true);
+                const now = Date.now();
+                setLastSeenRemindersAt(now);
+                localStorage.setItem('lastSeenRemindersAt', now.toString());
+              }}
               onAddReminder={() => setIsAddingReminder(true)}
               hasNaggingReminder={hasNaggingReminder}
             />
@@ -1348,7 +1358,12 @@ function AppContent() {
               viewMode={viewMode}
               setViewMode={setViewMode}
               installPrompt={installPrompt}
-              onOpenReminders={() => setIsRemindersOpen(true)}
+              onOpenReminders={() => {
+                setIsRemindersOpen(true);
+                const now = Date.now();
+                setLastSeenRemindersAt(now);
+                localStorage.setItem('lastSeenRemindersAt', now.toString());
+              }}
               onLogout={() => setIsLogoutConfirmOpen(true)}
             />
 
