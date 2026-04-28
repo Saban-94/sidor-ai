@@ -78,6 +78,39 @@ async function startServer() {
     }
   });
 
+  // AI Proxy for Gemini
+  app.post("/api/ai/generate", async (req, res) => {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      return res.status(500).json({ error: "GEMINI_API_KEY not configured" });
+    }
+
+    try {
+      console.log("🧠 Proxying AI Generation request...");
+      // This is a simple pass-through to Gemini API
+      const model = req.body.model || "gemini-1.5-flash";
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+      
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          contents: req.body.contents,
+          generationConfig: req.body.generationConfig,
+          systemInstruction: req.body.systemInstruction
+        }),
+      });
+
+      const data = await response.json();
+      res.json(data);
+    } catch (error: any) {
+      console.error("❌ AI Proxy Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Fallback for API routes to prevent Vite takeover
   app.all("/api/*", (req, res) => {
     res.status(404).json({ error: `Not Found: ${req.method} ${req.url}` });

@@ -55,7 +55,12 @@ export class GasService {
   }
 
   static async syncOrder(orderData: any) {
-    return this.push('syncOrder', orderData);
+    // If there's a signature, GAS often expects it as 'base64Data' at top level
+    const payload = { ...orderData };
+    if (orderData.signature && !orderData.base64Data) {
+      payload.base64Data = orderData.signature;
+    }
+    return this.push('syncOrder', payload);
   }
 
   static async syncInventory(inventoryData: any) {
