@@ -56,7 +56,10 @@ export class GasService {
 
   static async syncOrder(orderData: any) {
     // If there's a signature, GAS often expects it as 'base64Data' at top level
-    const payload = { ...orderData };
+    const payload = { 
+      ...orderData,
+      sheetName: 'Orders' // Ensure GAS knows which sheet to target
+    };
     if (orderData.signature && !orderData.base64Data) {
       payload.base64Data = orderData.signature;
     }
@@ -64,7 +67,7 @@ export class GasService {
   }
 
   static async syncInventory(inventoryData: any) {
-    return this.push('syncInventory', inventoryData);
+    return this.push('syncInventory', { ...inventoryData, sheetName: 'Inventory' });
   }
 
   static async syncChat(chatData: any) {
