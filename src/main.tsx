@@ -2,7 +2,7 @@ import {StrictMode} from 'react';
 import {createRoot} from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { ToastProvider } from './providers/ToastProvider';
-import { SyncProvider } from './providers/SyncProvider';
+import { SyncManager } from './providers/SyncManager';
 import App from './App.tsx';
 import './index.css';
 
@@ -10,9 +10,9 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BrowserRouter>
       <ToastProvider>
-        <SyncProvider>
+        <SyncManager>
           <App />
-        </SyncProvider>
+        </SyncManager>
       </ToastProvider>
     </BrowserRouter>
   </StrictMode>,

@@ -47,6 +47,37 @@ async function startServer() {
     res.json({ status: "ok", time: new Date().toISOString() });
   });
 
+  // Google Apps Script Proxy
+  app.post("/api/gas-proxy", async (req, res) => {
+    const gasUrl = process.env.VITE_GAS_URL;
+    if (!gasUrl) {
+      console.error("❌ GAS_URL missing in environment");
+      return res.status(500).json({ error: "GAS_URL not configured" });
+    }
+
+    try {
+      console.log(`📡 Proxying to GAS: ${req.body.action}`);
+      const response = await fetch(gasUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "text/plain;charset=utf-8",
+        },
+        body: JSON.stringify(req.body),
+      });
+
+      const text = await response.text();
+      try {
+        const json = JSON.parse(text);
+        res.json(json);
+      } catch (e) {
+        res.send(text);
+      }
+    } catch (error: any) {
+      console.error("❌ GAS Proxy Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Serve manifest.js explicitly with correct content type
   app.get('/manifest.json', (req, res) => {
     res.sendFile(path.join(process.cwd(), 'public', 'manifest.json'), {

@@ -92,6 +92,7 @@ import { UserMagicPage } from './components/UserMagicPage';
 import { TeamMessengerContainer } from './components/TeamMessengerContainer';
 import { SocialChatRoom } from './components/SocialChatRoom';
 import { MobileWrapper } from './components/MobileWrapper';
+import { ConnectionOrbit } from './components/ConnectionOrbit';
 import { Avatar } from './components/Avatar';
 import { NotificationProvider, useNotifications } from './components/NotificationProvider';
 import { 
@@ -184,7 +185,7 @@ const Header = ({
     
     <div className="flex items-center gap-2">
       <div className="hidden lg:block">
-        <SyncStatus />
+        <ConnectionOrbit />
       </div>
       <button 
         onClick={onOpenReminders}
@@ -1114,6 +1115,18 @@ function AppContent() {
     }
   }, [chatHistory]);
 
+  if (loading) return (
+    <div className="h-screen w-full flex items-center justify-center bg-sky-50/30 backdrop-blur-sm">
+      <motion.div 
+        animate={{ rotate: 360 }} 
+        transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
+        className="text-sky-600"
+      >
+        <Truck size={40} />
+      </motion.div>
+    </div>
+  );
+
   // --- Aura AI Handlers ---
   const handleAuraAction = async (msg: string) => {
     if (!user) return;
@@ -1188,18 +1201,6 @@ function AppContent() {
       }
     }
   };
-
-  if (loading) return (
-    <div className="h-screen w-full flex items-center justify-center bg-sky-50/30 backdrop-blur-sm">
-      <motion.div 
-        animate={{ rotate: 360 }} 
-        transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
-        className="text-sky-600"
-      >
-        <Truck size={40} />
-      </motion.div>
-    </div>
-  );
 
   const filteredOrders = orders
     .filter(order => {

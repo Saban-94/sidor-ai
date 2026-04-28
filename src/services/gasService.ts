@@ -5,46 +5,47 @@ export class GasService {
   /**
    * Universal forwarder to Google Apps Script with Firebase Auth protection
    */
-  static async push(action: string, data: any) {
-    if (!GAS_URL) {
-      console.warn("⚠️ VITE_GAS_URL is missing. Sync disabled.");
-      return false;
-    }
-
+  static async push(action: string, data: any, retry = true): Promise<any> {
     try {
       const user = auth.currentUser;
-      const idToken = user ? await user.getIdToken() : null;
+      if (!user) throw new Error('User not authenticated');
+      
+      // Ensure we have a fresh token
+      const idToken = await user.getIdToken(true);
 
       const payload = {
         action,
         timestamp: new Date().toISOString(),
-        user: user?.email || 'anonymous',
+        user: user.email || 'anonymous',
+        uid: user.uid,
+        idToken,
         ...data
       };
 
-      console.log(`📤 GAS [${action}]:`, payload);
+      console.log(`📤 Proxying GAS [${action}]:`, payload);
 
-      const response = await fetch(GAS_URL, {
+      const response = await fetch('/api/gas-proxy', {
         method: 'POST',
         headers: {
-          'Content-Type': 'text/plain;charset=utf-8',
-          'Authorization': idToken ? `Bearer ${idToken}` : ''
+          'Content-Type': 'application/json',
         },
-        // We use text/plain to avoid CORS preflight if possible, 
-        // but since we add Authorization header, a preflight WILL happen.
-        // Therefore, we must ensure GAS handle OPTIONS.
         body: JSON.stringify(payload),
       });
 
+      if (response.status === 403 && retry) {
+        console.warn('⚠️ GAS 403: Retrying with forced token refresh...');
+        return this.push(action, data, false);
+      }
+
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        throw new Error(`Proxy error! status: ${response.status}`);
       }
 
       const result = await response.json();
-      console.log(`✅ GAS Response [${action}]:`, result);
+      console.log(`✅ Proxy GAS Response [${action}]:`, result);
       return result;
     } catch (error) {
-      console.error(`❌ GAS Sync Failed [${action}]:`, error);
+      console.error(`❌ Proxy GAS Sync Failed [${action}]:`, error);
       throw error;
     }
   }

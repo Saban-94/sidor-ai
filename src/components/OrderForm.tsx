@@ -77,10 +77,15 @@ const OrderForm: React.FC<OrderFormProps> = ({
   }, [isOpen, editingOrder]);
 
   useEffect(() => {
-    // Single fetch for customer lookup data from orders to save bandwidth
+    // Proactive lookup: When specific keywords are typed, suggest from history
     const loadLookupData = async () => {
-      const { fetchOrders } = await import('../services/auraService');
-      const all = await fetchOrders();
+      const { query, collection, getDocs, orderBy, limit } = await import('firebase/firestore');
+      const { db } = await import('../lib/firebase');
+      
+      const q = query(collection(db, 'orders'), orderBy('date', 'desc'), limit(100));
+      const snap = await getDocs(q);
+      const all = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Order[];
+      
       setOrderHistory(all);
       const uniqueNames = Array.from(new Set(all.map(o => o.customerName))).filter(Boolean);
       setCustomerLookup(uniqueNames);
