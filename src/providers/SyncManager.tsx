@@ -22,6 +22,11 @@ const SyncContext = createContext<SyncContextType>({
 
 export const useSync = () => useContext(SyncContext);
 
+interface QueueItem {
+  type: 'order' | 'inventory' | 'log';
+  data: any;
+}
+
 export const SyncManager: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { addToast } = useToast();
   const [status, setStatus] = useState<'connected' | 'disconnected' | 'syncing' | 'error'>('disconnected');
@@ -29,7 +34,7 @@ export const SyncManager: React.FC<{ children: React.ReactNode }> = ({ children 
   const [pipelineHealth, setPipelineHealth] = useState({ firebase: false, gas: false });
   
   // Throttle Queue
-  const syncQueue = useRef<{ [key: string]: any }>({});
+  const syncQueue = useRef<{ [key: string]: QueueItem }>({});
   const throttleTimeout = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
@@ -60,7 +65,7 @@ export const SyncManager: React.FC<{ children: React.ReactNode }> = ({ children 
   }, []);
 
   const processQueue = async () => {
-    const items = Object.values(syncQueue.current);
+    const items = Object.values(syncQueue.current) as QueueItem[];
     if (items.length === 0) return;
 
     setStatus('syncing');

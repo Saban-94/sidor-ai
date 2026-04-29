@@ -3,37 +3,23 @@ import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
 import { createServer as createViteServer } from "vite";
-
-// Initialize Gemini API
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 async function startServer() {
-  // Diagnostic: Check for API Key presence at start
   const startupKey = process.env.GEMINI_API_KEY;
   if (!startupKey) {
-    console.warn("⚠️ WARNING: GEMINI_API_KEY is not defined in the environment at startup.");
+    console.warn("⚠️ WARNING: GEMINI_API_KEY is not defined in the environment.");
   } else {
-    console.log(`✅ GEMINI_API_KEY is present (Length: ${startupKey?.length})`);
-    
-    // Attempt a test call to verify key validity
-    const testGenAI = new GoogleGenerativeAI(startupKey.trim());
-    const testModel = testGenAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-    
-    testModel.generateContent("test")
-      .then(() => console.log("✨ Gemini API Key verified successfully (Test succeeded)"))
-      .catch((err) => {
-        console.error("❌ Gemini API Key verification failed at startup:");
-        console.error(err.message || err);
-      });
+    console.log(`✅ GEMINI_API_KEY is present`);
   }
 
   const app = express();
   const PORT = 3000;
 
-  // Body parser should be early
+  // Middleware
   app.use(express.json({ limit: '50mb' }));
 
   // Request logger for API
@@ -51,131 +37,63 @@ async function startServer() {
   app.post("/api/gas-proxy", async (req, res) => {
     const gasUrl = process.env.VITE_GAS_URL;
     if (!gasUrl) {
-      console.error("❌ GAS_URL missing in environment");
       return res.status(500).json({ error: "GAS_URL not configured" });
     }
 
     try {
-      console.log(`📡 Proxying to GAS: ${req.body.action}`);
       const response = await fetch(gasUrl, {
         method: "POST",
-        headers: {
-          "Content-Type": "text/plain;charset=utf-8",
-        },
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
         body: JSON.stringify(req.body),
       });
 
       const text = await response.text();
       try {
-        const json = JSON.parse(text);
-        res.json(json);
+        res.json(JSON.parse(text));
       } catch (e) {
         res.send(text);
       }
     } catch (error: any) {
-      console.error("❌ GAS Proxy Error:", error);
       res.status(500).json({ error: error.message });
     }
   });
 
-  // AI Proxy for Gemini
+  // Unified AI Proxy for Gemini
   app.post("/api/ai/generate", async (req, res) => {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      return res.status(500).json({ error: "GEMINI_API_KEY not configured" });
-    }
-
     try {
-      console.log("🧠 Proxying AI Generation request...");
-      // This is a simple pass-through to Gemini API
-      const model = req.body.model || "gemini-1.5-flash";
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-      
-      const response = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          contents: req.body.contents,
-          generationConfig: req.body.generationConfig,
-          systemInstruction: req.body.systemInstruction
-        }),
+      const apiKey = process.env.GEMINI_API_KEY?.trim();
+      if (!apiKey || apiKey === "undefined" || apiKey.length < 10) {
+        return res.status(500).json({ error: "Gemini API key is invalid or missing." });
+      }
+
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const { model: modelName, contents, config, systemInstruction } = req.body;
+
+      const model = genAI.getGenerativeModel({ 
+        model: modelName || "gemini-1.5-flash",
+        generationConfig: config,
+        systemInstruction: typeof systemInstruction === 'string' ? { role: 'system', parts: [{ text: systemInstruction }] } : systemInstruction
       });
 
-      const data = await response.json();
-      res.json(data);
+      const result = await model.generateContent({ contents });
+      const response = await result.response;
+      
+      let text = "";
+      try { text = response.text(); } catch (e) {}
+      
+      res.json({ ...response, text });
     } catch (error: any) {
       console.error("❌ AI Proxy Error:", error);
       res.status(500).json({ error: error.message });
     }
   });
 
-  // Fallback for API routes to prevent Vite takeover
+  // Fallback for API routes
   app.all("/api/*", (req, res) => {
     res.status(404).json({ error: `Not Found: ${req.method} ${req.url}` });
   });
 
-  // Serve manifest.js explicitly with correct content type
-  app.get('/manifest.json', (req, res) => {
-    res.sendFile(path.join(process.cwd(), 'public', 'manifest.json'), {
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    });
-  });
-
-  // Serve static assets from public folder
-  app.use(express.static(path.join(process.cwd(), 'public')));
-
-  // AI generation proxy
-  app.post("/api/ai/generate", async (req, res) => {
-    try {
-      const apiKey = process.env.GEMINI_API_KEY?.trim();
-      if (!apiKey || apiKey === "undefined" || apiKey.length < 10) {
-        return res.status(500).json({ 
-          error: "Gemini API key is invalid or not provided.",
-          details: `Current state: ${!apiKey ? 'Missing' : 'Empty/Invalid'}`
-        });
-      }
-
-      const genAI = new GoogleGenerativeAI(apiKey);
-      const { model: modelName, contents, config } = req.body;
-
-      const model = genAI.getGenerativeModel({ 
-        model: modelName || "gemini-1.5-flash",
-        generationConfig: config
-      });
-
-      console.log(`🤖 AI Request: ${modelName || "gemini-1.5-flash"} | Contents length: ${contents?.length}`);
-
-      // Pass contents directly if it's an array
-      const result = await model.generateContent({ contents });
-      const response = await result.response;
-      
-      // Extract text safely for the client
-      let text = "";
-      try {
-        text = response.text();
-      } catch (e) {
-        // text() throws if there are candidates but no text (e.g. function calls)
-      }
-      
-      res.json({
-        ...response,
-        text: text
-      });
-    } catch (error: any) {
-      console.error("Gemini Server Error:", error);
-      res.status(500).json({ 
-        error: error.message || "Failed to generate content",
-        details: error.status || "Internal Server Error"
-      });
-    }
-  });
-
-
-  // Vite middleware for development
+  // Static and SPA serving
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
       server: { middlewareMode: true },

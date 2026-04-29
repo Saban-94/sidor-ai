@@ -1,5 +1,5 @@
 import React from 'react';
-import { useSync } from '../providers/SyncProvider';
+import { useSync } from '../providers/SyncManager';
 import { Cloud, CloudOff, RefreshCw } from 'lucide-react';
 import { format } from 'date-fns';
 

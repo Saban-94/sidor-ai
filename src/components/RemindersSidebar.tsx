@@ -27,6 +27,7 @@ interface RemindersSidebarProps {
   onToggleComplete: (id: string, completed: boolean) => void;
   onDelete: (id: string) => void;
   onSnooze: (id: string) => void;
+  onMarkAllAsRead: () => void;
 }
 
 export const RemindersSidebar: React.FC<RemindersSidebarProps> = ({ 
@@ -35,7 +36,8 @@ export const RemindersSidebar: React.FC<RemindersSidebarProps> = ({
   reminders,
   onToggleComplete,
   onDelete,
-  onSnooze
+  onSnooze,
+  onMarkAllAsRead
 }) => {
   const [now, setNow] = useState(new Date());
 
@@ -134,7 +136,16 @@ export const RemindersSidebar: React.FC<RemindersSidebarProps> = ({
                   </div>
                   <div>
                     <h2 className="text-2xl font-black italic tracking-tighter text-gray-900 mb-0.5">SabanOS Task</h2>
-                    <p className="text-[10px] font-black text-sky-600 tracking-widest uppercase">מערכת תזכורות חכמה</p>
+                    <div className="flex items-center gap-2">
+                       <p className="text-[10px] font-black text-sky-600 tracking-widest uppercase">מערכת תזכורות חכמה</p>
+                       <span className="w-1 h-1 rounded-full bg-sky-200" />
+                       <button 
+                         onClick={onMarkAllAsRead}
+                         className="text-[10px] font-black text-gray-400 hover:text-sky-600 transition-colors uppercase tracking-widest"
+                       >
+                         אפס התראות
+                       </button>
+                    </div>
                   </div>
                 </div>
                 <button 

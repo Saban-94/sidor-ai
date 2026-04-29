@@ -1348,7 +1348,12 @@ function AppContent() {
               reminder={activeAlertReminder}
               onAction={handleReminderAction}
               onSnooze={handleAlertSnooze}
-              onDismiss={() => setActiveAlertReminder(null)}
+              onDismiss={() => {
+                setActiveAlertReminder(null);
+                const now = Date.now();
+                setLastSeenRemindersAt(now);
+                localStorage.setItem('lastSeenRemindersAt', now.toString());
+              }}
             />
 
             <Drawer 
@@ -1374,6 +1379,11 @@ function AppContent() {
               onToggleComplete={(id, completed) => updateReminder(id, { isCompleted: completed })}
               onDelete={deleteReminder}
               onSnooze={handleSnooze}
+              onMarkAllAsRead={() => {
+                const now = Date.now();
+                setLastSeenRemindersAt(now);
+                localStorage.setItem('lastSeenRemindersAt', now.toString());
+              }}
             />
 
             <ReminderForm 

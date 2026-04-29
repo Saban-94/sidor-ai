@@ -168,11 +168,20 @@ export const TeamMessengerContainer: React.FC<TeamMessengerContainerProps> = ({
   };
 
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && messages.length > 0) {
       stopUrgentAudio();
-      const now = Date.now();
-      setLastSeenMsgTime(now);
-      localStorage.setItem('lastSeenMsgTime', now.toString());
+      // Use the timestamp of the latest message as the last seen mark
+      const lastMsg = messages[messages.length - 1];
+      if (lastMsg.timestamp) {
+        const mTime = lastMsg.timestamp.toDate ? lastMsg.timestamp.toDate().getTime() : new Date(lastMsg.timestamp).getTime();
+        setLastSeenMsgTime(mTime);
+        localStorage.setItem('lastSeenMsgTime', mTime.toString());
+      } else {
+        // Fallback to now if no timestamp yet
+        const now = Date.now();
+        setLastSeenMsgTime(now);
+        localStorage.setItem('lastSeenMsgTime', now.toString());
+      }
     }
   }, [isOpen, messages.length]);
 

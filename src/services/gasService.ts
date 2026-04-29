@@ -51,7 +51,7 @@ export class GasService {
   }
 
   static async logBlackBox(data: any) {
-    return this.push('handleBlackBoxLog', data);
+    return this.push('handleBlackBoxLog', { ...data, sheetName: 'Logs' });
   }
 
   static async syncOrder(orderData: any) {
@@ -71,6 +71,6 @@ export class GasService {
   }
 
   static async syncChat(chatData: any) {
-    return this.push('syncChat', chatData);
+    return this.push('syncChat', { ...chatData, sheetName: 'Chat' });
   }
 }
