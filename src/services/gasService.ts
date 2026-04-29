@@ -37,16 +37,32 @@ export class GasService {
         return this.push(action, data, false);
       }
 
-      if (!response.ok) {
-        throw new Error(`Proxy error! status: ${response.status}`);
+      const contentType = response.headers.get('content-type');
+      let result;
+      
+      if (contentType && contentType.includes('application/json')) {
+        result = await response.json();
+      } else {
+        const text = await response.text();
+        try {
+          result = JSON.parse(text);
+        } catch (e) {
+          result = { status: 'raw', message: text };
+        }
       }
 
-      const result = await response.json();
+      if (!response.ok) {
+        console.error(`❌ Proxy error ${response.status}:`, result);
+        throw new Error(`Proxy error! status: ${response.status}. ${JSON.stringify(result)}`);
+      }
+
       console.log(`✅ Proxy GAS Response [${action}]:`, result);
       return result;
-    } catch (error) {
+    } catch (error: any) {
       console.error(`❌ Proxy GAS Sync Failed [${action}]:`, error);
-      throw error;
+      // Construct a better error message for the UI
+      const errorMessage = error.message || 'Unknown network error';
+      throw new Error(`סנכרון נכשל: ${errorMessage}`);
     }
   }
 
