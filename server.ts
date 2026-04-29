@@ -33,44 +33,6 @@ async function startServer() {
     res.json({ status: "ok", time: new Date().toISOString() });
   });
 
-  // Google Apps Script Proxy
-  app.post("/api/gas-proxy", async (req, res) => {
-    const gasUrl = process.env.VITE_GAS_URL || "https://script.google.com/macros/s/AKfycbzhEuTe-PZpjD0lL5GziypNd-ZOged2XqWvJ4RFu9GvpImk3-YyorpbQGuIGipLTYts_Q/exec";
-    
-    try {
-      console.log(`📡 [GAS PROXY] Sending request to GAS for action: ${req.body?.action || 'unknown'}`);
-      
-      const response = await fetch(gasUrl, {
-        method: "POST",
-        headers: { 
-          "Content-Type": "application/json",
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) SabanOS-Proxy/1.0"
-        },
-        body: JSON.stringify(req.body),
-      });
-
-      console.log(`📥 [GAS PROXY] Received status: ${response.status} ${response.statusText}`);
-      
-      const text = await response.text();
-      
-      // Try to parse as JSON, but return as object either way
-      try {
-        const json = JSON.parse(text);
-        res.json(json);
-      } catch (e) {
-        console.log("⚠️ [GAS PROXY] Response was not JSON, sending as raw text");
-        res.json({ status: "raw", data: text });
-      }
-    } catch (error: any) {
-      console.error("❌ [GAS PROXY] Error caught in server side:", error);
-      res.status(502).json({ 
-        error: "Proxy failed to reach GAS", 
-        message: error.message,
-        timestamp: new Date().toISOString()
-      });
-    }
-  });
-
   // Unified AI Proxy for Gemini
   app.post("/api/ai/generate", async (req, res) => {
     try {

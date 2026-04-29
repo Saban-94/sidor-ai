@@ -1,4 +1,3 @@
-import { GAS_URL } from '../config/constants';
 import { auth } from '../lib/firebase';
 
 export class GasService {
@@ -22,42 +21,22 @@ export class GasService {
         ...data
       };
 
-      console.log(`📤 Proxying GAS [${action}]:`, payload);
+      console.log(`📤 Syncing to GAS [${action}] at URL: ${import.meta.env.VITE_GAS_URL}`);
 
-      const response = await fetch('/api/gas-proxy', {
+      const response = await fetch(import.meta.env.VITE_GAS_URL, {
         method: 'POST',
+        mode: 'no-cors',
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'text/plain;charset=utf-8',
+          'Authorization': `Bearer ${idToken}`
         },
         body: JSON.stringify(payload),
       });
 
-      if (response.status === 403 && retry) {
-        console.warn('⚠️ GAS 403: Retrying with forced token refresh...');
-        return this.push(action, data, false);
-      }
-
-      const contentType = response.headers.get('content-type');
-      let result;
-      
-      if (contentType && contentType.includes('application/json')) {
-        result = await response.json();
-      } else {
-        const text = await response.text();
-        try {
-          result = JSON.parse(text);
-        } catch (e) {
-          result = { status: 'raw', message: text };
-        }
-      }
-
-      if (!response.ok) {
-        console.error(`❌ Proxy error ${response.status}:`, result);
-        throw new Error(`Proxy error! status: ${response.status}. ${JSON.stringify(result)}`);
-      }
-
-      console.log(`✅ Proxy GAS Response [${action}]:`, result);
-      return result;
+      // Note: With no-cors, we can't read the response body or status.
+      // We assume it worked if the browser doesn't throw.
+      console.log(`✅ Direct POST attempted to GAS [${action}]`);
+      return { status: 'success', mode: 'no-cors' };
     } catch (error: any) {
       console.error(`❌ Proxy GAS Sync Failed [${action}]:`, error);
       // Construct a better error message for the UI

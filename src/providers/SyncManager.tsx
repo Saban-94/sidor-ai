@@ -69,6 +69,7 @@ export const SyncManager: React.FC<{ children: React.ReactNode }> = ({ children 
     if (items.length === 0) return;
 
     setStatus('syncing');
+    console.log(`🧬 SyncManager starting push to GAS URL: ${import.meta.env.VITE_GAS_URL}`);
     try {
       // Process batch
       for (const item of items) {
