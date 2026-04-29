@@ -40,7 +40,14 @@ const sanitizeForVoice = (text: string): string => {
 import { GoogleGenAI } from "@google/genai";
 
 // Helper to call Gemini API via server proxy
-async function generateContentProxy(payload: { model: string, contents: any[], config?: any }) {
+async function generateContentProxy(payload: { 
+  model: string, 
+  contents: any[], 
+  config?: any,
+  systemInstruction?: any,
+  tools?: any[],
+  toolConfig?: any
+}) {
   try {
     const response = await fetch("/api/ai/generate", {
       method: "POST",
@@ -786,10 +793,9 @@ async function processNoaTurn(contents: any[], userKey?: string): Promise<any> {
   const response = await generateContentProxy({
     model: "gemini-1.5-flash",
     contents: contents,
-    config: {
-      systemInstruction: dynamicInstruction,
-      tools: tools
-    }
+    systemInstruction: dynamicInstruction,
+    tools: tools,
+    config: {}
   });
 
   const functionCalls = (response as any).candidates?.[0]?.content?.parts?.filter((p: any) => p.functionCall).map((p: any) => p.functionCall);
@@ -1027,11 +1033,12 @@ export async function predictOrderEta(order: Order, historicalOrders: Order[] = 
     const response = await generateContentProxy({
       model: "gemini-1.5-flash",
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      tools: [
+        { googleSearch: {} }
+      ],
+      toolConfig: { includeServerSideToolInvocations: true },
       config: {
-        tools: [
-          { googleSearch: {} }
-        ],
-        toolConfig: { includeServerSideToolInvocations: true }
+        // Any other generation config here
       }
     });
 

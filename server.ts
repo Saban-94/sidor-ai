@@ -44,11 +44,13 @@ async function startServer() {
 
       console.log(`🤖 [AI PROXY] Generating content for model: ${req.body.model || "gemini-1.5-flash"}`);
       const genAI = new GoogleGenerativeAI(apiKey);
-      const { model: modelName, contents, config, systemInstruction } = req.body;
+      const { model: modelName, contents, config, systemInstruction, tools, toolConfig } = req.body;
 
       const model = genAI.getGenerativeModel({ 
         model: modelName || "gemini-1.5-flash",
         generationConfig: config,
+        tools,
+        toolConfig,
         systemInstruction: typeof systemInstruction === 'string' ? { role: 'system', parts: [{ text: systemInstruction }] } : systemInstruction
       });
 
