@@ -1,8 +1,21 @@
 {
-  "name": "Noa Saban Logistics",
-  "short_name": "Noa",
-  "start_url": "/",
+  "name": "SabanOS Admin Field",
+  "short_name": "SabanOS",
+  "description": "Professional Logistics & Inventory Management for Saban Building Materials.",
+  "start_url": "/mobile",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#0ea5e9"
+  "background_color": "#030712",
+  "theme_color": "#0ea5e9",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/3067/3067341.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["business", "logistics"],
+  "dir": "rtl",
+  "lang": "he-IL"
 }

@@ -95,6 +95,7 @@ import { MobileWrapper } from './components/MobileWrapper';
 import { ConnectionOrbit } from './components/ConnectionOrbit';
 import { Avatar } from './components/Avatar';
 import { NotificationProvider, useNotifications } from './components/NotificationProvider';
+import { MobileApp } from './MobileApp';
 import { 
   createOrder, 
   getOrderByTrackingId,
@@ -1253,6 +1254,7 @@ function AppContent() {
 
   return (
     <Routes>
+      <Route path="/mobile" element={<MobileApp />} />
       <Route path="/track/:id" element={<TrackingPage />} />
       <Route path="/admin/users" element={<UserAdminPanel />} />
       <Route path="/user/:id" element={<UserMagicPage />} />
