@@ -63,10 +63,12 @@ export const MobileOrderForm: React.FC<MobileOrderFormProps> = ({
     driverId: 'pending',
     date: format(new Date(), 'yyyy-MM-dd'),
     time: format(new Date(), 'HH:mm'),
-    status: 'pending'
+    status: 'pending',
+    documentIds: [] as string[]
   });
 
   const [searchQuery, setSearchQuery] = useState('');
+  const [docInput, setDocInput] = useState('');
   const [selectedItems, setSelectedItems] = useState<{ item: InventoryItem, quantity: number }[]>([]);
   const [manualItems, setManualItems] = useState('');
   const [isManualItems, setIsManualItems] = useState(false);
@@ -83,7 +85,8 @@ export const MobileOrderForm: React.FC<MobileOrderFormProps> = ({
         driverId: editingOrder.driverId || 'pending',
         date: editingOrder.date || format(new Date(), 'yyyy-MM-dd'),
         time: editingOrder.time || format(new Date(), 'HH:mm'),
-        status: editingOrder.status || 'pending'
+        status: editingOrder.status || 'pending',
+        documentIds: editingOrder.documentIds || []
       });
       setManualItems(editingOrder.items || '');
       setIsManualItems(true);
@@ -96,7 +99,8 @@ export const MobileOrderForm: React.FC<MobileOrderFormProps> = ({
         driverId: 'pending',
         date: format(new Date(), 'yyyy-MM-dd'),
         time: format(new Date(), 'HH:mm'),
-        status: 'pending'
+        status: 'pending',
+        documentIds: []
       });
       setManualItems('');
       setSelectedItems([]);
@@ -387,17 +391,61 @@ export const MobileOrderForm: React.FC<MobileOrderFormProps> = ({
                     </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <label className="text-xs font-black text-gray-400 px-1 uppercase">שיבוץ נהג</label>
-                    <select 
-                      className="w-full bg-gray-50 border-2 border-transparent rounded-2xl p-4 text-sm font-bold focus:bg-white focus:border-sky-600 transition-all outline-none appearance-none"
-                      value={formData.driverId}
-                      onChange={(e) => setFormData({...formData, driverId: e.target.value})}
-                    >
-                      <option value="pending">ממתין לשיבוץ</option>
-                      <option value="self">איסוף עצמי</option>
-                      {drivers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-                    </select>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                       <label className="text-xs font-black text-gray-400 px-1 uppercase">מזהי מסמכים (חשבוניות, תעודות)</label>
+                       <div className="flex gap-2">
+                         <input 
+                           type="text"
+                           className="flex-1 bg-gray-50 border-2 border-transparent rounded-2xl p-4 text-sm font-bold focus:bg-white focus:border-sky-600 transition-all outline-none"
+                           placeholder="הזן מזהה מסמך..."
+                           value={docInput}
+                           onChange={(e) => setDocInput(e.target.value)}
+                           onKeyDown={(e) => {
+                             if (e.key === 'Enter' && docInput.trim()) {
+                               setFormData(prev => ({ ...prev, documentIds: [...prev.documentIds, docInput.trim()] }));
+                               setDocInput('');
+                             }
+                           }}
+                         />
+                         <button 
+                           onClick={() => {
+                             if (docInput.trim()) {
+                               setFormData(prev => ({ ...prev, documentIds: [...prev.documentIds, docInput.trim()] }));
+                               setDocInput('');
+                             }
+                           }}
+                           className="p-4 bg-sky-600 text-white rounded-2xl"
+                         >
+                           <Plus size={20} />
+                         </button>
+                       </div>
+                       {formData.documentIds.length > 0 && (
+                         <div className="flex flex-wrap gap-2 mt-2">
+                           {formData.documentIds.map((id, idx) => (
+                             <div key={idx} className="bg-sky-50 text-sky-600 px-3 py-1.5 rounded-xl border border-sky-100 flex items-center gap-2">
+                               <span className="text-xs font-bold">{id}</span>
+                               <button onClick={() => setFormData(prev => ({ ...prev, documentIds: prev.documentIds.filter((_, i) => i !== idx) }))}>
+                                 <X size={12} />
+                               </button>
+                             </div>
+                           ))}
+                         </div>
+                       )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-xs font-black text-gray-400 px-1 uppercase">שיבוץ נהג</label>
+                      <select 
+                        className="w-full bg-gray-50 border-2 border-transparent rounded-2xl p-4 text-sm font-bold focus:bg-white focus:border-sky-600 transition-all outline-none appearance-none"
+                        value={formData.driverId}
+                        onChange={(e) => setFormData({...formData, driverId: e.target.value})}
+                      >
+                        <option value="pending">ממתין לשיבוץ</option>
+                        <option value="self">איסוף עצמי</option>
+                        {drivers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                      </select>
+                    </div>
                   </div>
                 </div>
               )}

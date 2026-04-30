@@ -32,11 +32,11 @@ import { highlightText, parseItems, isKnownProduct, cn } from '../lib/utils';
 
 export const StatusBadge = ({ status }: { status: Order['status'] }) => {
   const configs = {
-    pending: { color: 'bg-amber-50 text-amber-700 border-amber-200', icon: Clock, label: 'ממתין' },
-    preparing: { color: 'bg-blue-50 text-blue-700 border-blue-200', icon: Truck, label: 'בהכנה' },
-    ready: { color: 'bg-emerald-50 text-emerald-700 border-emerald-200', icon: CheckCircle2, label: 'מוכן' },
-    delivered: { color: 'bg-green-100 text-green-800 border-green-300', icon: CheckCircle, label: 'סופק' },
-    cancelled: { color: 'bg-rose-50 text-rose-700 border-rose-200', icon: AlertCircle, label: 'בוטל' },
+    pending: { color: 'bg-amber-50 text-amber-700 border-amber-200', icon: Clock, label: 'ממתין', emoji: '🕒' },
+    preparing: { color: 'bg-blue-50 text-blue-700 border-blue-200', icon: Truck, label: 'בהכנה', emoji: '🛠️' },
+    ready: { color: 'bg-emerald-50 text-emerald-700 border-emerald-200', icon: CheckCircle2, label: 'מוכן', emoji: '🚚' },
+    delivered: { color: 'bg-green-100 text-green-800 border-green-300', icon: CheckCircle, label: 'סופק', emoji: '✅' },
+    cancelled: { color: 'bg-rose-50 text-rose-700 border-rose-200', icon: AlertCircle, label: 'בוטל', emoji: '🛑' },
   };
 
   const config = configs[status] || configs.pending;
@@ -44,6 +44,7 @@ export const StatusBadge = ({ status }: { status: Order['status'] }) => {
 
   return (
     <span className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-black border ${config.color} shadow-sm uppercase tracking-tight`}>
+      <span className="text-[14px] leading-none">{config.emoji}</span>
       <Icon size={12} strokeWidth={3} />
       {config.label}
     </span>
@@ -323,6 +324,30 @@ const DocumentSheet = ({
                 </div>
               </div>
             ))}
+
+            {order.documentIds && order.documentIds.length > 0 && (
+              <div className="space-y-3">
+                 <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2 px-1">
+                   <FileText size={14} className="text-sky-500" />
+                   מזהי מסמכים נוספים
+                 </h3>
+                 <div className="grid grid-cols-1 gap-2">
+                    {order.documentIds.map((id, idx) => (
+                      <div key={idx} className="bg-gray-50 border border-gray-100 rounded-xl p-3 flex justify-between items-center">
+                        <span className="text-xs font-black text-gray-700">{id}</span>
+                        <a 
+                          href={getDriveUrl(id)} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-[10px] font-black text-sky-600 hover:underline"
+                        >
+                          צפייה
+                        </a>
+                      </div>
+                    ))}
+                 </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -468,7 +493,7 @@ export const OrderCard = ({
         <div className="absolute top-4 left-24 z-10 flex gap-2">
           {onUploadDoc && (
             <div className="flex items-center gap-2">
-              {(order.orderFormId || order.deliveryNoteId) ? (
+              {(order.orderFormId || order.deliveryNoteId || (order.documentIds && order.documentIds.length > 0)) ? (
                 <button 
                   onClick={() => setShowDocs(!showDocs)}
                   disabled={order.orderFormId === 'PENDING_SCAN' || order.deliveryNoteId === 'PENDING_SCAN'}

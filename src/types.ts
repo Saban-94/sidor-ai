@@ -17,6 +17,7 @@ export interface Order {
   status: 'pending' | 'preparing' | 'ready' | 'on_the_way' | 'delivered' | 'cancelled';
   orderFormId?: string;
   deliveryNoteId?: string;
+  documentIds?: string[];
   totalAmount?: number;
   eta?: string;
   createdAt?: Timestamp;

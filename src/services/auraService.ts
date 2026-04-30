@@ -536,6 +536,7 @@ export const tools = [
             items: { type: Type.STRING, description: "הפריטים והכמויות" },
             warehouse: { type: Type.STRING, enum: ["החרש", "התלמיד"], description: "המחסן ממנו יוצאת ההזמנה (ברירת מחדל: החרש)" },
             totalAmount: { type: Type.NUMBER, description: "סך סכום ההזמנה (בשקלים)" },
+            documentIds: { type: Type.ARRAY, items: { type: Type.STRING }, description: "מזהי מסמכים נוספים (תעודות, חשבוניות וכו')" },
             status: { type: Type.STRING, enum: ["pending", "preparing", "ready", "delivered"] }
           },
           required: ["date", "time", "driverId", "customerName", "destination", "items"]
@@ -554,6 +555,7 @@ export const tools = [
             items: { type: Type.STRING },
             driverId: { type: Type.STRING },
             warehouse: { type: Type.STRING, enum: ["החרש", "התלמיד"] },
+            documentIds: { type: Type.ARRAY, items: { type: Type.STRING } },
             status: { type: Type.STRING, enum: ["pending", "preparing", "ready", "delivered", "cancelled"] }
           },
           required: ["orderId"]

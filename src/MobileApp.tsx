@@ -193,10 +193,11 @@ export const MobileApp: React.FC = () => {
                         onClick={() => setCurrentView('orders')}
                       >
                         <div className="flex gap-4 items-center overflow-hidden">
-                           <div className={`w-3 h-3 rounded-full shrink-0 ${
-                             order.status === 'delivered' ? 'bg-emerald-500' : 
-                             order.status === 'loaded' ? 'bg-sky-500' : 'bg-amber-500'
-                           }`} />
+                           <div className="text-sm shrink-0">
+                             {order.status === 'delivered' ? '✅' : 
+                              order.status === 'ready' || order.status === 'loaded' ? '🚚' : 
+                              order.status === 'preparing' ? '🛠️' : '🕒'}
+                           </div>
                            <div className="overflow-hidden">
                               <p className="font-black text-gray-900 truncate">{order.customerName}</p>
                               <p className="text-[10px] font-bold text-gray-400 uppercase truncate">{order.destination}</p>
@@ -279,9 +280,16 @@ export const MobileApp: React.FC = () => {
                         <p className="font-black text-gray-900 leading-tight truncate">{order.customerName}</p>
                         <p className="text-[10px] text-gray-400 font-bold uppercase truncate">{order.destination}</p>
                       </div>
-                      <div className={`px-3 py-1 rounded-full text-[10px] font-black uppercase ${
-                        order.status === 'delivered' ? 'bg-emerald-100 text-emerald-600' : 'bg-sky-100 text-sky-600'
+                      <div className={`px-3 py-1 rounded-full text-[10px] font-black uppercase flex items-center gap-1 ${
+                        order.status === 'delivered' ? 'bg-emerald-100 text-emerald-600' : 
+                        order.status === 'cancelled' ? 'bg-rose-100 text-rose-600' : 'bg-sky-100 text-sky-600'
                       }`}>
+                        <span>
+                          {order.status === 'delivered' ? '✅' : 
+                           order.status === 'preparing' ? '🛠️' : 
+                           order.status === 'ready' || order.status === 'loaded' ? '🚚' : 
+                           order.status === 'cancelled' ? '🛑' : '🕒'}
+                        </span>
                         {order.status}
                       </div>
                     </div>

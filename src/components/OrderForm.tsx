@@ -44,10 +44,12 @@ const OrderForm: React.FC<OrderFormProps> = ({
     orderNumber: '',
     date: new Date().toISOString().split('T')[0],
     time: new Date().toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', hour12: false }),
-    driverId: 'pending'
+    driverId: 'pending',
+    documentIds: [] as string[]
   });
 
   const [selectedItems, setSelectedItems] = useState<{item: InventoryItem, quantity: number}[]>([]);
+  const [docInput, setDocInput] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
 
   const [manualItems, setManualItems] = useState('');
@@ -139,7 +141,8 @@ const OrderForm: React.FC<OrderFormProps> = ({
         orderNumber: editingOrder.orderNumber || '',
         date: editingOrder.date || new Date().toISOString().split('T')[0],
         time: editingOrder.time || new Date().toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', hour12: false }),
-        driverId: editingOrder.driverId || 'pending'
+        driverId: editingOrder.driverId || 'pending',
+        documentIds: editingOrder.documentIds || []
       });
       setManualItems(editingOrder.items || '');
       setIsManualItems(!!editingOrder.items);
@@ -153,7 +156,8 @@ const OrderForm: React.FC<OrderFormProps> = ({
         orderNumber: '',
         date: new Date().toISOString().split('T')[0],
         time: new Date().toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', hour12: false }),
-        driverId: 'pending'
+        driverId: 'pending',
+        documentIds: []
       });
       setManualItems('');
       setIsManualItems(false);
@@ -223,6 +227,7 @@ const OrderForm: React.FC<OrderFormProps> = ({
         date: formData.date,
         time: formData.time,
         driverId: formData.driverId,
+        documentIds: formData.documentIds,
         status: editingOrder ? editingOrder.status : 'pending'
       };
 
@@ -437,6 +442,59 @@ const OrderForm: React.FC<OrderFormProps> = ({
                       ))}
                     </select>
                   </div>
+                </div>
+
+                <div className="space-y-4 bg-gray-50/50 p-6 rounded-3xl border border-gray-100">
+                  <label className="flex items-center gap-2 text-xs font-black text-gray-400 uppercase tracking-wider px-1">
+                    <Package size={14} className="text-sky-600" />
+                    מזהי מסמכים (חשבוניות / תעודות משלוח)
+                  </label>
+                  <div className="flex gap-4">
+                    <input 
+                      type="text"
+                      placeholder="הזן מזהה מסמך (למשל: INV-123)"
+                      className="flex-1 bg-white border-2 border-transparent rounded-2xl px-6 py-4 text-sm font-bold focus:border-sky-600 outline-none transition-all shadow-sm"
+                      value={docInput}
+                      onChange={(e) => setDocInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          if (docInput.trim()) {
+                            setFormData(prev => ({ ...prev, documentIds: [...prev.documentIds, docInput.trim()] }));
+                            setDocInput('');
+                          }
+                        }
+                      }}
+                    />
+                    <button 
+                      type="button"
+                      onClick={() => {
+                        if (docInput.trim()) {
+                          setFormData(prev => ({ ...prev, documentIds: [...prev.documentIds, docInput.trim()] }));
+                          setDocInput('');
+                        }
+                      }}
+                      className="px-6 bg-sky-600 text-white rounded-2xl font-black text-sm hover:bg-sky-700 transition-all flex items-center gap-2"
+                    >
+                      <Plus size={18} /> הוסף
+                    </button>
+                  </div>
+                  {formData.documentIds.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                       {formData.documentIds.map((id, idx) => (
+                         <div key={idx} className="bg-white px-4 py-2 rounded-xl border border-sky-100 flex items-center gap-3 shadow-sm animate-in fade-in slide-in-from-right-1">
+                            <span className="text-sm font-bold text-sky-700">{id}</span>
+                            <button 
+                              type="button"
+                              onClick={() => setFormData(prev => ({ ...prev, documentIds: prev.documentIds.filter((_, i) => i !== idx) }))}
+                              className="text-gray-400 hover:text-red-500 transition-colors"
+                            >
+                              <X size={14} />
+                            </button>
+                         </div>
+                       ))}
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-2">

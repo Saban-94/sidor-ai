@@ -13,6 +13,7 @@
         "destination": { "type": "string" },
         "items": { "type": "string", "description": "Comma separated items and quantities" },
         "warehouse": { "type": "string", "enum": ["החרש", "התלמיד"] },
+        "documentIds": { "type": "array", "items": { "type": "string" }, "description": "Associated document IDs (confirmations, invoices)" },
         "status": { "type": "string", "enum": ["pending", "preparing", "ready", "delivered", "cancelled"] },
         "eta": { "type": "string", "description": "Estimated Time of Arrival (HH:mm)" },
         "createdAt": { "type": "string", "format": "date-time" },

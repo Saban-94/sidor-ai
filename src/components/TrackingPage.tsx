@@ -120,10 +120,10 @@ const TrackingPage: React.FC = () => {
   }
 
   const statusSteps = [
-    { key: 'pending', label: 'התקבל', icon: Clock },
-    { key: 'preparing', label: 'בהכנה', icon: Package },
-    { key: 'on_the_way', label: 'בדרך אליך', icon: Truck },
-    { key: 'delivered', label: 'סופק', icon: CheckCircle2 },
+    { key: 'pending', label: 'התקבל 🕒', icon: Clock },
+    { key: 'preparing', label: 'בהכנה 🛠️', icon: Package },
+    { key: 'on_the_way', label: 'בדרך אליך 🚚', icon: Truck },
+    { key: 'delivered', label: 'סופק ✅', icon: CheckCircle2 },
   ];
 
   // Map database status to our tracking steps
