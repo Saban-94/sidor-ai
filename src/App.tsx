@@ -1827,15 +1827,24 @@ function AppContent() {
               <option value="התלמיד">מחסן התלמיד 🏗️</option>
             </select>
 
-            <select 
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as any)}
-              className="flex-1 min-w-[140px] bg-white border border-gray-100 rounded-2xl px-4 py-3 text-sm font-bold text-gray-700 outline-none shadow-sm focus:ring-2 focus:ring-sky-600 transition-all cursor-pointer"
-            >
-              <option value="time">מיין לפי שעת יציאה 🕒</option>
-              <option value="customerName">מיין לפי לקוח 👤</option>
-              <option value="destination">מיין לפי יעד 📍</option>
-            </select>
+            <div className="flex-1 min-w-[140px] flex gap-2">
+              <select 
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as any)}
+                className="flex-1 bg-white border border-gray-100 rounded-2xl px-4 py-3 text-sm font-bold text-gray-700 outline-none shadow-sm focus:ring-2 focus:ring-sky-600 transition-all cursor-pointer"
+              >
+                <option value="time">מיין לפי זמן יציאה 🕒</option>
+                <option value="customerName">מיין לפי לקוח 👤</option>
+                <option value="destination">מיין לפי יעד 📍</option>
+              </select>
+              <button
+                onClick={() => setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')}
+                className="bg-white border border-gray-100 rounded-2xl p-3 text-sky-600 shadow-sm hover:bg-sky-50 transition-all"
+                title={sortDirection === 'asc' ? 'מיון עולה (A-Z)' : 'מיון יורד (Z-A)'}
+              >
+                {sortDirection === 'asc' ? <ArrowUp size={18} /> : <ArrowDown size={18} />}
+              </button>
+            </div>
           </div>
         </div>
 

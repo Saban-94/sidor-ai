@@ -4,7 +4,6 @@ import path from "path";
 import cors from "cors";
 import { fileURLToPath } from "url";
 import { createServer as createViteServer } from "vite";
-import { GoogleGenerativeAI } from "@google/generative-ai";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -33,42 +32,7 @@ async function startServer() {
     res.json({ status: "ok", time: new Date().toISOString() });
   });
 
-  // Unified AI Proxy for Gemini
-  app.post("/api/ai/generate", async (req, res) => {
-    try {
-      const apiKey = process.env.GEMINI_API_KEY?.trim();
-      if (!apiKey || apiKey === "undefined" || apiKey.length < 10) {
-        console.error("❌ [AI PROXY] Missing or invalid GEMINI_API_KEY");
-        return res.status(500).json({ error: "Gemini API key is invalid or missing." });
-      }
-
-      console.log(`🤖 [AI PROXY] Generating content for model: ${req.body.model || "gemini-1.5-flash"}`);
-      const genAI = new GoogleGenerativeAI(apiKey);
-      const { model: modelName, contents, config, systemInstruction, tools, toolConfig } = req.body;
-
-      const model = genAI.getGenerativeModel({ 
-        model: modelName || "gemini-1.5-flash",
-        generationConfig: config,
-        tools,
-        toolConfig,
-        systemInstruction: typeof systemInstruction === 'string' ? { role: 'system', parts: [{ text: systemInstruction }] } : systemInstruction
-      });
-
-      const result = await model.generateContent({ contents });
-      const response = await result.response;
-      
-      let text = "";
-      try { text = response.text(); } catch (e) {}
-      
-      res.json({ ...response, text });
-      console.log("✅ [AI PROXY] Generation successful");
-    } catch (error: any) {
-      console.error("❌ [AI PROXY] Error:", error);
-      res.status(500).json({ error: error.message });
-    }
-  });
-
-  // Fallback for API routes to prevent Vite SPA takeover
+  // Fallback for API routes
   app.all("/api/*", (req, res) => {
     console.warn(`⚠️ [SERVER] 404 on API route: ${req.method} ${req.url}`);
     res.status(404).json({ error: `Not Found: ${req.method} ${req.url}` });

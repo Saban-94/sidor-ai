@@ -39,55 +39,45 @@ const sanitizeForVoice = (text: string): string => {
 
 import { GoogleGenAI } from "@google/genai";
 
-// Helper to call Gemini API via server proxy
-async function generateContentProxy(payload: { 
-  model: string, 
-  contents: any[], 
+// Initialize Gemini directly in the frontend as per modern guidelines
+let aiInstance: GoogleGenAI | null = null;
+function getAI() {
+  if (!aiInstance) {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      throw new Error("מפתח ה-API של Gemini אינו מוגדר. אנא וודא שהגדרת את ה-GEMINI_API_KEY בהגדרות המערכת.");
+    }
+    aiInstance = new GoogleGenAI({ apiKey });
+  }
+  return aiInstance;
+}
+
+// Direct call to Gemini API using modern @google/genai SDK
+async function callGemini(payload: { 
+  model?: string, 
+  contents: any, 
   config?: any,
   systemInstruction?: any,
   tools?: any[],
   toolConfig?: any
 }) {
+  const ai = getAI();
   try {
-    const response = await fetch("/api/ai/generate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ...payload,
-        model: payload.model === "gemini-3-flash-preview" ? "gemini-1.5-flash" : payload.model
-      }),
-    });
-    
-    const contentType = response.headers.get("content-type");
-    if (!response.ok) {
-      if (contentType && contentType.includes("application/json")) {
-        const errData = await response.json();
-        throw new Error(errData.error || `AI generation failed with status ${response.status}`);
-      } else {
-        const text = await response.text();
-        console.error("AI Proxy returned non-JSON error:", text.substring(0, 500));
-        throw new Error(`AI generation failed with status ${response.status}. Server returned non-JSON response.`);
+    const response = await ai.models.generateContent({
+      model: payload.model === "gemini-1.5-flash" || !payload.model ? "gemini-3-flash-preview" : payload.model,
+      contents: payload.contents,
+      config: {
+        ...payload.config,
+        systemInstruction: payload.systemInstruction,
+        tools: payload.tools,
+        toolConfig: payload.toolConfig,
       }
-    }
-    
-    if (contentType && contentType.includes("application/json")) {
-      return await response.json();
-    } else {
-      const text = await response.text();
-      console.error("AI Proxy returned non-JSON success response:", text.substring(0, 500));
-      throw new Error("Server returned non-JSON response instead of AI result.");
-    }
+    });
+    return response;
   } catch (error: any) {
-    console.error("Gemini Proxy Error:", error);
-    if (error.message?.includes("not configured on the server")) {
-      throw new Error("מפתח ה-API של Gemini אינו מוגדר בשרת. אנא וודא שהגדרת את ה-GEMINI_API_KEY בהגדרות המערכת.");
-    }
+    console.error("Gemini API Error:", error);
     throw error;
   }
-}
-
-async function callGeminiApi(payload: any) {
-  return generateContentProxy(payload);
 }
 
 export const INVENTORY_RULES = [];
@@ -336,7 +326,7 @@ export const deleteReminder = async (reminderId: string) => {
 
 export const noaSystemInstruction = `
 את "נועה" (נועה) - מנהלת הלוגיסטיקה והמשימות החכמה של ח.סבן חומרי בניין.
-את פועלת על גבי מנוע Gemini 1.5/3.1 העדכני ביותר.
+את פועלת על גבי מנוע Gemini המקצועי והעדכני ביותר.
 
 הנחיות יסוד (פרוטוקול נועה):
 1. **זהות ופנייה (קריטי)**:
@@ -779,9 +769,6 @@ export async function askNoa(message: string, history: any[] = [], userKey?: str
   return await processNoaTurn(contents, userKey);
 }
 
-/** 
- * Internal recursive handler for tool calls 
- */
 async function processNoaTurn(contents: any[], userKey?: string): Promise<any> {
   const currentDateTime = new Date().toLocaleString('he-IL', { timeZone: 'Asia/Jerusalem' });
   const dayName = new Date().toLocaleDateString('he-IL', { weekday: 'long', timeZone: 'Asia/Jerusalem' });
@@ -792,15 +779,15 @@ async function processNoaTurn(contents: any[], userKey?: string): Promise<any> {
     dynamicInstruction += `\n המשתמש הנוכחי שאת מדברת איתו הוא: ${userKey}. חל איסור מוחלט להציג מידע של משתמשים אחרים!`;
   }
 
-  const response = await generateContentProxy({
-    model: "gemini-1.5-flash",
+  const response = await callGemini({
+    model: "gemini-3-flash-preview",
     contents: contents,
     systemInstruction: dynamicInstruction,
     tools: tools,
     config: {}
   });
 
-  const functionCalls = (response as any).candidates?.[0]?.content?.parts?.filter((p: any) => p.functionCall).map((p: any) => p.functionCall);
+  const functionCalls = response.functionCalls;
   
   if (functionCalls && functionCalls.length > 0) {
     const modelResponseContent = (response as any).candidates[0].content;
@@ -894,8 +881,8 @@ async function processNoaTurn(contents: any[], userKey?: string): Promise<any> {
 
 החזר JSON בלבד.`;
             
-            const analysisResponse = await generateContentProxy({
-              model: "gemini-1.5-flash",
+            const analysisResponse = await callGemini({
+              model: "gemini-3-flash-preview",
               contents: [{
                 role: 'user',
                 parts: [
@@ -1032,8 +1019,8 @@ export async function predictOrderEta(order: Order, historicalOrders: Order[] = 
   `;
 
   try {
-    const response = await generateContentProxy({
-      model: "gemini-1.5-flash",
+    const response = await callGemini({
+      model: "gemini-3-flash-preview",
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
       tools: [
         { googleSearch: {} }
