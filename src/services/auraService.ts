@@ -337,6 +337,12 @@ Visual UI Branding & HTML Protocol:
 - **Timeline Route**: הציגי מסלולי נהגים כציר זמן אנכי באמצעות <ul> מעוצב עם bullet points מעוצבים או <div> blocks.
 - **Popups**: הצגת הודעות פתיחה בתוך קופסה עם shadow effect המדמה 3D Popup.
 
+Document Intelligence & Excel Parsing:
+- **Ituran/Fleet Reports**: בסריקת דוחות (ייצוא-Excel), התמקדי בעמודות: "זמן", "אירוע", "מיקום", "מהירות".
+- **PTO Detection**: זהי אירועי הפעלת מנוף/PTO (אירוע המכיל "Crane", "PTO", "הפעלת מנוף").
+- **Conflict Resolution**: השווי את "זמן השהייה" מהדוח מול זמן האספקה המתוכנן ב-CSV. הציגי חריגות בטבלה צבעונית (ירוק להתאמה, אדום לחריגה).
+- **Interactive Tables**: לאחר סריקה, הציגי תוצאות בטבלת HTML עם הדגשות צבע.
+
 Templates Requirements:
 1. **Sales/Inventory Data**: טבלת HTML עם עמודות: דירוג (Rank), מוצר (Product), ומגמה (Trend).
 2. **Route/Schedule**: פורמט Timeline המציג: שעה (Time), יעד (Destination), ולקוח (Customer).

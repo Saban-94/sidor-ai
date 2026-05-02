@@ -116,11 +116,11 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       </div>
 
       <div className="flex items-center gap-4">
-        <label className="flex items-center gap-2 cursor-pointer group">
-          <div className={`p-2 rounded-lg transition-all ${isGlass ? 'bg-slate-800 text-slate-400 group-hover:bg-slate-700 group-hover:text-sky-400' : 'bg-gray-100 text-gray-500 group-hover:bg-sky-100 group-hover:text-sky-600'}`}>
-            <Paperclip size={16} />
+        <label className="flex items-center gap-2 cursor-pointer group shrink-0">
+          <div className={`p-3 sm:p-2 rounded-xl sm:rounded-lg transition-all shadow-sm ${isGlass ? 'bg-slate-800 text-sky-400 group-hover:bg-slate-700' : 'bg-gray-100 text-gray-500 group-hover:bg-sky-100 group-hover:text-sky-600'}`}>
+            <Paperclip size={20} className="sm:w-4 sm:h-4" />
           </div>
-          <span className={`text-[10px] font-black uppercase tracking-widest ${isGlass ? 'text-slate-500' : 'text-gray-400'}`}>צרף קובץ</span>
+          <span className={`hidden sm:block text-[10px] font-black uppercase tracking-widest ${isGlass ? 'text-slate-500' : 'text-gray-400'}`}>צרף קובץ</span>
           <input 
             type="file" 
             className="hidden" 
@@ -128,7 +128,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
               const file = e.target.files?.[0];
               if (file) onFileUpload(file);
             }} 
-            accept="image/*" 
+            accept="image/*,.pdf,.xlsx,.xls,.csv" 
           />
         </label>
 
