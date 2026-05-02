@@ -13,7 +13,7 @@ import {
 } from 'firebase/firestore';
 import { db, auth } from '../lib/firebase';
 import { handleFirestoreError, OperationType } from '../lib/firebaseUtils';
-import { Order, Driver, Customer, Reminder, InventoryItem, SaleRecord } from '../types';
+import { Order, Driver, Customer, Reminder, InventoryItem, SaleRecord, SmartLocation } from '../types';
 import { parseItems } from '../lib/utils';
 
 import { listDriveFiles, getFileBase64, createCustomerFolderHierarchy } from './driveService';
@@ -332,16 +332,23 @@ export const noaSystemInstruction = `
 Visual UI Branding:
 - תמונת פרופיל: https://i.postimg.cc/qqWtk5qr/Gemini-Generated-Image-6z6qts6z6qts6z6q.png
 - סטטוס: נועה - מנהלת סידור ❤️ | מחוברת ✅
+- פריסה: השתמשי בכותרות מקצועיות, רשימות תבליטים וטבלאות לנתונים לוגיסטיים.
+
+Smart Logistics & Learning Logic:
+- **Memory Bank**: השתמשי ב-get_smart_location_insights כדי לאחזר נתוני עבר על כתובות מוכרות.
+- **Optimization**: כאשר מתבקש מסלול, השתמשי ב-plan_optimized_route. נתחי זמני פריקה היסטוריים לחישוב ETA מדויק.
+- **Predictive Input**: אם מוזנת הזמנה לכתובת מוכרת, הציעי את הנהג והזמן הטובים ביותר (למשל: "היינו פה 5 פעמים, הפעלת מנוף/PTO תמיד הייתה תוך 20 דק'").
+- **PTO Verification**: העדיפי נתוני PTO (עבודה של המערכת ההידראולית/מנוף) כאינדיקציה סופית למסירה מוצלחת, מעבר למיקום GPS בלבד.
 
 פרוטוקול תקשורת:
-1. **טון וסגנון**: עברית פשוטה, בגובה העיניים, שימוש נרחב באימוג'ים (🚚, 🏗️, 🏭, ✅, ❤️).
+1. **טון וסגנון**: עברית פשוטה, חמה, אנרגיה של "אח יקר", אך 100% מקצועית. שימוש באימוג'ים (🚚, 🏗️, 🏭, ✅, ❤️).
 2. **חתימה מחייבת**: חתמי תמיד כל הודעה ב: "באדיבות נועה ❤️".
 3. **פנייה לפי תפקיד**:
-   - ראמי (שותף/בעלים): "ראמי נשמה" / "אחי ושותפי".
-   - הראל (מנכ"ל): "אהלן בוס! 🕵️".
+   - ראמי (שותף/בעלים): "ראמי נשמה" / "אחי ושותפי". חם, שיתוף פעולה מלא.
+   - הראל (מנכ"ל): "אהלן בוס! 🕵️". מקצועי, תמציתי, ישר לעשייה.
    - אורן (מחסן): קליל, הומוריסטי, מעודכן בנתוני המלאי ב-🏭 ו-📦.
-   - נהגים (עלי 🚛 וחכמת 🏗️): ישיר, סטטוס בזמן אמת, דגש על בטיחות.
-4. **שיטת פינג-פונג**: המענה חייב להיות קצר (פחות מ-50 מילים), חד, ולהסתיים בשאלה כדי להניע את העבודה קדימה.
+   - נהגים (עלי 🚛 וחכמת 🏗️): סטטוס בזמן אמת, דגש על בטיחות.
+4. **שיטת פינג-פונג**: המענה חייב להיות קצר (פחות מ-50 מילים), אלא אם מדובר בדוח מלא או מסלול. סיימי תמיד בשאלה.
 
 Main Dashboard POPUP Logic:
 בתגובה הראשונה לכל משתמש או בתחילת סשן, הצג "Virtual POPUP" מעוצב בעזרת Markdown/HTML הכוללת:
@@ -356,6 +363,12 @@ Main Dashboard POPUP Logic:
 - סנכרון מלאי (get_inventory, update_inventory_item).
 - ניתוח מסמכים (analyze_pdf_content) לחילוץ פרטי הזמנה.
 - שילוב Drive (list_drive_files) למציאת תיקיות לקוחות.
+
+פירוט פריטים (Item Parsing):
+כאשר משתמש מציין פריטים, נסי לחלץ כמות, יחידת מידה ושם מוצר. 
+דוגמאות: "3 שקים מלט", "חצי טון חול", "משטח בלוקים 10".
+אם חסר מידע, השלימי לפי ההקשר או השאירי ריק. 
+המערכת משתמשת ב-Regex מתקדם לזיהוי יחידות כמו שק, משט, טון, קוב, מ"ר.
 
 כללי ברזל:
 - השתמשי רק בנתונים מהקבצים המסופקים (Inventory, CSV).
@@ -519,7 +532,98 @@ export const searchDrivers = async (searchTerm: string) => {
   return drivers.filter(d => d.name.toLowerCase().includes(term));
 };
 
-// פונקציה שטוענת היסטוריה ספציפית למשתמש בלבד
+// --- Smart Logistics Functions ---
+
+export const getSmartLocationInsights = async (address: string) => {
+  try {
+    const term = address.trim().toLowerCase();
+    const q = query(collection(db, 'smart_locations'), orderBy('normalizedAddress'));
+    const snapshot = await getDocs(q);
+    
+    const matches = snapshot.docs
+      .map(doc => ({ id: doc.id, ...doc.data() } as SmartLocation))
+      .filter(loc => loc.address.toLowerCase().includes(term) || loc.normalizedAddress.includes(term));
+
+    return matches.length > 0 ? matches[0] : null;
+  } catch (error) {
+    console.error("Failed to fetch smart location insights:", error);
+    return null;
+  }
+};
+
+export const recordDeliveryLocation = async (deliveryData: {
+  address: string;
+  driverId: string;
+  unloadingTime: number;
+  ptoActive: boolean;
+  notes?: string;
+}) => {
+  try {
+    const normalized = deliveryData.address.trim().toLowerCase();
+    const q = query(collection(db, 'smart_locations'), where('normalizedAddress', '==', normalized), limit(1));
+    const snapshot = await getDocs(q);
+
+    if (!snapshot.empty) {
+      const docId = snapshot.docs[0].id;
+      const existing = snapshot.docs[0].data() as SmartLocation;
+      
+      const newTotal = existing.totalDeliveries + 1;
+      const newAvgTime = ((existing.averageUnloadingTime * existing.totalDeliveries) + deliveryData.unloadingTime) / newTotal;
+
+      await updateDoc(doc(db, 'smart_locations', docId), {
+        totalDeliveries: newTotal,
+        averageUnloadingTime: newAvgTime,
+        hasPTOHistory: existing.hasPTOHistory || deliveryData.ptoActive,
+        lastDeliveryAt: serverTimestamp(),
+        customerNotes: deliveryData.notes ? [...(existing.customerNotes || []), deliveryData.notes] : (existing.customerNotes || [])
+      });
+    } else {
+      const newLoc: SmartLocation = {
+        address: deliveryData.address,
+        normalizedAddress: normalized,
+        totalDeliveries: 1,
+        averageUnloadingTime: deliveryData.unloadingTime,
+        bestDriverId: deliveryData.driverId,
+        hasPTOHistory: deliveryData.ptoActive,
+        ptoAverageDuration: deliveryData.ptoActive ? deliveryData.unloadingTime : 0,
+        customerNotes: deliveryData.notes ? [deliveryData.notes] : [],
+        lastDeliveryAt: serverTimestamp()
+      };
+      await addDoc(collection(db, 'smart_locations'), newLoc);
+    }
+  } catch (error) {
+    console.error("Failed to record delivery location:", error);
+  }
+};
+
+export const planOptimizedRoute = async (driverId: string, date: string) => {
+  // Implementation would typically involve complex logic or external API
+  // For now, we return a structured suggestion based on existing orders
+  const q = query(
+    collection(db, 'orders'), 
+    where('driverId', '==', driverId),
+    where('date', '==', date),
+    orderBy('time', 'asc')
+  );
+  const snap = await getDocs(q);
+  const orders = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order));
+  
+  if (orders.length === 0) return { message: "אין הזמנות לנהג זה בתאריך המבוקש." };
+
+  return {
+    driverId,
+    date,
+    suggestedSequence: orders.map(o => ({
+      orderId: o.id,
+      destination: o.destination,
+      time: o.time,
+      customer: o.customerName
+    })),
+    optimizationNotes: "המסלול מבוסס על סדר כרונולוגי של הזמנות. מומלץ לבדוק עומסי תנועה בזמן אמת."
+  };
+};
+
+// --- Private Chat History ---
 export const getPrivateChatHistory = async (userKey: string) => {
   const q = query(
     collection(db, `users/${userKey}/messages`),
@@ -784,6 +888,44 @@ export const tools = [
             minStock: { type: Type.NUMBER }
           },
           required: ["sku"]
+        }
+      },
+      {
+        name: "get_smart_location_insights",
+        description: "קבל תובנות היסטוריות על כתובת משלוח (זמן פריקה, היסטוריית מנוף/PTO וכו')",
+        parameters: {
+          type: Type.OBJECT,
+          properties: {
+            address: { type: Type.STRING, description: "הכתובת לחיפוש" }
+          },
+          required: ["address"]
+        }
+      },
+      {
+        name: "record_delivery_location",
+        description: "תעד הצלחה של משלוח לכתובת מסוימת כולל נתוני פריקה ו-PTO",
+        parameters: {
+          type: Type.OBJECT,
+          properties: {
+            address: { type: Type.STRING, description: "כתובת היעד" },
+            driverId: { type: Type.STRING, description: "מזהה הנהג" },
+            unloadingTime: { type: Type.NUMBER, description: "זמן הפריקה בדקות" },
+            ptoActive: { type: Type.BOOLEAN, description: "האם הופעל מנוף/מערכת PTO?" },
+            notes: { type: Type.STRING, description: "הערות נוספות על הגישה ליעד" }
+          },
+          required: ["address", "driverId", "unloadingTime", "ptoActive"]
+        }
+      },
+      {
+        name: "plan_optimized_route",
+        description: "תכנן מסלול אופטימלי לנהג ליום מסוים בהתבסס על היסטוריית יעדים",
+        parameters: {
+          type: Type.OBJECT,
+          properties: {
+            driverId: { type: Type.STRING, description: "מזהה הנהג" },
+            date: { type: Type.STRING, description: "תאריך (YYYY-MM-DD)" }
+          },
+          required: ["driverId", "date"]
         }
       }
     ]

@@ -136,3 +136,17 @@ export interface TeamChatMessage {
   timestamp: any;
   recipientId?: string; // Optional for private team messages
 }
+
+export interface SmartLocation {
+  id?: string;
+  address: string;
+  normalizedAddress: string;
+  totalDeliveries: number;
+  averageUnloadingTime: number; // in minutes
+  bestDriverId?: string;
+  typicalArrivalTime?: string; // HH:mm
+  hasPTOHistory: boolean;
+  ptoAverageDuration?: number;
+  customerNotes?: string[];
+  lastDeliveryAt?: any;
+}
