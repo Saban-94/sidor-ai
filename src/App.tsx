@@ -1358,11 +1358,13 @@ function AppContent() {
             <aside className="hidden md:flex flex-col w-72 bg-white border-l border-gray-100 h-screen sticky top-0 overflow-y-auto z-30 shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
               <div className="p-8">
                 <div className="flex items-center gap-4 mb-10">
-                  <div className="bg-sky-600 text-white p-2.5 rounded-2xl shadow-xl shadow-sky-600/20">
-                    <Truck size={28} strokeWidth={2.5} />
-                  </div>
+                  <img 
+                    src="https://i.postimg.cc/qqWtk5qr/Gemini-Generated-Image-6z6qts6z6qts6z6q.png" 
+                    alt="Logo" 
+                    className="w-12 h-12 rounded-2xl object-cover shadow-xl"
+                  />
                   <div>
-                    <h1 className="text-xl font-black text-gray-900 tracking-tighter">SabanOS</h1>
+                    <h1 className="text-xl font-black text-gray-900 tracking-tighter font-sans">סידור</h1>
                     <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest leading-none mt-1">v3.5 Enterprise</p>
                   </div>
                 </div>
@@ -1419,10 +1421,12 @@ function AppContent() {
               <div className="p-4 md:p-10 max-w-7xl mx-auto w-full flex-1 flex flex-col relative pb-32 md:pb-10">
                 <header className="flex md:hidden justify-between items-center mb-6 bg-white/70 backdrop-blur-2xl p-4 rounded-[2rem] border border-white/50 shadow-xl shadow-gray-200/50 sticky top-0 z-40" dir="rtl">
                   <div className="flex items-center gap-4">
-                    <div className="bg-sky-600 text-white p-2.5 rounded-2xl">
-                      <Truck size={24} />
-                    </div>
-                    <h1 className="text-xl font-black text-gray-900 tracking-tighter">SabanOS</h1>
+                    <img 
+                      src="https://i.postimg.cc/qqWtk5qr/Gemini-Generated-Image-6z6qts6z6qts6z6q.png" 
+                      alt="Logo" 
+                      className="w-10 h-10 rounded-xl object-cover"
+                    />
+                    <h1 className="text-xl font-black text-gray-900 tracking-tighter">סידור</h1>
                   </div>
                   <button 
                     onClick={() => setIsDrawerOpen(true)}

@@ -86,11 +86,15 @@ export const MobileApp: React.FC = () => {
   if (!user) {
     return (
       <div className="h-screen bg-gray-950 flex flex-col items-center justify-center p-8 text-center" dir="rtl">
-        <div className="w-20 h-20 bg-sky-600 rounded-3xl mb-8 flex items-center justify-center shadow-2xl shadow-sky-600/20">
-          <Package className="text-white" size={40} />
+        <div className="w-20 h-20 bg-sky-600 rounded-3xl mb-8 flex items-center justify-center shadow-2xl shadow-sky-600/20 overflow-hidden">
+          <img 
+            src="https://i.postimg.cc/qqWtk5qr/Gemini-Generated-Image-6z6qts6z6qts6z6q.png" 
+            alt="Noa" 
+            className="w-full h-full object-cover"
+          />
         </div>
-        <h1 className="text-4xl font-black text-white mb-2 italic tracking-tighter">SabanOS Admin</h1>
-        <p className="text-gray-400 font-bold mb-12">מערכת ניהול לוגיסטית מתקדמת</p>
+        <h1 className="text-4xl font-black text-white mb-2 italic tracking-tighter">סידור Admin</h1>
+        <p className="text-gray-400 font-bold mb-12">המוח התפעולי של ח. סבן</p>
         <button 
           onClick={async () => {
             const { loginWithGoogle } = await import('./lib/firebase');
@@ -113,8 +117,8 @@ export const MobileApp: React.FC = () => {
             <Menu size={28} />
           </button>
           <div className="flex flex-col">
-            <h1 className="text-xl font-black italic tracking-tighter leading-none">SabanOS</h1>
-            <span className="text-[10px] font-black tracking-widest text-sky-500 uppercase">Field Admin</span>
+            <h1 className="text-xl font-black italic tracking-tighter leading-none">סידור Mobile</h1>
+            <span className="text-[10px] font-black tracking-widest text-sky-400 uppercase">נועה מחוברת ✅</span>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -460,7 +464,7 @@ export const MobileApp: React.FC = () => {
                   <span>התנתק מהמערכת</span>
                 </button>
                 <p className="text-[10px] font-bold text-gray-600 text-center mt-6 tracking-widest uppercase">
-                  SabanOS v3.5 Alpha
+                  סידור v3.5 Enterprise | נועה ❤️
                 </p>
               </div>
             </motion.aside>

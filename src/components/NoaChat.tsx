@@ -99,10 +99,11 @@ export const NoaChat = ({
       }
     }
   }, [chatHistory.length]);
+
 const dynamicSuggestions = [
   { 
     label: 'סנכרון חכם 📂', 
-    action: 'סרוק את סידור, חלץ נתונים והצלבת כתובות מול מאגר המיקומים החכמים' 
+    action: 'סרוק את SabanOS, חלץ נתונים והצלבת כתובות מול מאגר המיקומים החכמים' 
   },
   { 
     label: 'אופטימיזציה למחר 🏗️', 
