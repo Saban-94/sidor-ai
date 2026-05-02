@@ -65,8 +65,7 @@ async function callGemini(payload: {
   const ai = getAI();
   try {
     const response = await ai.models.generateContent({
-      model: payload.model === "gemini-1.5-flash" || !payload.model ? "gemini-3-flash-preview" : payload.model,
-      contents: payload.contents,
+     model: payload.model || "gemini-1.5-flash",      contents: payload.contents,
       config: {
         ...payload.config,
         systemInstruction: payload.systemInstruction,
