@@ -99,21 +99,41 @@ export const NoaChat = ({
       }
     }
   }, [chatHistory.length]);
-
-  const dynamicSuggestions = [
-    { label: 'סנכרון דרייב 📂', action: 'סרוק את תיקיית SabanOS ותחלץ נתונים מהקובץ האחרון' },
-    { label: 'הזמנה חדשה ✍️', action: 'הזמנה חדשה' },
-    { label: 'סטטוס הפצה 📊', action: 'מה סטטוס ההפצה כרגע?' },
-    { label: 'דוח בוקר 📋', action: 'תכיני לי דוח בוקר 📋' },
-    { label: 'סטטוס נהגים 🚛', action: 'סטטוס נהגים 🚛' },
-    { label: 'חריגות בטון/ריצופית ⚠️', action: 'חריגות בטון/ריצופית ⚠️' },
-    { label: 'סיכום עמוסים 📈', action: 'סיכום עמוסים' },
-    { label: 'תיעוד מסירה 📜', action: 'תיעוד מסירה' },
-    ...orders.filter(o => o.status === 'preparing').slice(0, 2).map(o => ({
-      label: `צפי ל${o.customerName.split(' ')[0]} ⏱️`,
-      action: `מה ה-ETA של ${o.customerName}?`
-    }))
-  ];
+const dynamicSuggestions = [
+  { 
+    label: 'סנכרון חכם 📂', 
+    action: 'סרוק את סידור, חלץ נתונים והצלבת כתובות מול מאגר המיקומים החכמים' 
+  },
+  { 
+    label: 'אופטימיזציה למחר 🏗️', 
+    action: 'תכנני מסלול אופטימלי לחכמת ועלי למחר על בסיס נתוני עבר' 
+  },
+  { 
+    label: 'דוח בוקר HTML 📋', 
+    action: 'תכיני דוח בוקר מעוצב בטבלה כולל צפי הגעה לכל נהג' 
+  },
+  { 
+    label: 'אימות פריקה (PTO) ✅', 
+    action: 'בדקי חריגות בין מיקומי GPS להפעלת מנוף בסידור האחרון' 
+  },
+  { 
+    label: 'תובנות אתרים 🧠', 
+    action: 'אילו אתרים מוכרים לנו מהסידור של היום ומה זמן הפריקה הממוצע בהם?' 
+  },
+  { 
+    label: 'חריגות מלאי ⚠️', 
+    action: 'האם יש חוסרים בבטון או ריצופית ביחס להזמנות הפתוחות?' 
+  },
+  { 
+    label: 'סטטוס הפצה חי 📊', 
+    action: 'מה סטטוס ההפצה כרגע? הצג בפורמט ציר זמן (Timeline)' 
+  },
+  // קישורים דינמיים לפי הזמנות בביצוע עם חיזוי חכם
+  ...orders.filter(o => o.status === 'preparing').slice(0, 3).map(o => ({
+    label: `צפי ל${o.customerName.split(' ')[0]} ⏱️`,
+    action: `חשבי ETA חכם ל${o.customerName} בהתבסס על היסטוריית פריקות בכתובת ${o.destination}`
+  }))
+];
 
   return (
     <div className="h-[100dvh] bg-white flex flex-col md:flex-row overflow-hidden" dir="rtl">
@@ -129,7 +149,7 @@ export const NoaChat = ({
               alt="Noa" 
               className="w-8 h-8 rounded-full object-cover"
             />
-            <h1 className="text-xl font-black">SabanOS</h1>
+            <h1 className="text-xl font-black">סידור</h1>
           </div>
         </div>
         
@@ -172,7 +192,7 @@ export const NoaChat = ({
                <ChevronRight size={20} />
              </button>
              <div className="flex flex-col">
-               <h1 className="font-black text-sm uppercase tracking-wider">Saban Chat</h1>
+               <h1 className="font-black text-sm uppercase tracking-wider">צאט עם נועה</h1>
                <div className="flex items-center gap-1.5">
                  <div className="w-2 h-2 bg-green-400 rounded-full shadow-[0_0_5px_rgba(74,222,128,0.8)]" />
                  <span className="text-[10px] font-bold">נועה - מנהלת סידור ❤️ | מחוברת ✅</span>
@@ -208,7 +228,7 @@ export const NoaChat = ({
                  />
                  <div className="absolute inset-0 border-4 border-white/20 rounded-[3rem]" />
               </div>
-              <h2 className="text-2xl font-black mb-2 italic">שלום ראמי נשמה ❤️</h2>
+              <h2 className="text-2xl font-black mb-2 italic">שלום ראמי  ❤️</h2>
               <p className="text-sm font-bold text-gray-400 mb-8 max-w-[250px] mx-auto">איך אני יכולה לעזור לך ולאחי ושותפי היום? 🏗️</p>
               
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-md mx-auto">
