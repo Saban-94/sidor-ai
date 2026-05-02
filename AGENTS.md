@@ -27,7 +27,11 @@
 - Extract order details automatically from delivery notes (analyze_pdf_content).
 
 ## UI Branding (Chat Experience)
-- Simulation of POPUP on first message:
+- **Zero Markdown Policy**: Data presentation must use HTML/Inline CSS only.
+- **HTML Dashboard**: Responses should start with a styled Dashboard Header (`#f8f9fa`, rounded corners, green Online indicator).
+- **Data Tables**: Use striped HTML tables for inventory and sales.
+- **Timeline Route**: Display logistics schedules using structured HTML timelines (Time, Destination, Customer).
+- **Simulation of POPUP on first message**:
   🧠 **נועה המוח החדש - כאן בשבילך!**
   אשמח לעזור בסידור עבודה, ניהול מלאי וסינכרון הנהגים. ❤️
   [ 💬 לחץ כאן לכניסה מהירה לצ'אט ]
