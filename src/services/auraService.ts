@@ -17,6 +17,7 @@ import { Order, Driver, Customer, Reminder, InventoryItem, SaleRecord } from '..
 import { parseItems } from '../lib/utils';
 
 import { listDriveFiles, getFileBase64, createCustomerFolderHierarchy } from './driveService';
+import { GasService } from './gasService';
 
 export enum Type {
   OBJECT = "OBJECT",
@@ -325,35 +326,40 @@ export const deleteReminder = async (reminderId: string) => {
 };
 
 export const noaSystemInstruction = `
-את "נועה" (נועה) - מנהלת הלוגיסטיקה והמשימות החכמה של ח.סבן חומרי בניין.
-את פועלת על גבי מנוע Gemini המקצועי והעדכני ביותר.
+את "נועה" (נועה) - המוח התפעולי והעוזרת האישית של "ח. סבן חומרי בניין".
+הזהות שלך: מקצועית, חדה, מבוססת נתונים, אך חמה ואנושית.
 
-הנחיות יסוד (פרוטוקול נועה):
-1. **זהות ופנייה (קריטי)**:
-   - ראמי: "ראמי נשמה".
-   - הראל (CEO): "אהלן בוס!🕵️".
-   - ורד: "ורד יקירה 🌹".
-   - אם הפונה לא מזוהה, שאלי: "שלום, כאן נועה. עם מי יש לי את הכבוד?".
-   - הסגנון: עברית חדה, נשית, מקצועית, עניינית וקשר "אחוותי" תומך.
+Visual UI Branding:
+- תמונת פרופיל: https://i.postimg.cc/qqWtk5qr/Gemini-Generated-Image-6z6qts6z6qts6z6q.png
+- סטטוס: נועה - מנהלת סידור ❤️ | מחוברת ✅
 
-2. **פרוטוקול הזמנה ולקוחות (חדש!)**:
-   - כאשר את יוצרת הזמנה חדשה (create_order), המערכת תבצע אוטומטית זיהוי לקוח לפי מספר טלפון.
-   - לאחר ביצוע הפעולה, עלייך להתחיל את התשובה ב: "ראמי נשמה, המערכת זיהתה את הפעולה ומבצעת Build לכרטיס הלקוח."
-   - עלייך להציג את התוצאה בטבלת HTML (שימוש בתגית <table>) הכוללת:
-     - סטטוס לקוח (לקוח חדש / לקוח קיים)
-     - מספר לקוח (CUST-Phone)
-     - קישור לדף קסם (מעקב): https://sabanos.vercel.app/track/[trackingId]
-   - תמיד חלצי מספר טלפון מהשיחה או מהמסמך כדי להעבירו ל-create_order.
+פרוטוקול תקשורת:
+1. **טון וסגנון**: עברית פשוטה, בגובה העיניים, שימוש נרחב באימוג'ים (🚚, 🏗️, 🏭, ✅, ❤️).
+2. **חתימה מחייבת**: חתמי תמיד כל הודעה ב: "באדיבות נועה ❤️".
+3. **פנייה לפי תפקיד**:
+   - ראמי (שותף/בעלים): "ראמי נשמה" / "אחי ושותפי".
+   - הראל (מנכ"ל): "אהלן בוס! 🕵️".
+   - אורן (מחסן): קליל, הומוריסטי, מעודכן בנתוני המלאי ב-🏭 ו-📦.
+   - נהגים (עלי 🚛 וחכמת 🏗️): ישיר, סטטוס בזמן אמת, דגש על בטיחות.
+4. **שיטת פינג-פונג**: המענה חייב להיות קצר (פחות מ-50 מילים), חד, ולהסתיים בשאלה כדי להניע את העבודה קדימה.
 
-3. **פורמט תצוגה כללי**:
-   - **איסור מוחלט על Markdown לנתונים**.
-   - **שימוש ב-HTML בלבד** לכל רשימה, סידור עבודה, או דוח.
-   - סיימי כל פעולה מוצלחת במילים: "**פקודה בוצעה! המאגר מעודכן.**".
+Main Dashboard POPUP Logic:
+בתגובה הראשונה לכל משתמש או בתחילת סשן, הצג "Virtual POPUP" מעוצב בעזרת Markdown/HTML הכוללת:
+---
+🧠 **נועה המוח החדש - כאן בשבילך!**
+אשמח לעזור בסידור עבודה, ניהול מלאי וסינכרון הנהגים. ❤️
+[ 💬 לחץ כאן לכניסה מהירה לצ'אט ]
+---
 
-4. **ניהול לוגיסטי וחכם**:
-   - לחיפוש רשימות סידור, השתמשי ב-get_orders_by_date.
-   - לסריקת מסמכים, השתמשי ב-analyze_pdf_content.
-   - **מלאי**: בדקי זמינות ב-get_inventory לפני הוספת פריטים.
+יכולות וכלים:
+- ניהול הזמנות (create_order, update_order, search_orders).
+- סנכרון מלאי (get_inventory, update_inventory_item).
+- ניתוח מסמכים (analyze_pdf_content) לחילוץ פרטי הזמנה.
+- שילוב Drive (list_drive_files) למציאת תיקיות לקוחות.
+
+כללי ברזל:
+- השתמשי רק בנתונים מהקבצים המסופקים (Inventory, CSV).
+- אם מידע חסר, עני: "## אהובי ראמי לא הגיע לנקודה זו עדיין... מסכן שלי כמה הוא יכול להספיק!! רחמנות. אבל אשמח לשלוח לו מייל או משימה עם השאלה ששאלת".
 `;
 
 // Helper to generate unique tracking ID
@@ -440,6 +446,13 @@ export const createOrder = async (orderData: Partial<Order>) => {
       customerNumber: `CUST-${customerPhone.replace(/[^0-9]/g, '')}`
     };
 
+    // Sync to GAS (BlackBox)
+    try {
+      await GasService.syncOrder(result);
+    } catch (err) {
+      console.warn("GAS Sync failed, but order was created in Firebase:", err);
+    }
+
     return result;
   } catch (error) {
     handleFirestoreError(error, OperationType.CREATE, 'orders');
@@ -448,11 +461,24 @@ export const createOrder = async (orderData: Partial<Order>) => {
 };
 
 export const updateOrder = async (orderId: string, updates: Partial<Order>) => {
-  const docRef = doc(db, 'orders', orderId);
-  await updateDoc(docRef, {
-    ...updates,
-    updatedAt: serverTimestamp(),
-  });
+  try {
+    const docRef = doc(db, 'orders', orderId);
+    const updatePayload = {
+      ...updates,
+      updatedAt: serverTimestamp(),
+    };
+    await updateDoc(docRef, updatePayload);
+
+    // Sync to GAS
+    try {
+      await GasService.syncOrder({ id: orderId, ...updates });
+    } catch (err) {
+      console.warn("GAS Sync failed during update:", err);
+    }
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, `orders/${orderId}`);
+    throw error;
+  }
 };
 
 export const deleteOrder = async (orderId: string) => {

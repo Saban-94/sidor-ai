@@ -407,7 +407,7 @@ const EmptyState = () => (
       <CalendarIcon className="text-gray-400" size={48} />
     </div>
     <h3 className="text-lg font-bold text-gray-800">אין הזמנות ליום הזה</h3>
-    <p className="text-gray-500 mt-2 max-w-xs text-sm">הסידור ריק בינתיים. אפשר להוסיף הזמנה חדשה או לבקש מ-Aura לעזור.</p>
+    <p className="text-gray-500 mt-2 max-w-xs text-sm">הסידור ריק בינתיים. אפשר להוסיף הזמנה חדשה או לבקש מנועה לעזור.</p>
   </div>
 );
 
@@ -439,6 +439,13 @@ function AppContent() {
     return saved ? parseInt(saved, 10) : Date.now();
   });
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [isInitialDataLoading, setIsInitialDataLoading] = useState(true);
+  const [dataLoadingStatus, setDataLoadingStatus] = useState({
+    orders: true,
+    drivers: true,
+    inventory: true,
+    reminders: true
+  });
 
   const [activeAlertReminder, setActiveAlertReminder] = useState<Reminder | null>(null);
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
@@ -748,7 +755,7 @@ function AppContent() {
       }
 
       // Suggest to Noa to analyze the new file
-      handleAuraAction(`העליתי עכשיו את הקובץ ${file.name} לדרייב. ${orderId ? `זה שייך להזמנה ${orderId}.` : ''} סרקי אותו ותגידי לי מה נסגר.`);
+      handleNoaAction(`העליתי עכשיו את הקובץ ${file.name} לדרייב. ${orderId ? `זה שייך להזמנה ${orderId}.` : ''} סרקי אותו ותגידי לי מה נסגר.`);
     } catch (error: any) {
       console.error("Upload error:", error);
       addToast('שגיאת העלאה', `לא הצלחתי להעלות: ${error.message}`, 'warning');
@@ -1000,6 +1007,7 @@ function AppContent() {
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Order[];
       setOrders(docs);
+      setDataLoadingStatus(prev => ({ ...prev, orders: false }));
     }, (error) => {
       if (error.code !== 'permission-denied') {
         handleFirestoreError(error, OperationType.LIST, 'orders');
@@ -1055,6 +1063,7 @@ function AppContent() {
       } else {
         const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Driver[];
         setDrivers(docs);
+        setDataLoadingStatus(prev => ({ ...prev, drivers: false }));
 
         // One-time update for existing drivers missing avatars
         const driversMissingAvatars = docs.filter(d => (d.id === 'ali' || d.id === 'hikmat') && !d.avatar);
@@ -1091,6 +1100,7 @@ function AppContent() {
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Reminder[];
       setReminders(docs);
+      setDataLoadingStatus(prev => ({ ...prev, reminders: false }));
     }, (error) => {
       if (error.code !== 'permission-denied') {
         handleFirestoreError(error, OperationType.LIST, 'reminders');
@@ -1107,6 +1117,7 @@ function AppContent() {
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as InventoryItem[];
       setInventoryItems(docs);
+      setDataLoadingStatus(prev => ({ ...prev, inventory: false }));
     }, (error) => {
       if (error.code !== 'permission-denied') {
         handleFirestoreError(error, OperationType.LIST, 'inventory');
@@ -1121,20 +1132,75 @@ function AppContent() {
     }
   }, [chatHistory]);
 
-  if (loading) return (
-    <div className="h-screen w-full flex items-center justify-center bg-sky-50/30 backdrop-blur-sm">
-      <motion.div 
-        animate={{ rotate: 360 }} 
-        transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
-        className="text-sky-600"
-      >
-        <Truck size={40} />
-      </motion.div>
+  useEffect(() => {
+    // Finish initial loading when core data is ready
+    if (!dataLoadingStatus.orders && !dataLoadingStatus.drivers) {
+      // Slightly delay for smoother transition
+      const timer = setTimeout(() => setIsInitialDataLoading(false), 500);
+      return () => clearTimeout(timer);
+    }
+  }, [dataLoadingStatus.orders, dataLoadingStatus.drivers]);
+
+  const NavigationItems = [
+    { id: 'list', icon: LayoutList, label: 'דוח בוקר' },
+    { id: 'kanban', icon: Trello, label: 'קנבן' },
+    { id: 'calendar', icon: CalendarDays, label: 'לוח שנתי' },
+    { id: 'table', icon: Table, label: 'ניהול מלאי' },
+    { id: 'drivers', icon: Users, label: 'נהגים/ביצועים' },
+    { id: 'reports', icon: FileText, label: 'ארכיון' },
+    { id: 'chat', icon: MessageSquare, label: 'נועה AI' },
+    { id: 'chat_full', icon: Sparkles, label: 'צ\'אט חברתי' },
+  ];
+
+  if (loading || (isInitialDataLoading && user)) return (
+    <div className="h-screen w-full flex flex-col items-center justify-center bg-gray-50 relative overflow-hidden">
+      {/* Background Orbs */}
+      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-sky-100/30 rounded-full blur-3xl animate-pulse" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-100/20 rounded-full blur-3xl animate-pulse" />
+
+      <div className="relative z-10 flex flex-col items-center">
+        <motion.div 
+          animate={{ 
+            scale: [1, 1.1, 1],
+            rotate: [0, 5, -5, 0]
+          }} 
+          transition={{ repeat: Infinity, duration: 2 }}
+          className="bg-sky-600 text-white p-6 rounded-[2.5rem] shadow-2xl shadow-sky-200 mb-8"
+        >
+          <Truck size={48} strokeWidth={2.5} />
+        </motion.div>
+        
+        <div className="space-y-4 text-center">
+          <h2 className="text-2xl font-black text-gray-900 tracking-tight">SabanOS מתחבר...</h2>
+          <div className="flex gap-1 justify-center">
+            {[0, 1, 2].map((i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0.3 }}
+                animate={{ opacity: 1 }}
+                transition={{ repeat: Infinity, duration: 0.6, delay: i * 0.2 }}
+                className="w-2 h-2 bg-sky-600 rounded-full"
+              />
+            ))}
+          </div>
+          
+          <div className="mt-8 flex flex-col gap-2">
+             <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest text-gray-400">
+               <div className={`w-2 h-2 rounded-full ${dataLoadingStatus.orders ? 'bg-gray-200 animate-pulse' : 'bg-green-500'}`} />
+               טוען הזמנות
+             </div>
+             <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest text-gray-400">
+               <div className={`w-2 h-2 rounded-full ${dataLoadingStatus.drivers ? 'bg-gray-200 animate-pulse' : 'bg-green-500'}`} />
+               טוען נהגים
+             </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 
-  // --- Aura AI Handlers ---
-  const handleAuraAction = async (msg: string) => {
+  // --- Noa AI Handlers ---
+  const handleNoaAction = async (msg: string) => {
     if (!user) return;
     const userMsg = { role: 'user', parts: [{ text: msg }] };
     setChatHistory(prev => [...prev, userMsg]);
@@ -1261,7 +1327,6 @@ function AppContent() {
       <Route path="*" element={
         !user ? (
           <div className="h-screen w-full flex flex-col items-center justify-center bg-white p-6 relative overflow-hidden" dir="rtl">
-            {/* Background Orbs */}
             <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-sky-100/30 rounded-full blur-3xl animate-pulse" />
             <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-100/20 rounded-full blur-3xl animate-pulse" />
             
@@ -1287,45 +1352,120 @@ function AppContent() {
               </div>
             </div>
           </div>
-        ) : viewMode === 'reports' ? (
-          <MorningReportSystem onBack={() => setViewMode('list')} drivers={drivers} />
-        ) : viewMode === 'chat' ? (
-          <NoaChat 
-            chatHistory={chatHistory}
-            chatScrollRef={chatScrollRef}
-            onBack={() => setViewMode('list')}
-            onAction={handleAuraAction}
-            orders={orders}
-          />
-        ) : viewMode === 'chat_full' ? (
-          <div className="fixed inset-0 z-[1000] bg-white">
-            <TeamMessengerContainer 
-              currentUserProfile={{ 
-                id: user.uid.slice(0,4), 
-                name: user.displayName || 'משתמש', 
-                avatarUrl: user.photoURL,
-                role: 'צוות SabanOS',
-                phone: '',
-                email: user.email || '',
-                lastSeen: serverTimestamp()
-              }} 
-              fullScreen={true} 
-              onClose={() => setViewMode('list')} 
-            />
-          </div>
         ) : (
-          <MobileWrapper 
-            viewMode={viewMode} 
-            setViewMode={setViewMode} 
-            onAddClick={() => setIsAddingOrder(true)}
-            user={user}
-          >
-            <motion.div 
-              animate={isScreenShaking ? { x: [-2, 2, -2, 2, 0] } : {}}
-              transition={isScreenShaking ? { repeat: Infinity, duration: 0.1 } : {}}
-              className="min-h-screen bg-gray-50 flex flex-col font-sans" 
-              dir="rtl"
-            >
+          <div className="flex bg-gray-50 border-gray-100 font-sans min-h-screen" dir="rtl">
+            {/* DESKTOP SIDEBAR */}
+            <aside className="hidden md:flex flex-col w-72 bg-white border-l border-gray-100 h-screen sticky top-0 overflow-y-auto z-30 shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
+              <div className="p-8">
+                <div className="flex items-center gap-4 mb-10">
+                  <div className="bg-sky-600 text-white p-2.5 rounded-2xl shadow-xl shadow-sky-600/20">
+                    <Truck size={28} strokeWidth={2.5} />
+                  </div>
+                  <div>
+                    <h1 className="text-xl font-black text-gray-900 tracking-tighter">SabanOS</h1>
+                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest leading-none mt-1">v3.5 Enterprise</p>
+                  </div>
+                </div>
+
+                <nav className="space-y-1.5">
+                  {NavigationItems.map((item) => (
+                    <button
+                      key={item.id}
+                      onClick={() => setViewMode(item.id as any)}
+                      className={`w-full flex items-center gap-4 px-5 py-4 rounded-[1.25rem] text-sm font-black transition-all ${
+                        viewMode === item.id 
+                          ? 'bg-sky-600 text-white shadow-xl shadow-sky-600/20 translate-x-1' 
+                          : 'text-gray-400 hover:bg-gray-50 hover:text-gray-900'
+                      }`}
+                    >
+                      <item.icon size={22} strokeWidth={viewMode === item.id ? 2.5 : 2} />
+                      {item.label}
+                    </button>
+                  ))}
+                </nav>
+
+                <div className="mt-10 pt-8 border-t border-gray-100">
+                  <div className="bg-sky-50/50 p-5 rounded-3xl border border-sky-100/50">
+                    <p className="text-[9px] font-black text-sky-600/60 uppercase tracking-[0.2em] mb-2">System Status</p>
+                    <div className="flex items-center gap-2.5 text-xs font-black text-sky-900">
+                      <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.4)] animate-pulse" />
+                      מחובר בזמן אמת
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-auto p-8 border-t border-gray-100">
+                <div className="flex items-center gap-4 mb-6">
+                  <div className="w-12 h-12 rounded-2xl bg-gray-100 flex items-center justify-center text-gray-500 font-black overflow-hidden border border-gray-200">
+                    {user?.photoURL ? <img src={user.photoURL} alt="" className="w-full h-full object-cover" /> : user?.email?.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-black text-gray-900 truncate">{user?.displayName || user?.email}</p>
+                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">Administrator</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setIsLogoutConfirmOpen(true)}
+                  className="w-full flex items-center justify-center gap-2.5 px-6 py-4 rounded-[1.25rem] text-sm font-black text-rose-500 hover:bg-rose-50 transition-all border border-transparent hover:border-rose-100"
+                >
+                  <LogOut size={20} />
+                  יציאה מהמערכת
+                </button>
+              </div>
+            </aside>
+
+            <main className="flex-1 min-w-0 flex flex-col h-screen overflow-y-auto bg-gray-50 hide-scrollbar scroll-smooth">
+              <div className="p-4 md:p-10 max-w-7xl mx-auto w-full flex-1 flex flex-col relative pb-32 md:pb-10">
+                <header className="flex md:hidden justify-between items-center mb-6 bg-white/70 backdrop-blur-2xl p-4 rounded-[2rem] border border-white/50 shadow-xl shadow-gray-200/50 sticky top-0 z-40" dir="rtl">
+                  <div className="flex items-center gap-4">
+                    <div className="bg-sky-600 text-white p-2.5 rounded-2xl">
+                      <Truck size={24} />
+                    </div>
+                    <h1 className="text-xl font-black text-gray-900 tracking-tighter">SabanOS</h1>
+                  </div>
+                  <button 
+                    onClick={() => setIsDrawerOpen(true)}
+                    className="p-3 bg-gray-50 rounded-2xl text-gray-500"
+                  >
+                    <Menu size={24} />
+                  </button>
+                </header>
+
+                <div className="flex-1 flex flex-col">
+                  {viewMode === 'reports' ? (
+                     <MorningReportSystem onBack={() => setViewMode('list')} drivers={drivers} />
+                  ) : viewMode === 'chat' ? (
+                    <NoaChat 
+                      chatHistory={chatHistory}
+                      chatScrollRef={chatScrollRef}
+                      onBack={() => setViewMode('list')}
+                      onAction={handleNoaAction}
+                      orders={orders}
+                    />
+                  ) : viewMode === 'chat_full' ? (
+                    <div className="fixed inset-0 z-[1000] bg-white">
+                      <TeamMessengerContainer 
+                        currentUserProfile={{ 
+                          id: user.uid.slice(0,4), 
+                          name: user.displayName || 'משתמש', 
+                          avatarUrl: user.photoURL,
+                          role: 'צוות SabanOS',
+                          phone: '',
+                          email: user.email || '',
+                          lastSeen: serverTimestamp()
+                        }} 
+                        fullScreen={true} 
+                        onClose={() => setViewMode('list')} 
+                      />
+                    </div>
+                  ) : (
+                    <div className="flex-1 flex flex-col min-h-0">
+                      <motion.div 
+                        animate={isScreenShaking ? { x: [-2, 2, -2, 2, 0] } : {}}
+                        transition={isScreenShaking ? { repeat: Infinity, duration: 0.1 } : {}}
+                        className="flex-1 flex flex-col"
+                      >
             <Header 
               user={user} 
               notificationsEnabled={notificationsEnabled} 
@@ -1478,7 +1618,7 @@ function AppContent() {
               )}
             </AnimatePresence>
 
-            <main className="flex-1 max-w-5xl w-full mx-auto p-4 md:p-8">
+            <div className="flex-1 max-w-5xl w-full mx-auto p-4 md:p-8">
               <div className="pb-[env(safe-area-inset-bottom)]">
                 {/* Horizontal Week Strip for Mobile Calendar */}
                 {viewMode === 'calendar' && (
@@ -1563,7 +1703,7 @@ function AppContent() {
             )}
           </div>
         ) : (
-          <div className="bg-white/80 backdrop-blur-md p-6 rounded-3xl shadow-sm border border-sky-100 mb-8">
+          <div className="bg-white/80 backdrop-blur-md p-6 rounded-3xl shadow-sm border border-sky-100 mb-8 flex-1 flex flex-col">
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-2">
                 <button onClick={() => setCalendarMonth(subMonths(calendarMonth, 1))} className="p-2 hover:bg-sky-50 rounded-xl transition-colors text-sky-600">
@@ -1603,7 +1743,7 @@ function AppContent() {
               ))}
             </div>
 
-            <div className="grid grid-cols-7 gap-1">
+            <div className="grid grid-cols-7 gap-1 flex-1">
               {(() => {
                 const monthStart = startOfMonth(calendarMonth);
                 const monthEnd = endOfMonth(monthStart);
@@ -1647,7 +1787,7 @@ function AppContent() {
                         }
                       }}
                       className={`
-                        min-h-[90px] p-2 rounded-2xl border transition-all flex flex-col items-start relative overflow-hidden
+                        min-h-[80px] md:min-h-[110px] p-2 rounded-2xl border transition-all flex flex-col items-start relative overflow-hidden flex-1
                         ${!isCurrentMonth ? 'bg-gray-50/50 border-transparent opacity-30 cursor-default' : 
                           isSelected || isEndSelected ? 'bg-sky-50 border-sky-200 shadow-inner z-10' : 
                           isInRange ? 'bg-sky-50/40 border-sky-100 shadow-sm' :
@@ -1692,71 +1832,28 @@ function AppContent() {
         )}
 
         {/* Action Bar */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
           <div className="flex items-center gap-4">
-            <h2 className="text-2xl font-black text-gray-900 underline decoration-sky-500 decoration-4 underline-offset-8">
+            <h2 className="text-xl md:text-2xl font-black text-gray-900 underline decoration-sky-500 decoration-4 underline-offset-8">
               {viewMode === 'list' ? 'דוח בוקר' : viewMode === 'kanban' ? 'לוח קנבן' : viewMode === 'calendar' ? 'לוח שנתי' : viewMode === 'drivers' ? 'נהגים וביצועים' : viewMode === 'import' ? 'יבוא הזמנות חכם' : viewMode === 'table' ? 'ניהול מלאי מוצרים' : 'ארכיון דוחות'}
             </h2>
-            <div className="flex bg-gray-100 p-1 rounded-xl">
-              <button 
-                onClick={() => setViewMode('list')}
-                className={`p-1.5 rounded-lg transition-all ${viewMode === 'list' ? 'bg-white shadow-sm text-sky-600' : 'text-gray-400 hover:text-gray-600'}`}
-              >
-                <LayoutList size={20} />
-              </button>
-              <button 
-                onClick={() => setViewMode('kanban')}
-                className={`p-1.5 rounded-lg transition-all ${viewMode === 'kanban' ? 'bg-white shadow-sm text-sky-600' : 'text-gray-400 hover:text-gray-600'}`}
-                title="קנבן"
-              >
-                <Trello size={20} />
-              </button>
-              <button 
-                onClick={() => setViewMode('calendar')}
-                className={`p-1.5 rounded-lg transition-all ${viewMode === 'calendar' ? 'bg-white shadow-sm text-sky-600' : 'text-gray-400 hover:text-gray-600'}`}
-              >
-                <CalendarDays size={20} />
-              </button>
-              <button 
-                onClick={() => setViewMode('table')}
-                className={`p-1.5 rounded-lg transition-all ${viewMode === 'table' ? 'bg-white shadow-sm text-sky-600' : 'text-gray-400 hover:text-gray-600'}`}
-                title="ניהול מלאי"
-              >
-                <Table size={20} />
-              </button>
-              <button 
-                onClick={() => setViewMode('drivers')}
-                className={`p-1.5 rounded-lg transition-all ${viewMode === 'drivers' ? 'bg-white shadow-sm text-sky-600' : 'text-gray-400 hover:text-gray-600'}`}
-                title="נהגים וביצועים"
-              >
-                <Users size={20} />
-              </button>
-              <button 
-                onClick={() => setViewMode('reports')}
-                className={`p-1.5 rounded-lg transition-all ${viewMode === 'reports' ? 'bg-white shadow-sm text-sky-600' : 'text-gray-400 hover:text-gray-600'}`}
-                title="ארכיון דוחות"
-              >
-                <FileText size={20} />
-              </button>
-              <button 
-                onClick={() => setViewMode('chat')}
-                className={`p-1.5 rounded-lg transition-all ${viewMode === 'chat' ? 'bg-white shadow-sm text-sky-600' : 'text-gray-400 hover:text-gray-600'}`}
-                title="נועה AI"
-              >
-                <MessageSquare size={20} />
-              </button>
-              <button 
-                onClick={() => setViewMode('chat_full')}
-                className={`p-1.5 rounded-lg transition-all ${viewMode === 'chat_full' ? 'bg-white shadow-sm text-amber-600' : 'text-gray-400 hover:text-amber-500'}`}
-                title="צ'אט חברתי (חדש!)"
-              >
-                <Sparkles size={20} />
-              </button>
+            {/* Nav icons hidden on mobile, showed in bottom bar */}
+            <div className="hidden md:flex bg-gray-100 p-1 rounded-xl">
+              {NavigationItems.map(item => (
+                <button 
+                  key={item.id}
+                  onClick={() => setViewMode(item.id as any)}
+                  className={`p-1.5 rounded-lg transition-all ${viewMode === item.id ? 'bg-white shadow-sm text-sky-600' : 'text-gray-400 hover:text-gray-600'}`}
+                  title={item.label}
+                >
+                  <item.icon size={20} />
+                </button>
+              ))}
             </div>
           </div>
           <button 
             onClick={() => setIsAddingOrder(true)}
-            className="bg-sky-600 text-white flex items-center gap-2 px-5 py-2.5 rounded-2xl font-bold shadow-lg shadow-sky-600/20 hover:scale-105 transition-transform"
+            className="hidden md:flex bg-sky-600 text-white items-center gap-2 px-5 py-2.5 rounded-2xl font-bold shadow-lg shadow-sky-600/20 hover:scale-105 transition-all w-fit"
           >
             <Plus size={20} />
             הזמנה חדשה
@@ -1878,29 +1975,14 @@ function AppContent() {
               <h3 className="text-lg font-bold text-gray-800">לא נמצאו תוצאות</h3>
               <p className="text-gray-500 text-sm">נסה לחפש משהו אחר או לשנות את הסינון.</p>
             </div>
-          ) : groupByDriver ? (
-            <DriverList 
-              orders={filteredOrders}
-              drivers={drivers}
-              searchQuery={searchQuery}
-              onOrderEdit={setEditingOrder}
-              onOrderUpdateStatus={handleStatusUpdate}
-              onOrderUpdateEta={(id, eta) => updateOrder(id, { eta })}
-              onOrderDelete={deleteOrder}
-              onOrderRepeat={handleRepeatOrder}
-              onOrderCreateCustomer={handleCreateCustomer}
-              onAddToast={addToast}
-              onDriverSelect={id => setSelectedDriverId(id === selectedDriverId ? null : id)}
-              selectedDriverId={selectedDriverId}
-            />
-          ) : viewMode === 'drivers' ? (
+          ) : (groupByDriver || viewMode === 'drivers') ? (
             <div className="space-y-6">
               {drivers.map(driver => (
                 <DriverCard
                   key={driver.id}
                   driver={driver}
                   inventoryItems={inventoryItems}
-                  orders={orders.filter(o => o.driverId === driver.id && (isRangeMode || isSameDay(new Date(o.date), selectedDate)))}
+                  orders={orders.filter(o => o.driverId === driver.id && (isRangeMode || isSameDay(new Date(o.date), startDate)))}
                   allOrders={orders}
                   searchQuery={searchQuery}
                   onOrderEdit={setEditingOrder}
@@ -1953,13 +2035,40 @@ function AppContent() {
           )}
         </div>
       </div>
-      </main>
 
-      {/* Toasts */}
+      {/* MOBILE FAB */}
+      <button 
+        onClick={() => setIsAddingOrder(true)}
+        className="md:hidden fixed bottom-28 left-6 z-40 bg-sky-600 text-white p-5 rounded-[2.5rem] shadow-2xl shadow-sky-600/40 transform hover:scale-110 active:scale-95 transition-all outline-none"
+      >
+        <Plus size={28} strokeWidth={3} />
+      </button>
 
-      </motion.div>
-    </MobileWrapper>
-  )} />
+      {/* MOBILE BOTTOM NAV */}
+      <nav className="md:hidden fixed bottom-6 left-6 right-6 z-[60] bg-white/70 backdrop-blur-2xl border border-white/40 shadow-[0_20px_50px_rgba(0,0,0,0.15)] rounded-[2.5rem] p-2 flex items-center justify-around">
+        {NavigationItems.slice(0, 5).map((item) => (
+          <button
+            key={item.id}
+            onClick={() => setViewMode(item.id as any)}
+            className={`flex flex-col items-center justify-center w-14 h-14 rounded-2xl transition-all ${
+              viewMode === item.id 
+                ? 'bg-sky-600 text-white shadow-xl shadow-sky-600/20' 
+                : 'text-gray-400 hover:text-gray-600 active:bg-gray-100'
+            }`}
+          >
+            <item.icon size={22} strokeWidth={viewMode === item.id ? 2.5 : 2} />
+          </button>
+        ))}
+      </nav>
+            </div>
+          </motion.div>
+        </div>
+      )}
+    </div>
+  </div>
+</main>
+</div>
+)} />
     </Routes>
   );
 }

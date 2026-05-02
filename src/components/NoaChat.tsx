@@ -123,15 +123,22 @@ export const NoaChat = ({
           <button onClick={onBack} className="p-2 hover:bg-gray-200 rounded-xl transition-colors">
             <ChevronRight size={20} />
           </button>
-          <h1 className="text-xl font-bold">נועה (SabanOS)</h1>
+          <div className="flex items-center gap-2">
+            <img 
+              src="https://i.postimg.cc/qqWtk5qr/Gemini-Generated-Image-6z6qts6z6qts6z6q.png" 
+              alt="Noa" 
+              className="w-8 h-8 rounded-full object-cover"
+            />
+            <h1 className="text-xl font-black">SabanOS</h1>
+          </div>
         </div>
         
           <div className="space-y-6">
             <div>
-              <p className="text-[10px] font-black text-gray-400 mb-2 uppercase tracking-widest text-right">סטטוס מערכת</p>
+              <p className="text-[10px] font-black text-gray-400 mb-2 uppercase tracking-widest text-right">סטטוס מוח</p>
               <div className="bg-white p-4 rounded-2xl border border-gray-100 flex items-center gap-3">
-                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(34,197,94,0.5)]"></div>
-                <span className="text-sm font-bold">זמינה לראמי</span>
+                <div className="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(34,197,94,0.5)]"></div>
+                <span className="text-xs font-black">נועה - מנהלת סידור ❤️ | מחוברת ✅</span>
               </div>
             </div>
 
@@ -157,24 +164,30 @@ export const NoaChat = ({
       </div>
 
       {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col h-full bg-white relative overflow-hidden">
-        <header className="p-4 border-b border-gray-100 flex items-center justify-between md:hidden bg-white/80 backdrop-blur-md z-30 shrink-0">
+      <div className="flex-1 flex flex-col h-full bg-[#f4f7f6] relative overflow-hidden">
+        {/* Saban Chat Styled Header */}
+        <header className="p-3 bg-[#e67e22] text-white flex items-center justify-between shadow-lg z-30 shrink-0">
           <div className="flex items-center gap-3">
-             <button onClick={onBack} className="p-2 hover:bg-gray-100 rounded-xl transition-colors">
+             <button onClick={onBack} className="p-1 hover:bg-white/20 rounded-lg transition-colors">
                <ChevronRight size={20} />
              </button>
-             <h1 className="font-black text-lg text-gray-900 italic font-sans">נועה AI</h1>
+             <div className="flex flex-col">
+               <h1 className="font-black text-sm uppercase tracking-wider">Saban Chat</h1>
+               <div className="flex items-center gap-1.5">
+                 <div className="w-2 h-2 bg-green-400 rounded-full shadow-[0_0_5px_rgba(74,222,128,0.8)]" />
+                 <span className="text-[10px] font-bold">נועה - מנהלת סידור ❤️ | מחוברת ✅</span>
+               </div>
+             </div>
           </div>
-          <div className="flex items-center gap-4">
-             <button 
-               onClick={() => setIsAutoVoice(!isAutoVoice)}
-               className={`p-2 rounded-xl transition-all ${isAutoVoice ? 'bg-sky-50 text-sky-600' : 'text-gray-400'}`}
-             >
-               <Speaker size={18} />
-             </button>
-             <div className="flex items-center gap-1.5">
-               <div className="w-2 h-2 bg-green-500 rounded-full" />
-               <span className="text-[10px] font-black text-gray-400 uppercase">ONLINE</span>
+          <div className="flex items-center gap-3">
+             <img 
+               src="https://i.postimg.cc/qqWtk5qr/Gemini-Generated-Image-6z6qts6z6qts6z6q.png" 
+               alt="Noa" 
+               className="w-9 h-9 rounded-full object-cover border-2 border-white/50"
+             />
+             <div className="flex gap-2 text-white/80">
+                <button className="hover:text-white"><Settings size={16} /></button>
+                <button onClick={onBack} className="hover:text-white"><ChevronRight size={16} className="rotate-90" /></button>
              </div>
           </div>
         </header>
@@ -182,15 +195,21 @@ export const NoaChat = ({
         {/* Message List */}
         <div 
           ref={chatScrollRef}
-          className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 max-w-full md:max-w-4xl mx-auto w-full scroll-smooth"
+          className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 max-w-full md:max-w-4xl mx-auto w-full scroll-smooth"
         >
           {chatHistory.length === 0 && (
             <div className="text-center py-20 px-4">
-              <div className="bg-sky-50 w-24 h-24 rounded-[3rem] flex items-center justify-center mx-auto mb-6 shadow-inner">
-                 <MessageSquare className="text-sky-600" size={48} />
+              <div className="w-24 h-24 rounded-[3rem] flex items-center justify-center mx-auto mb-6 shadow-2xl relative overflow-hidden bg-sky-50">
+                 <img 
+                   src="https://i.postimg.cc/qqWtk5qr/Gemini-Generated-Image-6z6qts6z6qts6z6q.png" 
+                   alt="Noa" 
+                   className="w-full h-full object-cover"
+                   referrerPolicy="no-referrer"
+                 />
+                 <div className="absolute inset-0 border-4 border-white/20 rounded-[3rem]" />
               </div>
-              <h2 className="text-2xl font-black mb-2 italic">שלום ראמי</h2>
-              <p className="text-sm font-bold text-gray-400 mb-8 max-w-[250px] mx-auto">"תפתחי הזמנה חדשה לחכמת לשעה 9 ליעד ברקאי"</p>
+              <h2 className="text-2xl font-black mb-2 italic">שלום ראמי נשמה ❤️</h2>
+              <p className="text-sm font-bold text-gray-400 mb-8 max-w-[250px] mx-auto">איך אני יכולה לעזור לך ולאחי ושותפי היום? 🏗️</p>
               
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-md mx-auto">
                  {dynamicSuggestions.slice(0, 6).map(suggestion => (
@@ -212,12 +231,19 @@ export const NoaChat = ({
               key={idx} 
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              className={`flex w-full ${chat.role === 'user' ? 'justify-start' : 'justify-end'}`}
+              className={`flex w-full gap-3 ${chat.role === 'user' ? 'justify-start' : 'justify-end flex-row-reverse'}`}
             >
-              <div className={`max-w-[90%] md:max-w-md p-5 rounded-[2.5rem] text-sm md:text-base font-bold leading-relaxed shadow-xl backdrop-blur-md relative group/msg ${
+              {chat.role !== 'user' && (
+                <img 
+                  src="https://i.postimg.cc/qqWtk5qr/Gemini-Generated-Image-6z6qts6z6qts6z6q.png" 
+                  alt="Noa" 
+                  className="w-8 h-8 rounded-full object-cover shrink-0 mt-1 shadow-md"
+                />
+              )}
+              <div className={`max-w-[85%] md:max-w-md p-4 rounded-2xl text-sm md:text-base font-bold leading-relaxed shadow-sm relative group/msg ${
                 chat.role === 'user' 
-                  ? 'bg-sky-600 text-white rounded-tr-none shadow-sky-600/10' 
-                  : 'bg-white/95 text-gray-800 rounded-tl-none border-2 border-sky-50'
+                  ? 'bg-sky-500 text-white rounded-tr-none' 
+                  : 'bg-[#e2e8e4] text-gray-800 rounded-tl-none border border-gray-200/50'
               }`}>
                 {chat.parts[0].text.includes('<table') || chat.parts[0].text.includes('<div') ? (
                   <div 
