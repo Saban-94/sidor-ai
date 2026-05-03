@@ -965,7 +965,7 @@ function AppContent() {
       if (permission === 'granted') {
         setNotificationsEnabled(true);
       } else {
-        addToast('התראות', 'כדי לקבל התראות יש לאשר אותן בהגדרות הדפדפן.', 'warning');
+        alert('כדי לקבל התראות יש לאשר אותן בהגדרות הדפדפן.');
       }
     } else {
       setNotificationsEnabled(false);

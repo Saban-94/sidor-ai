@@ -5,7 +5,6 @@ import {
   Send, 
   CheckCircle2, 
   Clock, 
-  AlertCircle,
   Truck, 
   ArrowLeft,
   Share2,
@@ -48,12 +47,6 @@ export default function MorningReportSystem({ onBack, drivers }: { onBack: () =>
   const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [activeReport, setActiveReport] = useState<MorningReport | null>(null);
-  const [feedback, setFeedback] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
-
-  const showFeedback = (message: string, type: 'success' | 'error' = 'success') => {
-    setFeedback({ message, type });
-    setTimeout(() => setFeedback(null), 3000);
-  };
 
   useEffect(() => {
     // Listen for active orders (not delivered)
@@ -141,10 +134,10 @@ export default function MorningReportSystem({ onBack, drivers }: { onBack: () =>
         createdAt: serverTimestamp()
       });
       setSelectedOrders([]);
-      showFeedback('הדוח נשמר בהצלחה בארכיון! ✅');
+      alert('הדוח נשמר בהצלחה בארכיון! ✅');
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, 'morning_reports');
-      showFeedback('חלה שגיאה בשמירת הדוח. אנא נסה שנית.', 'error');
+      alert('חלה שגיאה בשמירת הדוח. אנא נסה שנית.');
     } finally {
       setIsGenerating(false);
     }
@@ -152,7 +145,7 @@ export default function MorningReportSystem({ onBack, drivers }: { onBack: () =>
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    showFeedback('הדוח הועתק! עכשיו אפשר להדביק בוואטסאפ 🚀');
+    alert('הדוח הועתק! עכשיו אפשר להדביק בוואטסאפ 🚀');
   };
 
   return (
@@ -454,26 +447,6 @@ export default function MorningReportSystem({ onBack, drivers }: { onBack: () =>
               </div>
             </motion.div>
           </div>
-        )}
-      </AnimatePresence>
-
-      {/* Feedback Toast */}
-      <AnimatePresence>
-        {feedback && (
-          <motion.div 
-            initial={{ opacity: 0, y: 50 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 50 }}
-            className={`fixed bottom-8 left-8 z-[110] px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-4 text-white ${
-              feedback.type === 'error' ? 'bg-rose-600' : 'bg-emerald-600'
-            }`}
-          >
-            {feedback.type === 'error' ? <AlertCircle size={24} /> : <CheckCircle2 size={24} />}
-            <span className="font-bold">{feedback.message}</span>
-            <button onClick={() => setFeedback(null)} className="p-1 hover:bg-white/20 rounded-lg">
-              <X size={20} className="text-white" />
-            </button>
-          </motion.div>
         )}
       </AnimatePresence>
     </div>

@@ -10,7 +10,6 @@ import {
   CheckCircle2, 
   Loader2, 
   MessageCircle,
-  AlertCircle,
   Plus,
   Minus,
   Search,
@@ -48,9 +47,6 @@ const OrderForm: React.FC<OrderFormProps> = ({
     driverId: 'pending',
     documentIds: [] as string[]
   });
-
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const [selectedItems, setSelectedItems] = useState<{item: InventoryItem, quantity: number}[]>([]);
   const [docInput, setDocInput] = useState('');
@@ -207,11 +203,11 @@ const OrderForm: React.FC<OrderFormProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validatePhone(formData.customerPhone)) {
-      setErrorMsg('נא להזין מספר טלפון תקין (05XXXXXXXX)');
+      alert('נא להזין מספר טלפון תקין (05XXXXXXXX)');
       return;
     }
     if (!isManualItems && selectedItems.length === 0) {
-      setErrorMsg('נא לבחור לפחות פריט אחד');
+      alert('נא לבחור לפחות פריט אחד');
       return;
     }
 
@@ -247,7 +243,7 @@ const OrderForm: React.FC<OrderFormProps> = ({
       }
     } catch (error) {
       console.error('Error saving order:', error);
-      setErrorMsg('שגיאה בשמירת ההזמנה. נסה שוב.');
+      alert('שגיאה בשמירת ההזמנה. נסה שוב.');
     } finally {
       setLoading(false);
     }
@@ -671,23 +667,6 @@ const OrderForm: React.FC<OrderFormProps> = ({
           </div>
         )}
       </motion.div>
-
-      <AnimatePresence>
-        {errorMsg && (
-          <motion.div 
-            initial={{ opacity: 0, y: 50 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 50 }}
-            className="fixed bottom-8 left-8 z-[110] bg-rose-600 text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-4"
-          >
-            <AlertCircle size={24} />
-            <span className="font-bold">{errorMsg}</span>
-            <button onClick={() => setErrorMsg(null)} className="p-1 hover:bg-white/20 rounded-lg">
-              <X size={20} />
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 };
