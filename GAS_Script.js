@@ -1,6 +1,39 @@
 /**
- * SabanOS - Bi-Directional Sync & BlackBox Logging System
- * 
+ * SabanOS - Trigger & Sync Logic
+ */
+function onEditTrigger(e) {
+  var range = e.range;
+  var sheet = range.getSheet();
+  var value = range.getValue();
+  var cell = range.getA1Notation();
+  
+  if (sheet.getName() === "Sidor-noaa") {
+    try {
+      console.log("Change detected at " + cell + ": " + value);
+      // Sync logic with SabanOS Proxy would go here
+      logToBlackBox("CELL_CHANGE", { cell: cell, value: value, sheet: sheet.getName() });
+    } catch (err) {
+      console.error("Trigger fail at " + cell + ": " + err.message);
+    }
+  }
+}
+
+function scanSabanDrive() {
+  var folderId = "YOUR_SABANOS_FOLDER_ID";
+  var folder = DriveApp.getFolderById(folderId);
+  var files = folder.getFilesByType(MimeType.MICROSOFT_EXCEL);
+  
+  while (files.hasNext()) {
+    var file = files.next();
+    // Logic to push file updates to SabanOS context
+  }
+}
+
+function logToBlackBox(type, data) {
+  // Implementation for logging to BlackBox system
+}
+
+/**
  * Instructions:
  * 1. Open Google Sheets.
  * 2. Go to Extensions > Apps Script.

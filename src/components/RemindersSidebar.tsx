@@ -273,7 +273,7 @@ export const RemindersSidebar: React.FC<RemindersSidebarProps> = ({
                           )}
                           <button 
                             onClick={() => {
-                              if (window.confirm('למחוק את התזכורת?')) onDelete(reminder.id!);
+                              onDelete(reminder.id!);
                             }}
                             className="p-2.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-2xl transition-all border border-transparent hover:border-red-100"
                             title="מחק"

@@ -53,6 +53,8 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({ orders = [] 
   const [isAddingItem, setIsAddingItem] = useState(false);
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   useEffect(() => {
     const qItems = query(collection(db, 'inventory'), orderBy('name', 'asc'));
@@ -122,16 +124,21 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({ orders = [] 
       setEditingItem(null);
     } catch (error: any) {
       handleFirestoreError(error, editingItem ? OperationType.UPDATE : OperationType.CREATE, 'inventory');
-      alert("שגיאה בשמירת המוצר: " + (error?.message || "שגיאה לא ידועה"));
+      setErrorMsg("שגיאה בשמירת המוצר: " + (error?.message || "שגיאה לא ידועה"));
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const handleDeleteItem = async (id: string) => {
-    if (!window.confirm("האם אתה בטוח שברצונך למחוק מוצר זה?")) return;
+    setDeleteConfirmId(id);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteConfirmId) return;
     try {
-      await deleteDoc(doc(db, 'inventory', id));
+      await deleteDoc(doc(db, 'inventory', deleteConfirmId));
+      setDeleteConfirmId(null);
     } catch (error) {
       console.error("Error deleting item:", error);
     }
@@ -610,6 +617,63 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({ orders = [] 
               </form>
             </motion.div>
           </div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {deleteConfirmId && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setDeleteConfirmId(null)}
+              className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-sm bg-white rounded-[32px] shadow-2xl p-8 text-center"
+            >
+              <div className="w-20 h-20 bg-rose-50 text-rose-600 rounded-3xl flex items-center justify-center mx-auto mb-6">
+                <Trash2 size={40} />
+              </div>
+              <h3 className="text-2xl font-black text-gray-900 mb-2">מחיקת מוצר</h3>
+              <p className="text-gray-500 font-bold mb-8">האם אתה בטוח שברצונך למחוק מוצר זה מהמאגר?</p>
+              <div className="flex gap-4">
+                <button 
+                  onClick={confirmDelete}
+                  className="flex-1 py-4 bg-rose-600 text-white rounded-2xl font-black shadow-lg shadow-rose-600/20 active:scale-95 transition-all"
+                >
+                  מחק לצמיתות
+                </button>
+                <button 
+                  onClick={() => setDeleteConfirmId(null)}
+                  className="flex-1 py-4 bg-gray-100 text-gray-400 rounded-2xl font-black active:scale-95 transition-all"
+                >
+                  ביטול
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {errorMsg && (
+          <motion.div 
+            initial={{ opacity: 0, y: 50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 50 }}
+            className="fixed bottom-8 left-8 z-[110] bg-rose-600 text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-4"
+          >
+            <AlertTriangle size={24} />
+            <span className="font-bold">{errorMsg}</span>
+            <button onClick={() => setErrorMsg(null)} className="p-1 hover:bg-white/20 rounded-lg">
+              <X size={20} />
+            </button>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>

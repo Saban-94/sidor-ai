@@ -14,6 +14,8 @@ import {
   Briefcase,
   Image as ImageIcon,
   CheckCircle2,
+  AlertCircle,
+  Info,
   X,
   Copy
 } from 'lucide-react';
@@ -30,6 +32,13 @@ export const UserAdminPanel = () => {
   const [loading, setLoading] = useState(true);
   const [isAddingMod, setIsAddingMod] = useState(false);
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
+  const [feedback, setFeedback] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+
+  const showFeedback = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+    setFeedback({ message, type });
+    setTimeout(() => setFeedback(null), 3000);
+  };
 
   // Form State
   const [formData, setFormData] = useState({
@@ -59,14 +68,14 @@ export const UserAdminPanel = () => {
     if (password === '1125') {
       setIsAuthenticated(true);
     } else {
-      alert('סיסמה שגויה!');
+      showFeedback('סיסמה שגויה!', 'error');
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (formData.id.length !== 4) {
-      alert('מזהה חייב להיות בן 4 ספרות!');
+      showFeedback('מזהה חייב להיות בן 4 ספרות!', 'error');
       return;
     }
 
@@ -79,30 +88,36 @@ export const UserAdminPanel = () => {
         createdAt: editingUser ? editingUser.createdAt : serverTimestamp()
       }, { merge: true });
 
-      alert(editingUser ? 'משתמש עודכן בהצלחה!' : 'משתמש נוצר בהצלחה!');
+      showFeedback(editingUser ? 'משתמש עודכן בהצלחה!' : 'משתמש נוצר בהצלחה!', 'success');
       setIsAddingMod(false);
       setEditingUser(null);
       setFormData({ id: '', name: '', phone: '', email: '', role: '', avatarUrl: '' });
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, `user_magic_pages/${formData.id}`);
-      alert('שגיאה בשמירת המשתמש');
+      showFeedback('שגיאה בשמירת המשתמש', 'error');
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm('האם אתה בטוח שברצונך למחוק משתמש זה?')) return;
+    setDeleteConfirmId(id);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteConfirmId) return;
     try {
-      await deleteDoc(doc(db, 'user_magic_pages', id));
+      await deleteDoc(doc(db, 'user_magic_pages', deleteConfirmId));
+      showFeedback('משתמש נמחק בהצלחה', 'success');
+      setDeleteConfirmId(null);
     } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `user_magic_pages/${id}`);
-      alert('שגיאה במחיקת המשתמש');
+      handleFirestoreError(error, OperationType.DELETE, `user_magic_pages/${deleteConfirmId}`);
+      showFeedback('שגיאה במחיקת המשתמש', 'error');
     }
   };
 
   const copyLink = (id: string) => {
     const link = `https://sidor-ai-xi.vercel.app/user/${id}`;
     navigator.clipboard.writeText(link);
-    alert('קישור הועתק ללוח!');
+    showFeedback('קישור הועתק ללוח!', 'success');
   };
 
   if (!isAuthenticated) {
@@ -335,6 +350,67 @@ export const UserAdminPanel = () => {
               </form>
             </motion.div>
           </div>
+        )}
+      </AnimatePresence>
+
+      {/* Delete Confirmation */}
+      <AnimatePresence>
+        {deleteConfirmId && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setDeleteConfirmId(null)}
+              className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-sm bg-white rounded-[32px] shadow-2xl p-8 text-center"
+            >
+              <div className="w-20 h-20 bg-rose-50 text-rose-600 rounded-3xl flex items-center justify-center mx-auto mb-6">
+                <Trash2 size={40} />
+              </div>
+              <h3 className="text-2xl font-black text-gray-900 mb-2">מחיקת משתמש</h3>
+              <p className="text-gray-500 font-bold mb-8">האם אתה בטוח שברצונך למחוק משתמש זה? פעולה זו תבטל את גישת הקסם שלו.</p>
+              <div className="flex gap-4">
+                <button 
+                  onClick={confirmDelete}
+                  className="flex-1 py-4 bg-rose-600 text-white rounded-2xl font-black shadow-lg shadow-rose-600/20 active:scale-95 transition-all"
+                >
+                  מחק לצמיתות
+                </button>
+                <button 
+                  onClick={() => setDeleteConfirmId(null)}
+                  className="flex-1 py-4 bg-gray-100 text-gray-400 rounded-2xl font-black active:scale-95 transition-all"
+                >
+                  ביטול
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Feedback Toast */}
+      <AnimatePresence>
+        {feedback && (
+          <motion.div 
+            initial={{ opacity: 0, y: 50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 50 }}
+            className={`fixed bottom-8 left-8 z-[110] px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-4 text-white ${
+              feedback.type === 'error' ? 'bg-rose-600' : feedback.type === 'success' ? 'bg-emerald-600' : 'bg-sky-600'
+            }`}
+          >
+            {feedback.type === 'error' ? <AlertCircle size={24} /> : feedback.type === 'success' ? <CheckCircle2 size={24} /> : <Info size={24} />}
+            <span className="font-bold">{feedback.message}</span>
+            <button onClick={() => setFeedback(null)} className="p-1 hover:bg-white/20 rounded-lg">
+              <X size={20} />
+            </button>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>

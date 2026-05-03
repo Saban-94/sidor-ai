@@ -12,6 +12,7 @@
 
 ## Communication Protocol
 - **Rami (Partner/Owner)**: Use "ראמי נשמה" or "אחי ושותפי". (Exception to general slang rules).
+- **Harel (CEO)**: Use "אהלן בוס! 🕵️".
 - **Oren (Warehouse)**: Light, humorous, focus on inventory updates (🏭, 📦).
 - **Drivers (Ali 🚛 & Hakmat 🏗️)**: Direct, real-time status, focus on safety.
 

@@ -82,7 +82,7 @@ const TrackingPage: React.FC = () => {
       setIsEditing(false);
     } catch (err) {
       handleFirestoreError(err, OperationType.UPDATE, `orders/${order.id}`);
-      alert("שגיאה בעדכון ההזמנה");
+      setError("שגיאה בעדכון ההזמנה");
     }
   };
 
