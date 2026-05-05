@@ -8,18 +8,26 @@ import {
 } from 'lucide-react';
 import { Avatar } from './Avatar';
 import { MediaRenderer } from './MediaRenderer';
+import { MiniOrderCard } from './MiniOrderCard';
+import { Order } from '../types';
 
 interface MessageBubbleProps {
   message: TeamChatMessage;
   isMe: boolean;
   onImageClick?: (url: string) => void;
+  onOrderView?: (order: Order) => void;
   variant?: 'standard' | 'glass';
 }
 
-export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isMe, onImageClick, variant = 'standard' }) => {
+export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isMe, onImageClick, onOrderView, variant = 'standard' }) => {
   const isUrgent = message.priority === 'urgent';
   const showMedia = message.fileId || message.imageUrl || message.fileUrl;
   const isGlass = variant === 'glass';
+
+  // Find order IDs in text (pattern: # followed by 4-10 digits, or just 5-6 digits if specific)
+  const orderIds = message.text?.match(/#?\d{4,8}/g) || [];
+  // Ensure uniquely recognized IDS (simple check)
+  const uniqueOrderIds = Array.from(new Set(orderIds));
 
   return (
     <motion.div 
@@ -85,6 +93,19 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isMe, onI
               <p className="text-sm sm:text-[15px] font-bold leading-relaxed whitespace-pre-wrap">
                 {message.text}
               </p>
+              
+              {/* Intelligent Order Card Injection */}
+              {uniqueOrderIds.length > 0 && (
+                <div className="flex flex-col gap-2 mt-2">
+                  {uniqueOrderIds.map(id => (
+                    <MiniOrderCard 
+                      key={id} 
+                      orderId={id} 
+                      onView={onOrderView} 
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           )}
 

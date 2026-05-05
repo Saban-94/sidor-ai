@@ -16,7 +16,7 @@ import {
   Image as ImageIcon
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { UserProfile, TeamChatMessage } from '../types';
+import { UserProfile, TeamChatMessage, Order } from '../types';
 import { db, auth } from '../lib/firebase';
 import { 
   onSnapshot, 
@@ -39,6 +39,7 @@ import { uploadFileToDrive } from '../services/driveService';
 interface SocialChatRoomProps {
   currentUserProfile: UserProfile;
   onClose?: () => void;
+  onOrderView?: (order: Order) => void;
 }
 
 /**
@@ -47,7 +48,8 @@ interface SocialChatRoomProps {
  */
 export const SocialChatRoom: React.FC<SocialChatRoomProps> = ({ 
   currentUserProfile, 
-  onClose 
+  onClose,
+  onOrderView
 }) => {
   const { playDing, playAlert } = useNotifications();
   const [messages, setMessages] = useState<TeamChatMessage[]>([]);
@@ -371,6 +373,7 @@ export const SocialChatRoom: React.FC<SocialChatRoomProps> = ({
               onLoadMore={handleLoadMore}
               isLoadingMore={isLoadingMore}
               hasMore={hasMore}
+              onOrderView={onOrderView}
            />
         </div>
 

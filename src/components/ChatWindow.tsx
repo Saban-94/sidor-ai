@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { TeamChatMessage, UserProfile } from '../types';
+import { TeamChatMessage, UserProfile, Order } from '../types';
 import { MessageBubble } from './MessageBubble';
 
 interface ChatWindowProps {
@@ -13,6 +13,7 @@ interface ChatWindowProps {
   onLoadMore?: () => void;
   isLoadingMore?: boolean;
   hasMore?: boolean;
+  onOrderView?: (order: Order) => void;
 }
 
 export const ChatWindow: React.FC<ChatWindowProps> = ({
@@ -24,7 +25,8 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   variant = 'standard',
   onLoadMore,
   isLoadingMore,
-  hasMore = false
+  hasMore = false,
+  onOrderView
 }) => {
   const isGlass = variant === 'glass';
   const typingMembers = teamMembers.filter(m => 
@@ -76,6 +78,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
             message={msg}
             isMe={msg.senderId === currentUserProfile.id}
             variant={variant}
+            onOrderView={onOrderView}
           />
         ))}
       </div>

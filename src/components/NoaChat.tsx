@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { Order } from '../types';
 import { parseItems } from '../lib/utils';
+import { MiniOrderCard } from './MiniOrderCard';
 
 interface NoaChatProps {
   chatHistory: any[];
@@ -19,6 +20,7 @@ interface NoaChatProps {
   onBack: () => void;
   onAction: (action: string) => void;
   orders: Order[];
+  onOrderView?: (order: Order) => void;
 }
 
 export const NoaChat = ({ 
@@ -26,7 +28,8 @@ export const NoaChat = ({
   chatScrollRef, 
   onBack, 
   onAction,
-  orders 
+  orders,
+  onOrderView
 }: NoaChatProps) => {
   const [isAutoVoice, setIsAutoVoice] = useState(() => localStorage.getItem('noa_auto_voice') === 'true');
   const [currentlySpeaking, setCurrentlySpeaking] = useState<number | null>(null);
@@ -272,7 +275,27 @@ const dynamicSuggestions = [
                     dangerouslySetInnerHTML={{ __html: chat.parts[0].text }}
                   />
                 ) : (
-                  chat.parts[0].text
+                  <div>
+                    {chat.parts[0].text}
+                    {/* Order ID Detection Logic */}
+                    {(() => {
+                      const orderIdRegex = /#?(\d{4,8})/g;
+                      const matches = [...chat.parts[0].text.matchAll(orderIdRegex)];
+                      const orderIds = [...new Set(matches.map(m => m[1]))];
+                      
+                      return orderIds.length > 0 && (
+                        <div className="mt-4 space-y-2">
+                          {orderIds.map(id => (
+                            <MiniOrderCard 
+                              key={id} 
+                              orderId={id} 
+                              onOrderView={onOrderView}
+                            />
+                          ))}
+                        </div>
+                      );
+                    })()}
+                  </div>
                 )}
                 
                 {chat.role !== 'user' && (

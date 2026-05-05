@@ -13,7 +13,7 @@ import {
   Image as ImageIcon
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { UserProfile, TeamChatMessage } from '../types';
+import { UserProfile, TeamChatMessage, Order } from '../types';
 import { db, auth } from '../lib/firebase';
 import { 
   onSnapshot, 
@@ -42,12 +42,14 @@ interface TeamMessengerContainerProps {
   currentUserProfile: UserProfile;
   fullScreen?: boolean;
   onClose?: () => void;
+  onOrderView?: (order: Order) => void;
 }
 
 export const TeamMessengerContainer: React.FC<TeamMessengerContainerProps> = ({ 
   currentUserProfile, 
   fullScreen = false,
-  onClose
+  onClose,
+  onOrderView
 }) => {
   const { playDing, playAlert } = useNotifications();
   const [isOpen, setIsOpen] = useState(fullScreen);
@@ -376,6 +378,7 @@ export const TeamMessengerContainer: React.FC<TeamMessengerContainerProps> = ({
                     teamMembers={teamMembers}
                     scrollRef={scrollRef}
                     recipientId={selectedMember?.id}
+                    onOrderView={onOrderView}
                   />
 
                   <ChatInput 

@@ -99,7 +99,20 @@ export interface SaleRecord {
   quantity: number;
   date: string;
   priceAtSale?: number;
+  originWarehouse?: string; // Added field
   createdAt?: Timestamp;
+}
+
+export interface OrderItem {
+  id?: string;
+  orderId: string;
+  sku: string;
+  name: string;
+  quantity: number;
+  price?: number;
+  originWarehouse: 'החרש' | 'התלמיד' | 'חיצוני';
+  status: 'pending' | 'supplied' | 'shortage';
+  createdAt: Timestamp;
 }
 
 export interface UserProfile {

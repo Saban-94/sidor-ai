@@ -65,6 +65,10 @@ export class GasService {
     return this.push('syncInventory', { ...inventoryData, sheetName: 'Inventory' });
   }
 
+  static async syncCustomer(customerData: any) {
+    return this.push('syncCustomer', { ...customerData, sheetName: 'Customers' });
+  }
+
   static async syncChat(chatData: any) {
     return this.push('syncChat', { ...chatData, sheetName: 'Chat' });
   }

@@ -81,6 +81,7 @@ import { NoaChat } from './components/NoaChat';
 import { initOneSignal, sendOrderNotification } from './services/notificationService';
 import { DeliveryImport } from './components/DeliveryImport';
 import { InventoryManager } from './components/InventoryManager';
+import { InventoryDashboard } from './components/InventoryDashboard';
 import OrderForm from './components/OrderForm';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import TrackingPage from './components/TrackingPage';
@@ -1446,6 +1447,7 @@ function AppContent() {
                       onBack={() => setViewMode('list')}
                       onAction={handleNoaAction}
                       orders={orders}
+                      onOrderView={(order) => setEditingOrder(order)}
                     />
                   ) : viewMode === 'chat_full' ? (
                     <div className="fixed inset-0 z-[1000] bg-white">
@@ -1461,6 +1463,7 @@ function AppContent() {
                         }} 
                         fullScreen={true} 
                         onClose={() => setViewMode('list')} 
+                        onOrderView={(order) => setEditingOrder(order)}
                       />
                     </div>
                   ) : (
@@ -1551,7 +1554,7 @@ function AppContent() {
                   phone: '',
                   email: user.email || '',
                   lastSeen: serverTimestamp()
-                }} />
+                }} onOrderView={(order) => setEditingOrder(order)} />
               </div>
             )}
 
@@ -1966,11 +1969,20 @@ function AppContent() {
             <SocialChatRoom 
               currentUserProfile={currentUserProfile} 
               onClose={() => setViewMode('list')} 
+              onOrderView={(order) => setEditingOrder(order)}
             />
           ) : viewMode === 'import' ? (
             <DeliveryImport />
           ) : viewMode === 'table' ? (
-            <InventoryManager orders={orders} />
+            <InventoryDashboard
+              orders={orders}
+              onViewOrder={(orderId) => {
+                const order = orders.find(o => o.id === orderId);
+                if (order) {
+                  setEditingOrder(order);
+                }
+              }}
+            />
           ) : filteredOrders.length === 0 && (viewMode === 'list' || viewMode === 'kanban') ? (
             <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
               <div className="bg-gray-100 p-4 rounded-full mb-3 text-gray-400">
