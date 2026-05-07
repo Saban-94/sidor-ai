@@ -16,7 +16,8 @@ import {
   Loader2,
   User,
   Calendar,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Paperclip
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -26,6 +27,7 @@ import {
   orderBy, 
   doc, 
   addDoc, 
+  setDoc,
   updateDoc, 
   deleteDoc, 
   serverTimestamp,
@@ -39,12 +41,14 @@ import { format } from 'date-fns';
 import { he } from 'date-fns/locale';
 import { parseItems } from '../lib/utils';
 import { UIModal } from './UIModal';
+import { useToast } from '../providers/ToastProvider';
 
 interface InventoryManagerProps {
   orders?: Order[];
 }
 
 export const InventoryManager: React.FC<InventoryManagerProps> = ({ orders = [] }) => {
+  const { addToast } = useToast();
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [sales, setSales] = useState<SaleRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -116,14 +120,18 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({ orders = [] 
     };
 
     try {
+      const sku = formData.get('sku') as string;
       if (editingItem) {
         const { createdAt, ...updateData } = newItem;
         await updateDoc(doc(db, 'inventory', editingItem.id!), {
           ...updateData,
           updatedAt: serverTimestamp()
         });
+        addToast('המוצר עודכן', `המוצר ${newItem.name} עודכן בהצלחה בסידור ח.סבן! ✅`, 'success');
       } else {
-        await addDoc(collection(db, 'inventory'), newItem);
+        // Use SKU as document ID for new products as requested
+        await setDoc(doc(db, 'inventory', sku), newItem);
+        addToast('המוצר נוסף', `המוצר ${newItem.name} נוסף בהצלחה למאגר ח.סבן! ✅`, 'success');
       }
       setIsAddingItem(false);
       setEditingItem(null);
@@ -149,7 +157,10 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({ orders = [] 
       onConfirm: async () => {
         try {
           await deleteDoc(doc(db, 'inventory', id));
+          addToast('מחיקה הושלמה', 'המוצר הוסר לצמיתות מהמערכת ✅', 'success');
           setModalConfig(prev => ({ ...prev, isOpen: false }));
+          setIsAddingItem(false);
+          setEditingItem(null);
         } catch (error) {
           console.error("Error deleting item:", error);
         }
@@ -477,7 +488,7 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({ orders = [] 
       </div>
     )}
 
-      {/* Add / Edit Modal */}
+      {/* Add / Edit Modal - Redesigned for Enterprise Standards */}
       <AnimatePresence>
         {isAddingItem && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -486,148 +497,263 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({ orders = [] 
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => {
-                setIsAddingItem(false);
-                setEditingItem(null);
+                if (!isSubmitting) {
+                  setIsAddingItem(false);
+                  setEditingItem(null);
+                }
               }}
-              className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm"
+              className="absolute inset-0 bg-slate-900/40 backdrop-blur-md"
             />
             <motion.div 
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-lg bg-white rounded-[32px] shadow-2xl overflow-hidden"
+              className="relative w-full max-w-4xl bg-white rounded-[2rem] shadow-2xl overflow-hidden border border-slate-100"
             >
-              <div className="bg-gray-900 p-6 text-white flex justify-between items-center">
-                <h3 className="text-xl font-bold">{editingItem ? 'ערוך מוצר' : 'הוסף מוצר חדש'}</h3>
-                <button onClick={() => {
-                  setIsAddingItem(false);
-                  setEditingItem(null);
-                }} className="p-1 hover:bg-white/10 rounded-lg">
+              <div className="bg-white border-b border-slate-100 p-8 flex justify-between items-center">
+                <div>
+                  <h3 className="text-2xl font-black text-slate-800 tracking-tight">
+                    {editingItem ? 'עריכת מוצר במערכת' : 'הוספת מוצר חדש למערכת'}
+                  </h3>
+                  <p className="text-slate-400 text-sm font-medium mt-1">ניהול מלאי מתקדם - SabanOS v3.5</p>
+                </div>
+                <button 
+                  onClick={() => {
+                    setIsAddingItem(false);
+                    setEditingItem(null);
+                  }} 
+                  className="p-3 hover:bg-slate-50 text-slate-400 hover:text-slate-900 rounded-2xl transition-all"
+                >
                   <X size={24} />
                 </button>
               </div>
               
-              <form onSubmit={handleAddItem} className="p-6 space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-400 mb-1">מק"ט</label>
-                    <input 
-                      name="sku" 
-                      required 
-                      defaultValue={editingItem?.sku}
-                      placeholder="למשל: 11501"
-                      className="w-full bg-gray-50 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-sky-600 outline-none" 
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-400 mb-1">שם מוצר</label>
-                    <input 
-                      name="name" 
-                      required 
-                      defaultValue={editingItem?.name}
-                      placeholder="למשל: חול שק גדול"
-                      className="w-full bg-gray-50 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-sky-600 outline-none" 
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-gray-400 mb-1">תיאור</label>
-                  <textarea 
-                    name="description" 
-                    defaultValue={editingItem?.description}
-                    placeholder="תיאור קצר של המוצר..."
-                    rows={2}
-                    className="w-full bg-gray-50 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-sky-600 outline-none resize-none" 
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-gray-400 mb-1">לינק לתמונת מוצר</label>
-                  <div className="flex gap-2">
-                    <input 
-                      name="imageUrl" 
-                      type="url"
-                      defaultValue={editingItem?.imageUrl}
-                      placeholder="https://example.com/image.jpg"
-                      className="flex-1 bg-gray-50 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-sky-600 outline-none" 
-                    />
-                    {editingItem?.imageUrl && (
-                      <div className="w-12 h-12 rounded-xl border border-gray-200 overflow-hidden bg-gray-50 flex items-center justify-center">
-                        <img 
-                          src={editingItem.imageUrl} 
-                          alt="Preview" 
-                          className="w-full h-full object-cover"
-                          referrerPolicy="no-referrer"
+              <form onSubmit={handleAddItem} className="p-8">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+                  
+                  {/* Left Column: Product Details */}
+                  <div className="lg:col-span-7 space-y-6">
+                    <div className="grid grid-cols-2 gap-6">
+                      <div className="col-span-2 md:col-span-1">
+                        <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">מק"ט (מזהה ייחודי)</label>
+                        <div className="relative group">
+                          <input 
+                            name="sku" 
+                            required 
+                            defaultValue={editingItem?.sku}
+                            placeholder="למשל: 11501"
+                            className="w-full bg-slate-50 border-2 border-transparent rounded-2xl px-5 py-4 text-sm font-mono font-bold text-indigo-600 focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50/50 outline-none transition-all shadow-inner" 
+                          />
+                          <div className="absolute left-4 top-1/2 -translate-y-1/2 text-indigo-300 opacity-0 group-focus-within:opacity-100 transition-opacity">
+                            <span className="text-[10px] font-black uppercase">Unique</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="col-span-2 md:col-span-1">
+                        <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">שם מוצר</label>
+                        <input 
+                          name="name" 
+                          required 
+                          defaultValue={editingItem?.name}
+                          placeholder="למשל: חול שק גדול"
+                          className="w-full bg-slate-50 border-2 border-transparent rounded-2xl px-5 py-4 text-sm font-bold text-slate-700 focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50/50 outline-none transition-all" 
                         />
                       </div>
-                    )}
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-6">
+                      <div>
+                        <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">קטגוריה</label>
+                        <input 
+                          name="category" 
+                          defaultValue={editingItem?.category}
+                          placeholder="למשל: חומרי מחצבה"
+                          className="w-full bg-slate-50 border-2 border-transparent rounded-2xl px-5 py-4 text-sm font-bold text-slate-700 focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50/50 outline-none transition-all" 
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">יחידת מידה</label>
+                        <select 
+                          name="unit" 
+                          defaultValue={editingItem?.unit || 'יחידה'} 
+                          className="w-full bg-slate-50 border-2 border-transparent rounded-2xl px-5 py-4 text-sm font-bold text-slate-700 focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50/50 outline-none transition-all appearance-none"
+                        >
+                          <option value="יחידה">יחידה</option>
+                          <option value="קילו">קילו</option>
+                          <option value="שק">שק</option>
+                          <option value="משטח">משטח</option>
+                          <option value="בלה">בלה</option>
+                          <option value="קוב">קוב</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">מחיר ליחידה (₪)</label>
+                        <input 
+                          name="price" 
+                          type="number" 
+                          step="0.01"
+                          defaultValue={editingItem?.price}
+                          placeholder="0.00"
+                          className="w-full bg-slate-50 border-2 border-transparent rounded-2xl px-5 py-4 text-sm font-bold text-emerald-600 focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-50/50 outline-none transition-all" 
+                        />
+                      </div>
+                    </div>
+
+                    <div className="p-6 bg-slate-50 rounded-[2rem] border border-slate-100 flex items-center justify-between gap-6">
+                      <div className="flex-1">
+                        <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">מלאי זמין כרגע</label>
+                        <input 
+                          name="currentStock" 
+                          type="number" 
+                          required 
+                          id="currentStockInput"
+                          defaultValue={editingItem?.currentStock || 0}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value) || 0;
+                            const minVal = parseInt((document.getElementsByName('minStock')[0] as HTMLInputElement)?.value) || 0;
+                            const badge = document.getElementById('inventoryStatusBadge');
+                            if (badge) {
+                              if (val === 0) {
+                                badge.className = "px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-tighter text-rose-600 bg-rose-100 border border-rose-200";
+                                badge.innerText = "אזל מהמלאי";
+                              } else if (val <= minVal) {
+                                badge.className = "px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-tighter text-amber-600 bg-amber-100 border border-amber-200";
+                                badge.innerText = "מלאי נמוך";
+                              } else {
+                                badge.className = "px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-tighter text-emerald-600 bg-emerald-100 border border-emerald-200";
+                                badge.innerText = "במלאי";
+                              }
+                            }
+                          }}
+                          className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-lg font-black text-slate-800 focus:ring-2 focus:ring-indigo-600 outline-none" 
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">סף מלאי מינימלי</label>
+                        <input 
+                          name="minStock" 
+                          type="number" 
+                          required 
+                          defaultValue={editingItem?.minStock || 5}
+                          className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-lg font-black text-slate-800 focus:ring-2 focus:ring-indigo-600 outline-none" 
+                        />
+                      </div>
+                      <div className="flex flex-col items-center justify-center pt-5">
+                        <span 
+                          id="inventoryStatusBadge"
+                          className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-tighter ${
+                            (editingItem?.currentStock || 0) === 0 ? 'text-rose-600 bg-rose-100 border border-rose-200' :
+                            (editingItem?.currentStock || 0) <= (editingItem?.minStock || 5) ? 'text-amber-600 bg-amber-100 border border-amber-200' :
+                            'text-emerald-600 bg-emerald-100 border border-emerald-200'
+                          }`}
+                        >
+                          {(editingItem?.currentStock || 0) === 0 ? 'אזל מהמלאי' :
+                           (editingItem?.currentStock || 0) <= (editingItem?.minStock || 5) ? 'מלאי נמוך' : 'במלאי'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right Column: Media & Actions */}
+                  <div className="lg:col-span-5 space-y-8">
+                    <div className="space-y-4">
+                      <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1 px-1">ניהול מדיה ותמונות</label>
+                      <div className="relative group">
+                        <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400">
+                          <Paperclip size={20} />
+                        </div>
+                        <input 
+                          name="imageUrl" 
+                          type="url"
+                          id="imageUrlInput"
+                          defaultValue={editingItem?.imageUrl}
+                          placeholder="הדבק לינק לתמונה (URL)..."
+                          onChange={(e) => {
+                            const img = document.getElementById('productImagePreview') as HTMLImageElement;
+                            if (img) img.src = e.target.value || '';
+                          }}
+                          className="w-full bg-slate-50 border-2 border-transparent rounded-2xl pr-12 pl-4 py-4 text-sm font-medium text-slate-600 focus:bg-white focus:border-indigo-500 outline-none transition-all" 
+                        />
+                      </div>
+
+                      <div className="aspect-square w-full max-w-[280px] mx-auto bg-slate-50 rounded-[2.5rem] border-2 border-dashed border-slate-200 flex items-center justify-center overflow-hidden relative group/preview">
+                        <img 
+                          id="productImagePreview"
+                          src={editingItem?.imageUrl || ''} 
+                          alt="Product Preview" 
+                          className={`w-full h-full object-cover transition-transform duration-500 group-hover/preview:scale-110 ${!editingItem?.imageUrl && 'hidden'}`}
+                          referrerPolicy="no-referrer"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.style.display = 'none';
+                            const placeholder = document.getElementById('previewPlaceholder');
+                            if (placeholder) placeholder.style.display = 'flex';
+                          }}
+                          onLoad={(e) => {
+                             const target = e.target as HTMLImageElement;
+                             target.style.display = 'block';
+                             const placeholder = document.getElementById('previewPlaceholder');
+                             if (placeholder) placeholder.style.display = 'none';
+                          }}
+                        />
+                        <div 
+                          id="previewPlaceholder" 
+                          className={`flex flex-col items-center gap-3 text-slate-300 ${editingItem?.imageUrl ? 'hidden' : 'flex'}`}
+                        >
+                          <ImageIcon size={64} strokeWidth={1} />
+                          <p className="text-[10px] font-black uppercase tracking-widest">תצוגה מקדימה</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4 pt-10 border-t border-slate-100">
+                      <button 
+                        type="submit" 
+                        disabled={isSubmitting}
+                        className="w-full h-20 bg-indigo-600 hover:bg-slate-900 text-white rounded-[1.5rem] font-black text-base uppercase tracking-widest flex items-center justify-center gap-4 transition-all shadow-2xl shadow-indigo-100 disabled:opacity-50"
+                      >
+                        {isSubmitting ? (
+                          <div className="flex items-center gap-3">
+                            <Loader2 className="animate-spin" size={24} />
+                            <span>מעדכנת מאגר...</span>
+                          </div>
+                        ) : (
+                          <>
+                            <CheckCircle2 size={24} />
+                            <span>{editingItem ? 'עדכון מוצר בסידור' : 'שמירת מוצר חדש'}</span>
+                          </>
+                        )}
+                      </button>
+
+                      <div className="flex gap-4">
+                        <button 
+                          type="button"
+                          onClick={() => {
+                            setIsAddingItem(false);
+                            setEditingItem(null);
+                          }}
+                          className="flex-1 h-16 bg-slate-50 hover:bg-slate-100 text-slate-500 rounded-xl font-bold transition-all"
+                        >
+                          ביטול
+                        </button>
+                        {editingItem && (
+                          <button 
+                            type="button"
+                            onClick={() => handleDeleteItem(editingItem.id!)}
+                            className="h-16 w-16 flex items-center justify-center text-rose-500 hover:bg-rose-50 border-2 border-rose-100 rounded-xl transition-all"
+                            title="מחק לצמיתות"
+                          >
+                            <Trash2 size={24} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
-
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-400 mb-1">יחידה</label>
-                    <select name="unit" defaultValue={editingItem?.unit || 'יחידה'} className="w-full bg-gray-50 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-sky-600 outline-none">
-                      <option value="יחידה">יחידה</option>
-                      <option value="קילו">קילו</option>
-                      <option value="שק">שק</option>
-                      <option value="משטח">משטח</option>
-                      <option value="בלה">בלה</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-400 mb-1">קטגוריה</label>
-                    <input 
-                      name="category" 
-                      defaultValue={editingItem?.category}
-                      placeholder="למשל: חומרי מחצבה"
-                      className="w-full bg-gray-50 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-sky-600 outline-none" 
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-400 mb-1">מחיר (₪)</label>
-                    <input 
-                      name="price" 
-                      type="number" 
-                      step="0.01"
-                      defaultValue={editingItem?.price}
-                      className="w-full bg-gray-50 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-sky-600 outline-none" 
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-400 mb-1">מלאי נוכחי</label>
-                    <input 
-                      name="currentStock" 
-                      type="number" 
-                      required 
-                      defaultValue={editingItem?.currentStock || 0}
-                      className="w-full bg-gray-50 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-sky-600 outline-none" 
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-400 mb-1">מלאי מינימום</label>
-                    <input 
-                      name="minStock" 
-                      type="number" 
-                      required 
-                      defaultValue={editingItem?.minStock || 5}
-                      className="w-full bg-gray-50 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-sky-600 outline-none" 
-                    />
-                  </div>
-                </div>
-
-                <button 
-                  type="submit" 
-                  disabled={isSubmitting}
-                  className="w-full bg-sky-600 text-white py-4 rounded-2xl font-bold text-lg hover:bg-sky-700 transition-colors shadow-lg shadow-sky-600/20 flex items-center justify-center gap-2 disabled:opacity-50"
-                >
-                  {isSubmitting ? <Loader2 className="animate-spin" /> : editingItem ? 'עדכן מוצר' : 'שמור מוצר במאגר'}
-                </button>
               </form>
+              <div className="bg-slate-50 p-4 text-center border-t border-slate-100">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">באדיבות נועה ❤️</p>
+              </div>
             </motion.div>
           </div>
         )}
