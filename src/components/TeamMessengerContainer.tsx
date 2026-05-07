@@ -89,7 +89,7 @@ export const TeamMessengerContainer: React.FC<TeamMessengerContainerProps> = ({
   useEffect(() => {
     // Fetch team members
     const unsubscribeMembers = onSnapshot(collection(db, 'user_magic_pages'), (snapshot) => {
-      const members = snapshot.docs.map(doc => doc.data() as UserProfile);
+      const members = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as UserProfile));
       setTeamMembers(members);
     }, (error) => {
       if (error.code !== 'permission-denied') {
