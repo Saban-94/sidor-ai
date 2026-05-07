@@ -126,12 +126,20 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({ orders = [] 
       name: formData.get('name') as string,
       description: formData.get('description') as string,
       imageUrl: formData.get('imageUrl') as string,
-      unit: formData.get('unit') as string,
+      videoUrl: formData.get('videoUrl') as string,
+      unit: formData.get('unit') as string || 'יח',
       currentStock: getNum('currentStock'),
       minStock: getNum('minStock'),
       price: getNum('price'),
       category: formData.get('category') as string,
-      createdAt: serverTimestamp() as any,
+      dryingTime: formData.get('dryingTime') as string,
+      coverage: formData.get('coverage') as string,
+      applicationMethod: formData.get('applicationMethod') as string,
+      noaInsight: formData.get('noaInsight') as string,
+      demandTrend: formData.get('demandTrend') as any || 'stable',
+      relatedProducts: (formData.get('relatedProducts') as string)?.split(',').map(s => s.trim()).filter(Boolean) || [],
+      upsellItems: (formData.get('upsellItems') as string)?.split(',').map(s => s.trim()).filter(Boolean) || [],
+      createdAt: editingItem?.createdAt || serverTimestamp() as any,
       updatedAt: serverTimestamp() as any,
     };
 
@@ -668,28 +676,38 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({ orders = [] 
                       />
                     </div>
 
-                    <div className="grid grid-cols-3 gap-4">
-                      <div className="p-4 bg-slate-50 rounded-3xl border border-slate-100">
-                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-tighter mb-1">מחיר ₪</label>
-                        <input 
-                          name="price" 
-                          type="number" 
-                          step="0.01"
-                          defaultValue={editingItem?.price}
-                          className="w-full bg-transparent border-none p-0 text-lg font-black text-emerald-600 outline-none" 
-                        />
+                      <div className="grid grid-cols-3 gap-4">
+                        <div className="p-4 bg-slate-50 rounded-3xl border border-slate-100">
+                          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-tighter mb-1">מחיר ₪</label>
+                          <input 
+                            name="price" 
+                            type="number" 
+                            step="0.01"
+                            defaultValue={editingItem?.price}
+                            className="w-full bg-transparent border-none p-0 text-lg font-black text-emerald-600 outline-none" 
+                          />
+                        </div>
+                        <div className="p-4 bg-slate-50 rounded-3xl border border-slate-100">
+                          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-tighter mb-1">מלאי</label>
+                          <input 
+                            name="currentStock" 
+                            type="number" 
+                            required 
+                            defaultValue={editingItem?.currentStock || 0}
+                            onChange={(e) => setPreviewStock(Number(e.target.value))}
+                            className="w-full bg-transparent border-none p-0 text-lg font-black text-slate-800 outline-none" 
+                          />
+                        </div>
+                        <div className="p-4 bg-slate-50 rounded-3xl border border-slate-100 flex flex-col">
+                           <label className="block text-[10px] font-black text-slate-400 uppercase tracking-tighter mb-1">יחידה</label>
+                           <input 
+                            name="unit" 
+                            defaultValue={editingItem?.unit || 'יח'}
+                            className="w-full bg-transparent border-none p-0 text-lg font-black text-slate-800 outline-none" 
+                          />
+                        </div>
                       </div>
-                      <div className="p-4 bg-slate-50 rounded-3xl border border-slate-100">
-                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-tighter mb-1">מלאי</label>
-                        <input 
-                          name="currentStock" 
-                          type="number" 
-                          required 
-                          defaultValue={editingItem?.currentStock || 0}
-                          onChange={(e) => setPreviewStock(Number(e.target.value))}
-                          className="w-full bg-transparent border-none p-0 text-lg font-black text-slate-800 outline-none" 
-                        />
-                      </div>
+
                       <div className="p-4 bg-slate-50 rounded-3xl border border-slate-100">
                         <label className="block text-[10px] font-black text-slate-400 uppercase tracking-tighter mb-1">סף מינימום</label>
                         <input 
@@ -702,7 +720,135 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({ orders = [] 
                         />
                       </div>
                     </div>
-                  </div>
+
+                    {/* Technical Specifications Grid */}
+                    <div className="space-y-6 pt-6 border-t border-slate-100">
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="w-8 h-8 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                          <FileText size={16} />
+                        </div>
+                        <h4 className="text-sm font-black text-slate-800 uppercase tracking-widest italic">מפרט טכני</h4>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">זמן ייבוש</label>
+                          <input 
+                            name="dryingTime" 
+                            defaultValue={editingItem?.dryingTime}
+                            placeholder="למשל: 24 שעות"
+                            className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:bg-white focus:border-indigo-500 transition-all"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">כושר כיסוי (מ"ר/יח')</label>
+                          <input 
+                            name="coverage" 
+                            defaultValue={editingItem?.coverage}
+                            placeholder="למשל: 15 מ"ר"
+                            className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:bg-white focus:border-indigo-500 transition-all"
+                          />
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">שיטת יישום</label>
+                        <input 
+                          name="applicationMethod" 
+                          defaultValue={editingItem?.applicationMethod}
+                          placeholder="למשל: מריחה במאלג' / התזה"
+                          className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:bg-white focus:border-indigo-500 transition-all"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Multimedia - Video Link */}
+                    <div className="space-y-4 pt-6 border-t border-slate-100">
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="w-8 h-8 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center">
+                          <Play size={16} />
+                        </div>
+                        <h4 className="text-sm font-black text-slate-800 uppercase tracking-widest italic">מדיה והדרכות</h4>
+                      </div>
+                      <div className="relative group">
+                        <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-rose-500 transition-colors">
+                          <Video size={18} />
+                        </div>
+                        <input 
+                          name="videoUrl" 
+                          type="url"
+                          defaultValue={editingItem?.videoUrl}
+                          placeholder="קישור לסרטון הדרכה (YouTube/Direct)..."
+                          className="w-full bg-slate-50 border border-slate-100 rounded-2xl pr-12 pl-4 py-4 text-sm font-medium text-slate-600 focus:bg-white focus:border-rose-500 outline-none transition-all placeholder:text-slate-300" 
+                        />
+                      </div>
+                    </div>
+
+                    {/* Product Ecosystem */}
+                    <div className="space-y-4 pt-6 border-t border-slate-100">
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="w-8 h-8 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                          <PlusCircle size={16} />
+                        </div>
+                        <h4 className="text-sm font-black text-slate-800 uppercase tracking-widest italic">אקו-סיסטם ומוצרים משלימים</h4>
+                      </div>
+                      
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">מוצרים קשורים (מופרדים בפסיק)</label>
+                          <input 
+                            name="relatedProducts" 
+                            defaultValue={editingItem?.relatedProducts?.join(', ')}
+                            placeholder="הזן מק'טים של מוצרים משלימים..."
+                            className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-4 py-3 text-sm font-mono font-bold text-slate-600 outline-none focus:bg-white focus:border-emerald-500 transition-all"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">אפסייל / שדרוגים (מופרדים בפסיק)</label>
+                          <input 
+                            name="upsellItems" 
+                            defaultValue={editingItem?.upsellItems?.join(', ')}
+                            placeholder="הזן מק'טים של מוצרי פרימיום..."
+                            className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-4 py-3 text-sm font-mono font-bold text-slate-600 outline-none focus:bg-white focus:border-emerald-500 transition-all"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* AI Intelligence Hub */}
+                    <div className="space-y-4 pt-6 border-t border-slate-100">
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="w-8 h-8 rounded-full bg-sky-50 text-sky-600 flex items-center justify-center">
+                          <Star size={16} />
+                        </div>
+                        <h4 className="text-sm font-black text-slate-800 uppercase tracking-widest italic">התובנות של נועה (AI)</h4>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 gap-4">
+                        <div className="space-y-2">
+                          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">מגמת ביקוש</label>
+                          <select 
+                            name="demandTrend"
+                            defaultValue={editingItem?.demandTrend || 'stable'}
+                            className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:bg-white focus:border-sky-500 transition-all appearance-none shadow-sm"
+                          >
+                            <option value="rising">📈 ביקוש בעלייה</option>
+                            <option value="stable">↔️ יציב</option>
+                            <option value="falling">📉 ביקוש בירידה</option>
+                          </select>
+                        </div>
+                        <div className="space-y-2">
+                          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">תובנה אינטליגנטית (Noa's Insight)</label>
+                          <textarea 
+                            name="noaInsight" 
+                            rows={3}
+                            defaultValue={editingItem?.noaInsight}
+                            placeholder="נועה מנתחת צריכה... (למשל: ביקוש גבוה בתקופת החורף עקב ריבוי עבודות גמר)"
+                            className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-4 py-4 text-xs font-bold text-slate-600 focus:bg-white focus:border-sky-500 outline-none transition-all resize-none italic shadow-inner" 
+                          />
+                        </div>
+                      </div>
+                    </div>
                 </form>
               </div>
 

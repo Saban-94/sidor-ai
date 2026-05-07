@@ -268,9 +268,9 @@ export const InventoryDashboard: React.FC<InventoryDashboardProps> = ({ orders =
             </div>
           </section>
 
-          {/* 4. Modern Inventory Table */}
-          <section className="bg-white rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/40 overflow-hidden">
-            <div className="p-6 border-b border-slate-50 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          {/* 4. Modern Inventory Cards - Smart Intelligence Hub */}
+          <section className="space-y-6">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 px-2">
               <div className="relative flex-1 max-w-md">
                 <Search className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                 <input 
@@ -278,154 +278,124 @@ export const InventoryDashboard: React.FC<InventoryDashboardProps> = ({ orders =
                   placeholder="חפש לפי שם מוצר, מק'ט או קטגוריה..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-slate-50/80 border-none rounded-2xl py-3 pr-12 pl-4 text-sm focus:ring-2 focus:ring-sky-600 outline-none transition-all font-medium"
+                  className="w-full bg-white border border-slate-200 rounded-2xl py-3 pr-12 pl-4 text-sm focus:ring-2 focus:ring-sky-600 outline-none transition-all font-medium shadow-sm"
                 />
               </div>
-              <div className="flex items-center gap-4 text-slate-400 text-xs font-bold uppercase tracking-widest">
-                <span>מציג {filteredItems.length} מוצרים</span>
+              <div className="flex items-center gap-4 text-slate-400 text-[10px] font-black uppercase tracking-[0.2em]">
+                <span>מציג {filteredItems.length} מוצרים חכמים</span>
               </div>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-right border-collapse">
-                <thead className="sticky top-0 z-10 bg-slate-50/90 backdrop-blur-md">
-                  <tr className="border-b border-slate-100 italic">
-                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">תמונה</th>
-                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">מוצר</th>
-                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">מק"ט</th>
-                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">מלאי נוכחי</th>
-                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">מלאי שיצא</th>
-                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">מינימום</th>
-                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">סטטוס</th>
-                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">פעולות</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-50">
-                  <AnimatePresence mode="popLayout">
-                    {filteredItems.map((item) => (
-                      <motion.tr 
-                        layout
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        key={item.id} 
-                        className="hover:bg-slate-50/50 transition-colors group"
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <AnimatePresence mode="popLayout">
+                {filteredItems.map((item, idx) => (
+                  <motion.div 
+                    layout
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    transition={{ delay: idx * 0.05 }}
+                    key={item.id} 
+                    className="group bg-white rounded-[2rem] border border-slate-100 shadow-xl shadow-slate-200/30 hover:shadow-2xl hover:shadow-sky-600/10 transition-all duration-500 overflow-hidden relative flex flex-col h-full"
+                  >
+                    {/* Top Status Bar */}
+                    <div className="px-6 py-3 bg-slate-50/50 flex items-center justify-between border-b border-slate-50">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-2 h-2 rounded-full ${
+                          item.currentStock <= 0 ? 'bg-rose-500 animate-pulse' : 
+                          item.currentStock <= item.minStock ? 'bg-amber-500' : 'bg-emerald-500'
+                        }`} />
+                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                          {item.category || 'כללי'}
+                        </span>
+                      </div>
+                      <span className="text-[10px] font-mono font-bold text-slate-300">
+                        {item.sku}
+                      </span>
+                    </div>
+
+                    <div className="p-6 flex-1 flex flex-col">
+                      <div className="flex items-start gap-4 mb-6">
+                        <div className="w-20 h-20 rounded-3xl overflow-hidden bg-slate-50 border border-slate-100 shadow-sm relative group-hover:scale-105 transition-transform duration-500">
+                          {item.imageUrl ? (
+                            <img 
+                              src={item.imageUrl.startsWith('http:') ? item.imageUrl.replace('http:', 'https:') : item.imageUrl} 
+                              alt={item.name} 
+                              className="w-full h-full object-cover"
+                              referrerPolicy="no-referrer"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-slate-200">
+                              <ImageIcon size={32} strokeWidth={1} />
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-1">
+                          <h4 className="text-lg font-black text-slate-900 leading-tight mb-1 line-clamp-2">{item.name}</h4>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xl font-black text-sky-600">₪{item.price?.toFixed(2)}</span>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">/ {item.unit}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Noa's Insight Badge */}
+                      {item.noaInsight && (
+                        <div className="mb-6 p-4 bg-sky-50/80 backdrop-blur-sm rounded-2xl border border-sky-100 flex items-start gap-3 relative overflow-hidden group/noa">
+                          <div className="absolute top-0 right-0 w-16 h-16 bg-sky-100/50 rounded-bl-[3rem] -mr-8 -mt-8 transition-all group-hover/noa:scale-110" />
+                          <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-sm shrink-0 border border-sky-200 relative z-10">
+                            <img src="https://i.postimg.cc/qqWtk5qr/Gemini-Generated-Image-6z6qts6z6qts6z6q.png" className="w-6 h-6 rounded-full object-cover" />
+                          </div>
+                          <p className="text-[11px] font-bold text-sky-900 leading-relaxed relative z-10">
+                            <span className="font-black text-sky-600">התובנה של נועה: </span>
+                            {item.noaInsight}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Stock Indicators */}
+                      <div className="grid grid-cols-2 gap-4 mt-auto">
+                        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">מלאי נוכחי</p>
+                          <div className="flex items-baseline gap-1">
+                            <span className={`text-2xl font-black ${
+                              item.currentStock <= item.minStock ? 'text-rose-600' : 'text-slate-900'
+                            }`}>{item.currentStock}</span>
+                            <span className="text-[10px] font-bold text-slate-400">{item.unit}</span>
+                          </div>
+                        </div>
+                        <div className="p-4 bg-emerald-50/30 rounded-2xl border border-emerald-100/50">
+                          <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest mb-1">נמסר החודש</p>
+                          <div className="flex items-baseline gap-1">
+                            <span className="text-2xl font-black text-emerald-600">{item.totalSold}</span>
+                            <span className="text-[10px] font-bold text-emerald-400">{item.unit}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Quick Access Overlay Buttons */}
+                    <div className="px-6 py-4 bg-slate-50 flex items-center gap-2">
+                       <button 
+                        onClick={() => {
+                          setEditingItemId(item.id!);
+                          setEditValue(item.currentStock);
+                        }}
+                        className="flex-1 bg-white border border-slate-200 hover:border-sky-500 hover:text-sky-600 rounded-xl py-2.5 text-xs font-black transition-all flex items-center justify-center gap-2 shadow-sm active:scale-95"
                       >
-                        <td className="px-6 py-4">
-                          <div className="w-12 h-12 rounded-2xl overflow-hidden bg-slate-100 flex items-center justify-center border border-slate-200 shadow-sm">
-                            {item.imageUrl ? (
-                              <img 
-                                src={item.imageUrl.startsWith('http:') ? item.imageUrl.replace('http:', 'https:') : item.imageUrl} 
-                                alt={item.name} 
-                                className="w-full h-full object-cover"
-                                referrerPolicy="no-referrer"
-                                onError={(e) => {
-                                  (e.target as HTMLImageElement).src = 'https://via.placeholder.com/100?text=?';
-                                }}
-                              />
-                            ) : (
-                              <ImageIcon className="text-slate-300" size={20} />
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div>
-                            <p className="text-sm font-black text-slate-900">{item.name}</p>
-                            {item.description && (
-                              <p className="text-[10px] text-slate-400 font-medium line-clamp-1 max-w-[180px]" title={item.description}>
-                                {item.description}
-                              </p>
-                            )}
-                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight mt-0.5">{item.category || 'ללא קטגוריה'}</p>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className="text-xs font-mono font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-lg">
-                            {item.sku}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-center">
-                          {editingItemId === item.id ? (
-                            <div className="flex items-center justify-center gap-2">
-                              <input 
-                                type="number" 
-                                autoFocus
-                                value={editValue}
-                                onChange={(e) => setEditValue(Number(e.target.value))}
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter') handleQuickUpdate(item.id!, editValue);
-                                  if (e.key === 'Escape') setEditingItemId(null);
-                                }}
-                                className="w-16 bg-white border border-sky-300 rounded-lg px-2 py-1 text-center text-sm font-bold focus:ring-2 focus:ring-sky-500 outline-none"
-                              />
-                              <button onClick={() => handleQuickUpdate(item.id!, editValue)} className="text-emerald-600 hover:scale-110 transition-transform">
-                                <CheckCircle2 size={18} />
-                              </button>
-                            </div>
-                          ) : (
-                            <div className="flex flex-col items-center">
-                              <span className={`text-base font-black ${item.currentStock <= item.minStock ? 'text-rose-600' : 'text-slate-900'}`}>
-                                {item.currentStock}
-                              </span>
-                              <span className="text-[10px] text-slate-400 font-bold">{item.unit}</span>
-                            </div>
-                          )}
-                        </td>
-                        <td className="px-6 py-4 text-center">
-                          <div className="flex flex-col items-center">
-                            <span className="text-base font-black text-sky-600">
-                              {item.totalSold}
-                            </span>
-                            <span className="text-[10px] text-slate-400 font-bold tracking-tight">כמות שיצאה</span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-center">
-                          <span className="text-sm font-bold text-slate-300 italic">{item.minStock}</span>
-                        </td>
-                        <td className="px-6 py-4">
-                          {item.currentStock <= 0 ? (
-                            <span className="bg-rose-50 text-rose-600 px-3 py-1.5 rounded-full text-[10px] font-black flex items-center justify-center gap-1 w-fit border border-rose-100">
-                              <AlertTriangle size={12} />
-                              חסר במלאי
-                            </span>
-                          ) : item.currentStock <= item.minStock ? (
-                            <span className="bg-amber-50 text-amber-600 px-3 py-1.5 rounded-full text-[10px] font-black flex items-center justify-center gap-1 w-fit border border-amber-100">
-                              <AlertTriangle size={12} />
-                              מלאי נמוך
-                            </span>
-                          ) : (
-                            <span className="bg-emerald-50 text-emerald-600 px-3 py-1.5 rounded-full text-[10px] font-black flex items-center justify-center gap-1 w-fit border border-emerald-100">
-                              <CheckCircle2 size={12} />
-                              במלאי
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center justify-center gap-3 opacity-100 md:opacity-0 group-hover:opacity-100 transition-all duration-300">
-                            <button 
-                              onClick={() => {
-                                setEditingItemId(item.id!);
-                                setEditValue(item.currentStock);
-                              }}
-                              className="p-2.5 bg-slate-50 hover:bg-sky-50 text-slate-400 hover:text-sky-600 rounded-xl transition-all"
-                              title="עריכה מהירה"
-                            >
-                              <Edit3 size={16} />
-                            </button>
-                            <button 
-                              onClick={() => confirmDelete(item.id!)}
-                              className="p-2.5 bg-slate-50 hover:bg-rose-50 text-slate-400 hover:text-rose-600 rounded-xl transition-all"
-                              title="מחיקה"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </div>
-                        </td>
-                      </motion.tr>
-                    ))}
-                  </AnimatePresence>
-                </tbody>
-              </table>
+                        <Edit3 size={14} />
+                        עדכון מהיר
+                      </button>
+                      <button 
+                        onClick={() => confirmDelete(item.id!)}
+                        className="w-11 h-11 bg-white border border-slate-200 hover:border-rose-500 hover:text-rose-600 rounded-xl transition-all flex items-center justify-center shadow-sm active:scale-95"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
             </div>
           </section>
         </>

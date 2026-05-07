@@ -95,11 +95,22 @@ export interface InventoryItem {
   name: string;
   description?: string;
   imageUrl?: string;
+  videoUrl?: string; // Multimedia section: How-to videos
   unit: string;
   currentStock: number;
   minStock: number;
   price?: number;
   category?: string;
+  // Technical Specs
+  dryingTime?: string;
+  coverage?: string;
+  applicationMethod?: string;
+  // Ecosystem
+  relatedProducts?: string[]; // SKUs of related products
+  upsellItems?: string[]; // SKUs of upsell items
+  // Insights
+  noaInsight?: string;
+  demandTrend?: 'rising' | 'falling' | 'stable';
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
 }
