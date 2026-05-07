@@ -349,7 +349,12 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({ orders = [] 
                         <td className="px-6 py-4">
                           <div className="flex flex-col">
                             <span className="text-slate-800 font-black text-sm">{item.name}</span>
-                            <div className="flex items-center gap-2">
+                            {item.description && (
+                              <span className="text-[10px] text-slate-400 font-medium line-clamp-1 max-w-[200px]" title={item.description}>
+                                {item.description}
+                              </span>
+                            )}
+                            <div className="flex items-center gap-2 mt-0.5">
                               <span className={`text-[10px] font-black uppercase tracking-tighter ${
                                 item.currentStock === 0 ? 'text-rose-500' : 
                                 item.currentStock <= item.minStock ? 'text-amber-500' : 'text-emerald-500'
@@ -650,6 +655,17 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({ orders = [] 
                           className="w-full bg-slate-50 border-2 border-transparent rounded-2xl px-6 py-4 text-base font-bold text-slate-700 focus:bg-white focus:border-indigo-500 outline-none transition-all" 
                         />
                       </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="block text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] px-1">תיאור מוצר (מידע נוסף)</label>
+                      <textarea 
+                        name="description" 
+                        rows={3}
+                        defaultValue={editingItem?.description}
+                        placeholder="הכנס כאן פרטים נוספים על המוצר, מידות, סוג, או הנחיות מיוחדות..."
+                        className="w-full bg-slate-50 border-2 border-transparent rounded-2xl px-6 py-4 text-sm font-medium text-slate-600 focus:bg-white focus:border-indigo-500 outline-none transition-all resize-none" 
+                      />
                     </div>
 
                     <div className="grid grid-cols-3 gap-4">

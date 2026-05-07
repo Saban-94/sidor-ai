@@ -331,7 +331,12 @@ export const InventoryDashboard: React.FC<InventoryDashboardProps> = ({ orders =
                         <td className="px-6 py-4">
                           <div>
                             <p className="text-sm font-black text-slate-900">{item.name}</p>
-                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">{item.category || 'ללא קטגוריה'}</p>
+                            {item.description && (
+                              <p className="text-[10px] text-slate-400 font-medium line-clamp-1 max-w-[180px]" title={item.description}>
+                                {item.description}
+                              </p>
+                            )}
+                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight mt-0.5">{item.category || 'ללא קטגוריה'}</p>
                           </div>
                         </td>
                         <td className="px-6 py-4">
