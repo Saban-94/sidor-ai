@@ -28,7 +28,12 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     initAudio();
     if (dingAudio.current) {
       dingAudio.current.currentTime = 0;
-      dingAudio.current.play().catch(e => console.log('Audio play failed', e));
+      dingAudio.current.play().catch(e => {
+        // Only log if it's not a standard interaction block
+        if (e.name !== 'NotAllowedError') {
+          console.warn('Audio play failed:', e);
+        }
+      });
     }
   }, []);
 
@@ -36,7 +41,11 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     initAudio();
     if (alertAudio.current) {
       alertAudio.current.currentTime = 0;
-      alertAudio.current.play().catch(e => console.log('Audio play failed', e));
+      alertAudio.current.play().catch(e => {
+        if (e.name !== 'NotAllowedError') {
+          console.warn('Audio play failed:', e);
+        }
+      });
     }
   }, []);
 

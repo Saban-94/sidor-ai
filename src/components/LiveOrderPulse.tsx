@@ -82,6 +82,25 @@ export const LiveOrderPulse: React.FC<LiveOrderPulseProps> = ({
     [orders, searchTerm]
   );
 
+  const copyToClipboardFallback = (text: string) => {
+    try {
+      const textArea = document.createElement("textarea");
+      textArea.value = text;
+      textArea.style.position = "fixed";
+      textArea.style.left = "-9999px";
+      textArea.style.top = "0";
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      const successful = document.execCommand('copy');
+      document.body.removeChild(textArea);
+      return successful;
+    } catch (err) {
+      console.error('Fallback copy failed:', err);
+      return false;
+    }
+  };
+
   const handleShareUpdate = async (order: Order) => {
     // 1. INITIALIZATION RESET: Re-verify data presence
     const orderData = {
@@ -131,10 +150,17 @@ export const LiveOrderPulse: React.FC<LiveOrderPulseProps> = ({
         shareText = `שלום ${orderData.customerName}, כאן נועה מסידור ח.סבן. עדכון לגבי הזמנה ${orderData.orderNumber}: הסטטוס הוא ${currentStatus} ליעד ${orderData.destination}. המשך יום מצוין! ✅\n\nבאדיבות נועה ❤️`;
       }
 
-      await navigator.clipboard.writeText(shareText);
-      onAddToast('ההודעה הועתקה! ✅', `שלח עכשיו בוואטסאפ ל-${orderData.customerName}`, 'success');
+      try {
+        await navigator.clipboard.writeText(shareText);
+        onAddToast('ההודעה הועתקה! ✅', `שלח עכשיו בוואטסאפ ל-${orderData.customerName}`, 'success');
+      } catch (clipErr) {
+        if (copyToClipboardFallback(shareText)) {
+          onAddToast('ההודעה הועתקה! ✅', `שלח עכשיו בוואטסאפ ל-${orderData.customerName}`, 'success');
+        } else {
+          onAddToast('⚠️ חסימת הרשאת העתקה', 'אנא העתק ידנית מהפאנל', 'warning');
+        }
+      }
     } catch (err) {
-      // Hard fallback if everything fails
       const statusHebrew: Record<string, string> = {
         pending: 'ממתין לטיפול',
         preparing: 'בהכנה במחסן',
@@ -146,8 +172,11 @@ export const LiveOrderPulse: React.FC<LiveOrderPulseProps> = ({
       const currentStatus = statusHebrew[orderData.status] || orderData.status;
       const fallbackText = `שלום ${orderData.customerName}, כאן נועה מסידור ח.סבן. עדכון לגבי הזמנה ${orderData.orderNumber}: הסטטוס הוא ${currentStatus} ליעד ${orderData.destination}. המשך יום מצוין! ✅\n\nבאדיבות נועה ❤️`;
       
-      await navigator.clipboard.writeText(fallbackText);
-      onAddToast('הועתק (מצב חירום) ⚠️', 'השתמשנו בתבנית בסיסית עקב תקלת תקשורת', 'warning');
+      if (copyToClipboardFallback(fallbackText)) {
+        onAddToast('הועתק (מצב חירום) ⚠️', 'השתמשנו בתבנית בסיסית עקב תקלת תקשורת', 'warning');
+      } else {
+        onAddToast('⚠️ חסימת הרשאת העתקה', 'אנא העתק ידנית מהפאנל', 'warning');
+      }
     } finally {
       setIsGenerating(false);
     }

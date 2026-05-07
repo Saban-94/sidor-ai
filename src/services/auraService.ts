@@ -53,7 +53,7 @@ function getAI() {
   return aiInstance;
 }
 
-// Direct call to Gemini API using modern @google/genai SDK
+// Direct call to Gemini API using modern @google/genai SDK with exponential backoff
 async function callGemini(payload: { 
   model?: string, 
   contents: any, 
@@ -61,7 +61,7 @@ async function callGemini(payload: {
   systemInstruction?: any,
   tools?: any[],
   toolConfig?: any
-}) {
+}, retries = 3, delay = 1000): Promise<any> {
   const ai = getAI();
   try {
     const response = await ai.models.generateContent({
@@ -76,6 +76,14 @@ async function callGemini(payload: {
     });
     return response;
   } catch (error: any) {
+    const isRateLimit = error?.message?.includes('429') || error?.status === 'RESOURCE_EXHAUSTED' || error?.message?.includes('quota');
+    
+    if (isRateLimit && retries > 0) {
+      console.warn(`Gemini Rate Limit hit. Retrying in ${delay}ms... (${retries} retries left)`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+      return callGemini(payload, retries - 1, delay * 2);
+    }
+
     console.error("Gemini API Error:", error);
     throw error;
   }
@@ -409,6 +417,7 @@ export const noaSystemInstruction = `
 - דיוק מקסימלי בפירוט פריטים (מידות, סוגים).
 - חוק ה-30 מילים: תמציתיות מקסימלית למעט דוחות ומסמכים.
 - שפת המערכת: כל הדוחות (דוח בוקר, חוק 17:00, סיכום יומי) והודעות ה-Noa Bridge חייבים להיכתב בעברית מקצועית בלבד. חל איסור על שימוש באנגלית בסיכומי המערכת.
+- תרגום חובה: "Order Received" -> "הזמנה התקבלה", "Items Out of Stock" -> "חוסרים במלאי", "Ready for Dispatch" -> "מוכן להפצה".
 `;
 
 // Helper to generate unique tracking ID
