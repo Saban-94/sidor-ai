@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { InventoryItem, Order, Driver } from '../types';
 import { createOrder } from '../services/auraService';
+import { UIModal } from './UIModal';
 
 interface OrderFormProps {
   isOpen: boolean;
@@ -36,6 +37,12 @@ const OrderForm: React.FC<OrderFormProps> = ({
 }) => {
   const [loading, setLoading] = useState(false);
   const [successOrder, setSuccessOrder] = useState<Order | null>(null);
+  const [modalConfig, setModalConfig] = useState<{isOpen: boolean, title: string, message: string, type: 'alert'|'confirm', onConfirm?: () => void}>({
+    isOpen: false,
+    title: '',
+    message: '',
+    type: 'alert'
+  });
   const [formData, setFormData] = useState({
     customerName: '',
     customerPhone: '',
@@ -203,11 +210,21 @@ const OrderForm: React.FC<OrderFormProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validatePhone(formData.customerPhone)) {
-      alert('נא להזין מספר טלפון תקין (05XXXXXXXX)');
+      setModalConfig({
+        isOpen: true,
+        title: 'מספר טלפון שגוי',
+        message: 'נא להזין מספר טלפון תקין (05XXXXXXXX)',
+        type: 'alert'
+      });
       return;
     }
     if (!isManualItems && selectedItems.length === 0) {
-      alert('נא לבחור לפחות פריט אחד');
+      setModalConfig({
+        isOpen: true,
+        title: 'חסרים פריטים',
+        message: 'נא לבחור לפחות פריט אחד',
+        type: 'alert'
+      });
       return;
     }
 
@@ -243,7 +260,12 @@ const OrderForm: React.FC<OrderFormProps> = ({
       }
     } catch (error) {
       console.error('Error saving order:', error);
-      alert('שגיאה בשמירת ההזמנה. נסה שוב.');
+      setModalConfig({
+        isOpen: true,
+        title: 'שגיאה',
+        message: 'שגיאה בשמירת ההזמנה. נסה שוב.',
+        type: 'alert'
+      });
     } finally {
       setLoading(false);
     }
@@ -667,6 +689,15 @@ const OrderForm: React.FC<OrderFormProps> = ({
           </div>
         )}
       </motion.div>
+
+      <UIModal 
+        isOpen={modalConfig.isOpen}
+        onClose={() => setModalConfig(prev => ({ ...prev, isOpen: false }))}
+        title={modalConfig.title}
+        message={modalConfig.message}
+        type={modalConfig.type}
+        onConfirm={modalConfig.onConfirm}
+      />
     </div>
   );
 };

@@ -32,6 +32,7 @@ import { handleFirestoreError, OperationType } from '../lib/firebaseUtils';
 import { Order, Driver } from '../types';
 import { format } from 'date-fns';
 import { he } from 'date-fns/locale';
+import { UIModal } from './UIModal';
 
 interface MorningReport {
   id?: string;
@@ -47,6 +48,12 @@ export default function MorningReportSystem({ onBack, drivers }: { onBack: () =>
   const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [activeReport, setActiveReport] = useState<MorningReport | null>(null);
+  const [modalConfig, setModalConfig] = useState<{isOpen: boolean, title: string, message: string, type: 'alert'|'confirm', onConfirm?: () => void}>({
+    isOpen: false,
+    title: '',
+    message: '',
+    type: 'alert'
+  });
 
   useEffect(() => {
     // Listen for active orders (not delivered)
@@ -134,10 +141,20 @@ export default function MorningReportSystem({ onBack, drivers }: { onBack: () =>
         createdAt: serverTimestamp()
       });
       setSelectedOrders([]);
-      alert('הדוח נשמר בהצלחה בארכיון! ✅');
+      setModalConfig({
+        isOpen: true,
+        title: 'הצלחה',
+        message: 'הדוח נשמר בהצלחה בארכיון! ✅',
+        type: 'alert'
+      });
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, 'morning_reports');
-      alert('חלה שגיאה בשמירת הדוח. אנא נסה שנית.');
+      setModalConfig({
+        isOpen: true,
+        title: 'שגיאה',
+        message: 'חלה שגיאה בשמירת הדוח. אנא נסה שנית.',
+        type: 'alert'
+      });
     } finally {
       setIsGenerating(false);
     }
@@ -145,7 +162,12 @@ export default function MorningReportSystem({ onBack, drivers }: { onBack: () =>
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    alert('הדוח הועתק! עכשיו אפשר להדביק בוואטסאפ 🚀');
+    setModalConfig({
+      isOpen: true,
+      title: 'העתקה',
+      message: 'הדוח הועתק! עכשיו אפשר להדביק בוואטסאפ 🚀',
+      type: 'alert'
+    });
   };
 
   return (
@@ -449,6 +471,15 @@ export default function MorningReportSystem({ onBack, drivers }: { onBack: () =>
           </div>
         )}
       </AnimatePresence>
+
+      <UIModal 
+        isOpen={modalConfig.isOpen}
+        onClose={() => setModalConfig(prev => ({ ...prev, isOpen: false }))}
+        title={modalConfig.title}
+        message={modalConfig.message}
+        type={modalConfig.type}
+        onConfirm={modalConfig.onConfirm}
+      />
     </div>
   );
 }

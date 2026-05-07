@@ -1145,6 +1145,72 @@ async function processNoaTurn(contents: any[], userKey?: string): Promise<any> {
   return { ...response, text, audioContent };
 }
 
+export async function processNoaBridge(input: string | { fileBase64: string, mimeType: string }) {
+  const inventoryQ = query(collection(db, 'inventory'));
+  const inventorySnap = await getDocs(inventoryQ);
+  const inventory = inventorySnap.docs.map(d => ({ id: d.id, ...d.data() })) as InventoryItem[];
+
+  const customersQ = query(collection(db, 'customers'), orderBy('name', 'asc'));
+  const customersSnap = await getDocs(customersQ);
+  const customers = customersSnap.docs.map(d => ({ id: d.id, ...d.data() })) as Customer[];
+
+  const systemPrompt = `
+    את "נועה", מגשרת התפעול של SabanOS.
+    תפקידך לנתח הזמנות גולמיות (טקסט מוואטסאפ או קבצי PDF) ולהמיר אותן למבנה נתונים תקין.
+    
+    חוקי "ספר החוקים של נועה":
+    1. חוק הדיוק: אם מלווה פריט ללא מידות (כמו 'זויות' או 'ברגים'), סמני אותו כחסר מידע ודרשי פרטים.
+    2. חוק האיפוס: אם מופיעות המילים "הוספה" או "שינוי" בהקשר לסידור קיים, הוסיפי אזהרת "Delivery time reset".
+    3. פריטים מעכבים: סמני פריטים קטנים (ברגים, כלי עבודה) כ"Scheduling Delays" כי הם דורשים איסוף מהחנות.
+    
+    בצעי התאמה (Fuzzy Matching) של פריטים לרשימת המלאי הבאה:
+    ${inventory.map(i => `[SKU: ${i.sku}, Name: ${i.name}, Unit: ${i.unit}]`).join('\n')}
+    
+    זהי את הלקוח מתוך רשימה זו:
+    ${customers.map(c => `[ID: ${c.customerNumber}, Name: ${c.name}, Phone: ${c.phoneNumber}]`).join('\n')}
+    
+    החזירי JSON בלבד במבנה הבא:
+    {
+      "customer": { "id": "customerNumber", "name": "customerName", "isNew": boolean },
+      "site": "destination or site name",
+      "items": [
+        { 
+          "raw": "original text", 
+          "sku": "matched sku", 
+          "name": "system name", 
+          "qty": number, 
+          "unit": "unit", 
+          "status": "validated" | "missing_specs" | "delay_warning",
+          "notes": "explanation"
+        }
+      ],
+      "warnings": ["warning 1", "warning 2"],
+      "whatsappResponse": "formatted humanized response in Hebrew starting with 'בוקר טוב ראמי נשמה...'"
+    }
+  `;
+
+  let parts: any[] = [{ text: typeof input === 'string' ? `נתחי את הטקסט הבא: ${input}` : `נתחי את הקובץ המצורף.` }];
+  if (typeof input !== 'string') {
+    parts.push({ inlineData: { data: input.fileBase64, mimeType: input.mimeType } });
+  }
+
+  const response = await callGemini({
+    model: "gemini-3-flash-preview",
+    contents: [{ role: 'user', parts }],
+    systemInstruction: systemPrompt,
+    config: {
+      responseMimeType: "application/json"
+    }
+  });
+
+  try {
+    return JSON.parse(response.text);
+  } catch (e) {
+    console.error("Failed to parse Noa Bridge response:", response.text);
+    throw new Error("שגיאה בניתוח הנתונים על ידי נועה.");
+  }
+}
+
 export async function predictOrderEta(order: Order, historicalOrders: Order[] = []) {
   const currentDateTime = new Date().toLocaleString('he-IL', { timeZone: 'Asia/Jerusalem' });
   

@@ -72,4 +72,8 @@ export class GasService {
   static async syncChat(chatData: any) {
     return this.push('syncChat', { ...chatData, sheetName: 'Chat' });
   }
+
+  static async syncWhatsApp(data: any) {
+    return this.push('syncWhatsApp', { ...data, sheetName: 'whatsap' });
+  }
 }

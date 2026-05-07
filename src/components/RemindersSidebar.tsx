@@ -19,6 +19,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { Reminder } from '../types';
 import { format, differenceInMinutes, parseISO, addMinutes, isToday, isBefore, isTomorrow } from 'date-fns';
+import { UIModal } from './UIModal';
 
 interface RemindersSidebarProps {
   isOpen: boolean;
@@ -40,6 +41,12 @@ export const RemindersSidebar: React.FC<RemindersSidebarProps> = ({
   onMarkAllAsRead
 }) => {
   const [now, setNow] = useState(new Date());
+  const [modalConfig, setModalConfig] = useState<{isOpen: boolean, title: string, message: string, type: 'alert'|'confirm', onConfirm?: () => void}>({
+    isOpen: false,
+    title: '',
+    message: '',
+    type: 'alert'
+  });
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 1000);
@@ -273,7 +280,16 @@ export const RemindersSidebar: React.FC<RemindersSidebarProps> = ({
                           )}
                           <button 
                             onClick={() => {
-                              if (window.confirm('למחוק את התזכורת?')) onDelete(reminder.id!);
+                              setModalConfig({
+                                isOpen: true,
+                                title: 'מחיקת תזכורת',
+                                message: 'האם אתה בטוח שברצונך למחוק תזכורת זו?',
+                                type: 'confirm',
+                                onConfirm: () => {
+                                  onDelete(reminder.id!);
+                                  setModalConfig(prev => ({ ...prev, isOpen: false }));
+                                }
+                              });
                             }}
                             className="p-2.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-2xl transition-all border border-transparent hover:border-red-100"
                             title="מחק"
@@ -313,6 +329,15 @@ export const RemindersSidebar: React.FC<RemindersSidebarProps> = ({
                 <p className="text-[10px] font-black uppercase tracking-widest">מערכת התראות בזמן אמת של SabanOS</p>
               </div>
             </div>
+
+            <UIModal 
+              isOpen={modalConfig.isOpen}
+              onClose={() => setModalConfig(prev => ({ ...prev, isOpen: false }))}
+              title={modalConfig.title}
+              message={modalConfig.message}
+              type={modalConfig.type}
+              onConfirm={modalConfig.onConfirm}
+            />
           </motion.div>
         </>
       )}

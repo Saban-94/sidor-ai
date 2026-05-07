@@ -22,6 +22,7 @@ import { UserProfile } from '../types';
 import { db } from '../lib/firebase';
 import { collection, onSnapshot, query, addDoc, deleteDoc, doc, updateDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '../lib/firebaseUtils';
+import { UIModal } from './UIModal';
 
 export const UserAdminPanel = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -30,6 +31,12 @@ export const UserAdminPanel = () => {
   const [loading, setLoading] = useState(true);
   const [isAddingMod, setIsAddingMod] = useState(false);
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
+  const [modalConfig, setModalConfig] = useState<{isOpen: boolean, title: string, message: string, type: 'alert'|'confirm', onConfirm?: () => void}>({
+    isOpen: false,
+    title: '',
+    message: '',
+    type: 'alert'
+  });
 
   // Form State
   const [formData, setFormData] = useState({
@@ -59,14 +66,24 @@ export const UserAdminPanel = () => {
     if (password === '1125') {
       setIsAuthenticated(true);
     } else {
-      alert('סיסמה שגויה!');
+      setModalConfig({
+        isOpen: true,
+        title: 'שגיאה',
+        message: 'סיסמה שגויה!',
+        type: 'alert'
+      });
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (formData.id.length !== 4) {
-      alert('מזהה חייב להיות בן 4 ספרות!');
+      setModalConfig({
+        isOpen: true,
+        title: 'מזהה שגוי',
+        message: 'מזהה חייב להיות בן 4 ספרות!',
+        type: 'alert'
+      });
       return;
     }
 
@@ -79,30 +96,58 @@ export const UserAdminPanel = () => {
         createdAt: editingUser ? editingUser.createdAt : serverTimestamp()
       }, { merge: true });
 
-      alert(editingUser ? 'משתמש עודכן בהצלחה!' : 'משתמש נוצר בהצלחה!');
+      setModalConfig({
+        isOpen: true,
+        title: 'הצלחה',
+        message: editingUser ? 'משתמש עודכן בהצלחה!' : 'משתמש נוצר בהצלחה!',
+        type: 'alert'
+      });
       setIsAddingMod(false);
       setEditingUser(null);
       setFormData({ id: '', name: '', phone: '', email: '', role: '', avatarUrl: '' });
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, `user_magic_pages/${formData.id}`);
-      alert('שגיאה בשמירת המשתמש');
+      setModalConfig({
+        isOpen: true,
+        title: 'שגיאה',
+        message: 'שגיאה בשמירת המשתמש',
+        type: 'alert'
+      });
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm('האם אתה בטוח שברצונך למחוק משתמש זה?')) return;
-    try {
-      await deleteDoc(doc(db, 'user_magic_pages', id));
-    } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `user_magic_pages/${id}`);
-      alert('שגיאה במחיקת המשתמש');
-    }
+    setModalConfig({
+      isOpen: true,
+      title: 'מחיקת משתמש',
+      message: 'האם אתה בטוח שברצונך למחוק משתמש זה?',
+      type: 'confirm',
+      onConfirm: async () => {
+        try {
+          await deleteDoc(doc(db, 'user_magic_pages', id));
+          setModalConfig(prev => ({ ...prev, isOpen: false }));
+        } catch (error) {
+          handleFirestoreError(error, OperationType.DELETE, `user_magic_pages/${id}`);
+          setModalConfig({
+            isOpen: true,
+            title: 'שגיאה',
+            message: 'שגיאה במחיקת המשתמש',
+            type: 'alert'
+          });
+        }
+      }
+    });
   };
 
   const copyLink = (id: string) => {
     const link = `https://sidor-ai-xi.vercel.app/user/${id}`;
     navigator.clipboard.writeText(link);
-    alert('קישור הועתק ללוח!');
+    setModalConfig({
+      isOpen: true,
+      title: 'העברה ללוח',
+      message: 'קישור הועתק ללוח!',
+      type: 'alert'
+    });
   };
 
   if (!isAuthenticated) {
@@ -337,6 +382,15 @@ export const UserAdminPanel = () => {
           </div>
         )}
       </AnimatePresence>
+
+      <UIModal 
+        isOpen={modalConfig.isOpen}
+        onClose={() => setModalConfig(prev => ({ ...prev, isOpen: false }))}
+        title={modalConfig.title}
+        message={modalConfig.message}
+        type={modalConfig.type}
+        onConfirm={modalConfig.onConfirm}
+      />
     </div>
   );
 };

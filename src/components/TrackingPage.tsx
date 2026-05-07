@@ -31,6 +31,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { parseItems } from '../lib/utils';
 import { handleFirestoreError, OperationType } from '../lib/firebaseUtils';
 import { Order } from '../types';
+import { UIModal } from './UIModal';
 
 const TrackingPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -39,6 +40,12 @@ const TrackingPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editItems, setEditItems] = useState("");
+  const [modalConfig, setModalConfig] = useState<{isOpen: boolean, title: string, message: string, type: 'alert'|'confirm', onConfirm?: () => void}>({
+    isOpen: false,
+    title: '',
+    message: '',
+    type: 'alert'
+  });
 
   useEffect(() => {
     if (!id) {
@@ -80,9 +87,20 @@ const TrackingPage: React.FC = () => {
         updatedAt: new Date().toISOString()
       });
       setIsEditing(false);
+      setModalConfig({
+        isOpen: true,
+        title: 'הצלחה',
+        message: "ההזמנה עודכנה בהצלחה!",
+        type: 'alert'
+      });
     } catch (err) {
       handleFirestoreError(err, OperationType.UPDATE, `orders/${order.id}`);
-      alert("שגיאה בעדכון ההזמנה");
+      setModalConfig({
+        isOpen: true,
+        title: 'שגיאה',
+        message: "שגיאה בעדכון ההזמנה",
+        type: 'alert'
+      });
     }
   };
 
@@ -391,6 +409,15 @@ const TrackingPage: React.FC = () => {
            </div>
         </div>
       </div>
+
+      <UIModal 
+        isOpen={modalConfig.isOpen}
+        onClose={() => setModalConfig(prev => ({ ...prev, isOpen: false }))}
+        title={modalConfig.title}
+        message={modalConfig.message}
+        type={modalConfig.type}
+        onConfirm={modalConfig.onConfirm}
+      />
     </div>
   );
 };

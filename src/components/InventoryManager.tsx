@@ -38,6 +38,7 @@ import { InventoryItem, SaleRecord, Order } from '../types';
 import { format } from 'date-fns';
 import { he } from 'date-fns/locale';
 import { parseItems } from '../lib/utils';
+import { UIModal } from './UIModal';
 
 interface InventoryManagerProps {
   orders?: Order[];
@@ -53,6 +54,12 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({ orders = [] 
   const [isAddingItem, setIsAddingItem] = useState(false);
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [modalConfig, setModalConfig] = useState<{isOpen: boolean, title: string, message: string, type: 'alert'|'confirm', onConfirm?: () => void}>({
+    isOpen: false,
+    title: '',
+    message: '',
+    type: 'alert'
+  });
 
   useEffect(() => {
     const qItems = query(collection(db, 'inventory'), orderBy('name', 'asc'));
@@ -122,19 +129,32 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({ orders = [] 
       setEditingItem(null);
     } catch (error: any) {
       handleFirestoreError(error, editingItem ? OperationType.UPDATE : OperationType.CREATE, 'inventory');
-      alert("שגיאה בשמירת המוצר: " + (error?.message || "שגיאה לא ידועה"));
+      setModalConfig({
+        isOpen: true,
+        title: 'שגיאה',
+        message: "שגיאה בשמירת המוצר: " + (error?.message || "שגיאה לא ידועה"),
+        type: 'alert'
+      });
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const handleDeleteItem = async (id: string) => {
-    if (!window.confirm("האם אתה בטוח שברצונך למחוק מוצר זה?")) return;
-    try {
-      await deleteDoc(doc(db, 'inventory', id));
-    } catch (error) {
-      console.error("Error deleting item:", error);
-    }
+    setModalConfig({
+      isOpen: true,
+      title: 'מחיקת מוצר',
+      message: 'האם אתה בטוח שברצונך למחוק מוצר זה?',
+      type: 'confirm',
+      onConfirm: async () => {
+        try {
+          await deleteDoc(doc(db, 'inventory', id));
+          setModalConfig(prev => ({ ...prev, isOpen: false }));
+        } catch (error) {
+          console.error("Error deleting item:", error);
+        }
+      }
+    });
   };
 
   const getItemDemand = (sku: string) => {
@@ -612,6 +632,15 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({ orders = [] 
           </div>
         )}
       </AnimatePresence>
+
+      <UIModal 
+        isOpen={modalConfig.isOpen}
+        onClose={() => setModalConfig(prev => ({ ...prev, isOpen: false }))}
+        title={modalConfig.title}
+        message={modalConfig.message}
+        type={modalConfig.type}
+        onConfirm={modalConfig.onConfirm}
+      />
     </div>
   );
 };

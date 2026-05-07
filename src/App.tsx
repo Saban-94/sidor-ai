@@ -84,7 +84,9 @@ import { InventoryManager } from './components/InventoryManager';
 import { InventoryDashboard } from './components/InventoryDashboard';
 import OrderForm from './components/OrderForm';
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { NoaBridgeGateway } from './components/NoaBridgeGateway';
 import TrackingPage from './components/TrackingPage';
+import { UIModal } from './components/UIModal';
 import { RemindersSidebar } from './components/RemindersSidebar';
 import { GlobalAlertBanner } from './components/GlobalAlertBanner';
 import { ReminderForm } from './components/ReminderForm';
@@ -321,7 +323,8 @@ const Drawer = ({
               </div>
             </div>
             {[
-              { id: 'chat_full', label: "חדר צ'אט חברתי (חדש!)", icon: Sparkles },
+                  { id: 'noa_bridge', label: 'Noa Bridge (מהיר)', icon: Sparkles },
+                  { id: 'chat_full', label: "חדר צ'אט חברתי (חדש!)", icon: Sparkles },
               { id: 'chat', label: 'דברו עם נועה (AI)', icon: MessageSquare },
               { id: 'list', label: 'לוח הזמנות', icon: LayoutList },
               { id: 'kanban', label: 'לוח קנבן', icon: Trello },
@@ -452,6 +455,12 @@ function AppContent() {
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
   const [isScreenShaking, setIsScreenShaking] = useState(false);
   const loopAudioRef = useRef<HTMLAudioElement | null>(null);
+  const [modalConfig, setModalConfig] = useState<{isOpen: boolean, title: string, message: string, type: 'alert'|'confirm', onConfirm?: () => void}>({
+    isOpen: false,
+    title: '',
+    message: '',
+    type: 'alert'
+  });
 
   const RINGTONE_URLS: Record<string, string> = {
     classic: 'https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3',
@@ -966,7 +975,12 @@ function AppContent() {
       if (permission === 'granted') {
         setNotificationsEnabled(true);
       } else {
-        alert('כדי לקבל התראות יש לאשר אותן בהגדרות הדפדפן.');
+        setModalConfig({
+          isOpen: true,
+          title: 'התראות חסומות',
+          message: 'כדי לקבל התראות יש לאשר אותן בהגדרות הדפדפן.',
+          type: 'alert'
+        });
       }
     } else {
       setNotificationsEnabled(false);
@@ -1143,6 +1157,7 @@ function AppContent() {
   }, [dataLoadingStatus.orders, dataLoadingStatus.drivers]);
 
   const NavigationItems = [
+    { id: 'noa_bridge', icon: Sparkles, label: 'Noa Bridge' },
     { id: 'list', icon: LayoutList, label: 'דוח בוקר' },
     { id: 'kanban', icon: Trello, label: 'קנבן' },
     { id: 'calendar', icon: CalendarDays, label: 'לוח שנתי' },
@@ -1320,7 +1335,8 @@ function AppContent() {
   const totalOrders = filteredOrders.length;
 
   return (
-    <Routes>
+    <>
+      <Routes>
       <Route path="/mobile" element={<MobileApp />} />
       <Route path="/track/:id" element={<TrackingPage />} />
       <Route path="/admin/users" element={<UserAdminPanel />} />
@@ -1438,7 +1454,11 @@ function AppContent() {
                 </header>
 
                 <div className="flex-1 flex flex-col">
-                  {viewMode === 'reports' ? (
+                  {viewMode === 'noa_bridge' ? (
+                    <NoaBridgeGateway 
+                      onBack={() => setViewMode('list')}
+                    />
+                  ) : viewMode === 'reports' ? (
                      <MorningReportSystem onBack={() => setViewMode('list')} drivers={drivers} />
                   ) : viewMode === 'chat' ? (
                     <NoaChat 
@@ -2086,5 +2106,14 @@ function AppContent() {
 </div>
 )} />
     </Routes>
+      <UIModal 
+        isOpen={modalConfig.isOpen}
+        onClose={() => setModalConfig(prev => ({ ...prev, isOpen: false }))}
+        title={modalConfig.title}
+        message={modalConfig.message}
+        type={modalConfig.type}
+        onConfirm={modalConfig.onConfirm}
+      />
+    </>
   );
 }

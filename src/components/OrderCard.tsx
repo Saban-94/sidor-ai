@@ -29,6 +29,7 @@ import { AnimatePresence } from 'motion/react';
 import { predictOrderEta } from '../services/auraService';
 import { Order, Driver, InventoryItem } from '../types';
 import { highlightText, parseItems, isKnownProduct, cn } from '../lib/utils';
+import { UIModal } from './UIModal';
 
 export const StatusBadge = ({ status }: { status: Order['status'] }) => {
   const configs = {
@@ -386,6 +387,7 @@ export const OrderCard = ({
   const [isLocalUploading, setIsLocalUploading] = useState(false);
   const [isRescheduling, setIsRescheduling] = useState(false);
   const [rescheduleData, setRescheduleData] = useState({ date: order.date, time: order.time });
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
   const handleReschedule = async () => {
      try {
@@ -714,6 +716,20 @@ export const OrderCard = ({
           )}
         </AnimatePresence>
 
+        <UIModal 
+          isOpen={isDeleteModalOpen}
+          onClose={() => setIsDeleteModalOpen(false)}
+          title="מחיקת הזמנה"
+          message="האם אתה בטוח שברצונך למחוק הזמנה זו? פעולה זו אינה ניתנת לביטול."
+          type="confirm"
+          onConfirm={() => {
+            onDelete(order.id!);
+            setIsDeleteModalOpen(false);
+          }}
+          confirmText="כן, מחק הזמנה"
+          cancelText="ביטול"
+        />
+
         <div className={cn(
           "flex items-center gap-2 pt-2 border-t border-gray-100",
           isCompact ? "flex-wrap justify-end" : ""
@@ -745,9 +761,7 @@ export const OrderCard = ({
                  <Share2 size={14} />
                </button>
                <button 
-                onClick={() => {
-                  if (window.confirm('האם למחוק הזמנה זו?')) onDelete(order.id!);
-                }}
+                onClick={() => setIsDeleteModalOpen(true)}
                 className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl"
                >
                  <Trash2 size={14} />
@@ -797,11 +811,7 @@ export const OrderCard = ({
               </button>
 
               <button 
-                onClick={() => {
-                  if (window.confirm('האם אתה בטוח שברצונך למחוק את ההזמנה לצמיתות?')) {
-                    onDelete(order.id!);
-                  }
-                }}
+                onClick={() => setIsDeleteModalOpen(true)}
                 className="p-3.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-2xl transition-all"
               >
                 <Trash2 size={18} />
