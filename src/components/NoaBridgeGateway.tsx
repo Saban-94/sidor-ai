@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import * as XLSX from 'xlsx';
 import { 
   Plus, 
@@ -31,7 +31,13 @@ import {
   FileSpreadsheet,
   TrendingDown,
   Activity,
-  Layers
+  Layers,
+  Menu,
+  Users,
+  Smartphone,
+  Calendar,
+  Info,
+  Brain
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -39,22 +45,42 @@ import {
   createOrder, 
   getCustomerByNumber, 
   updateCustomer,
-  updateOrder
+  updateOrder,
+  generate1700Report
 } from '../services/auraService';
 import { GasService } from '../services/gasService';
 import { useToast } from '../providers/ToastProvider';
-import { InventoryItem, Order } from '../types';
-import { format } from 'date-fns';
+import { InventoryItem, Order, Customer } from '../types';
+import { format, subHours } from 'date-fns';
 import { he } from 'date-fns/locale';
-import { collection, addDoc, getDocs, query, where, updateDoc, doc, serverTimestamp, limit, orderBy } from 'firebase/firestore';
+import { 
+  collection, 
+  addDoc, 
+  getDocs, 
+  query, 
+  where, 
+  updateDoc, 
+  doc, 
+  serverTimestamp, 
+  limit, 
+  orderBy,
+  Timestamp 
+} from 'firebase/firestore';
 import { db } from '../lib/firebase';
+import { UIModal } from './UIModal';
 
 interface NoaBridgeGatewayProps {
   onBack: () => void;
 }
 
 interface BridgeAnalysis {
-  customer: { id: string; name: string; isNew: boolean };
+  customer: { 
+    id: string; 
+    customerNumber: string; 
+    name: string; 
+    isNew: boolean;
+    recallNote?: string;
+  };
   site?: string;
   items: { 
     raw: string; 
@@ -76,132 +102,97 @@ export const NoaBridgeGateway: React.FC<NoaBridgeGatewayProps> = ({ onBack }) =>
   const [analysis, setAnalysis] = useState<BridgeAnalysis | null>(null);
   const [copied, setCopied] = useState(false);
   const [isInjecting, setIsInjecting] = useState(false);
-  const [isUpdatingInventory, setIsUpdatingInventory] = useState(false);
   const [editingItemIdx, setEditingItemIdx] = useState<number | null>(null);
+  const [chatHistory, setChatHistory] = useState<any[]>([]);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [showClientMenu, setShowClientMenu] = useState(false);
+  const [clients, setClients] = useState<Customer[]>([]);
+  const [selectedClient, setSelectedClient] = useState<Customer | null>(null);
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+  const [reportResult, setReportResult] = useState<string | null>(null);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const inventoryInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    fetchClients();
+  }, []);
+
+  const fetchClients = async () => {
+    try {
+      const q = query(collection(db, 'customers'), orderBy('name', 'asc'), limit(20));
+      const snap = await getDocs(q);
+      setClients(snap.docs.map(d => ({ id: d.id, ...d.data() })) as Customer[]);
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   const handleProcess = async () => {
     if (!inputText.trim()) return;
     setIsProcessing(true);
     setAnalysis(null);
+    setChatHistory([]);
     try {
       const result = await processNoaBridge(inputText);
       setAnalysis(result);
+      
+      if (result.customer?.id) {
+        fetchChatHistory(result.customer.id);
+      }
+      
       addToast('נועה ניתחה!', 'הזיהוי הושלם בהצלחה ✅', 'success');
     } catch (error: any) {
-      addToast('שגיאה', error.message || 'לא הצלחתי לנתח את הדרעק הזה...', 'warning');
+      addToast('שגיאה', error.message || 'לא הצלחתי לנתח את זה...', 'warning');
     } finally {
       setIsProcessing(false);
     }
   };
 
-  const handleUpdateItem = (idx: number, updates: any) => {
-    if (!analysis) return;
-    const newItems = [...analysis.items];
-    newItems[idx] = { ...newItems[idx], ...updates };
-    setAnalysis({ ...analysis, items: newItems });
-  };
-
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setIsProcessing(true);
-    setAnalysis(null);
+  const fetchChatHistory = async (customerId: string) => {
+    setIsLoadingHistory(true);
     try {
-      const base64 = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve((reader.result as string).split(',')[1]);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-
-      const result = await processNoaBridge({ fileBase64: base64, mimeType: file.type });
-      setAnalysis(result);
-      addToast('הקובץ פוענח!', 'נועה חילצה את כל הפריטים ✅', 'success');
-    } catch (error: any) {
-      addToast('שגיאה בסריקה', error.message || 'הקובץ כנראה מסובך מדי אפילו בשבילי', 'warning');
+      const q = query(
+        collection(db, 'chat_history'),
+        where('customerId', '==', customerId),
+        orderBy('timestamp', 'desc'),
+        limit(5)
+      );
+      const snap = await getDocs(q);
+      setChatHistory(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    } catch (error) {
+      console.warn('Failed to fetch chat history:', error);
     } finally {
-      setIsProcessing(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
+      setIsLoadingHistory(false);
     }
   };
 
-  const handleInventoryUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setIsUpdatingInventory(true);
+  const handle1700Report = async () => {
+    setIsGeneratingReport(true);
     try {
-      const data = await file.arrayBuffer();
-      const workbook = XLSX.read(data, { type: 'buffer' });
-      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json(worksheet) as any[];
+      const yesterday = subHours(new Date(), 24);
+      const historyQ = query(collection(db, 'chat_history'), where('timestamp', '>=', Timestamp.fromDate(yesterday)), limit(50));
+      const historySnap = await getDocs(historyQ);
+      const history = historySnap.docs.map(d => d.data());
 
-      let updatedCount = 0;
-      for (const row of rows) {
-        const sku = row.SKU || row['מק"ט'] || row.sku;
-        const name = row.Name || row['שם'] || row.name;
-        const stock = parseFloat(row.Stock || row['מלאי'] || row.stock || 0);
+      const ordersQ = query(collection(db, 'orders'), where('createdAt', '>=', Timestamp.fromDate(yesterday)), limit(50));
+      const ordersSnap = await getDocs(ordersQ);
+      const orders = ordersSnap.docs.map(d => d.data());
 
-        if (sku) {
-          const q = query(collection(db, 'inventory'), where('sku', '==', sku.toString()), limit(1));
-          const snap = await getDocs(q);
-          if (!snap.empty) {
-            await updateDoc(doc(db, 'inventory', snap.docs[0].id), {
-              currentStock: stock,
-              updatedAt: serverTimestamp()
-            });
-          } else {
-            await addDoc(collection(db, 'inventory'), {
-              sku: sku.toString(),
-              name: name || 'מוצר חדש',
-              currentStock: stock,
-              minStock: 0,
-              unit: 'יחידה',
-              createdAt: serverTimestamp(),
-              updatedAt: serverTimestamp()
-            });
-          }
-          updatedCount++;
-        }
-      }
-      addToast('מלאי מעודכן', `עודכנו ${updatedCount} פריטים במערכת ✅`, 'success');
-    } catch (error: any) {
-      addToast('שגיאה במלאי', error.message || 'לא הצלחתי לעדכן את המלאי', 'warning');
-    } finally {
-      setIsUpdatingInventory(false);
-      if (inventoryInputRef.current) inventoryInputRef.current.value = '';
-    }
-  };
-
-  const generateEODReport = async () => {
-    try {
-      addToast('מפיק דוח EOD', 'מתעדת פעילות ב-BlackBox...', 'info');
-      const sessionsQ = query(collection(db, 'bridge_sessions'), orderBy('createdAt', 'desc'));
-      const snap = await getDocs(sessionsQ);
-      const totalProcessed = snap.size;
-
+      const report = await generate1700Report(history, orders);
+      setReportResult(report);
+      
       await GasService.logBlackBox({
-        type: 'EOD_SUMMARY',
-        totalProcessed,
+        type: 'DAILY_1700_REPORT',
         timestamp: new Date().toISOString(),
-        summary: `סיכום יום: נועה גשר עיבדה ${totalProcessed} בקשות מהשטח.`
+        content: report
       });
 
-      addToast('דוח בוצע', 'הסיכום נשלח ל-BlackBox_Logs ✅', 'success');
+      addToast('סגירת יום!', 'דוח 17:00 הופק וסונכרן ל-BlackBox ✅', 'success');
     } catch (error: any) {
-      addToast('שגיאה בדוח', error.message, 'warning');
+      addToast('שגיאה בהפקה', error.message, 'warning');
+    } finally {
+      setIsGeneratingReport(false);
     }
-  };
-
-  const handleCopyResponse = () => {
-    if (!analysis) return;
-    navigator.clipboard.writeText(analysis.whatsappResponse);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-    addToast('הועתק!', 'התשובה ממתינה בלוח שלך 📋', 'success');
   };
 
   const handleInjectOrder = async () => {
@@ -224,7 +215,23 @@ export const NoaBridgeGateway: React.FC<NoaBridgeGatewayProps> = ({ onBack }) =>
         driverId: 'לא שובץ'
       });
 
-      // Sync to WhatsApp sheet as well
+      if (analysis.customer.id) {
+        const currentCustomer = clients.find(c => c.id === analysis.customer.id);
+        const updateData: any = {
+          lastOrderAt: serverTimestamp() as any
+        };
+
+        // Auto-learn new sites
+        if (analysis.site && currentCustomer && !currentCustomer.siteProfiles?.some(s => s.name === analysis.site)) {
+          updateData.siteProfiles = [
+            ...(currentCustomer.siteProfiles || []), 
+            { name: analysis.site, notes: 'נוסף אוטומטית ע"י נועה במהלך הזרקת הזמנה' }
+          ];
+        }
+
+        await updateCustomer(analysis.customer.id, updateData);
+      }
+
       await GasService.syncWhatsApp({
         customer: analysis.customer.name,
         items: itemsString,
@@ -232,7 +239,6 @@ export const NoaBridgeGateway: React.FC<NoaBridgeGatewayProps> = ({ onBack }) =>
         orderId: result.id
       });
 
-      // Log session for EOD
       await addDoc(collection(db, 'bridge_sessions'), {
         customerId: analysis.customer.id,
         customerName: analysis.customer.name,
@@ -240,369 +246,511 @@ export const NoaBridgeGateway: React.FC<NoaBridgeGatewayProps> = ({ onBack }) =>
         createdAt: serverTimestamp()
       });
 
-      addToast('הוזרק בהצלחה!', 'ההזמנה בלוח והתשובה ב-whatsap ✅', 'success');
+      addToast('הוזרק בהצלחה!', 'ההזמנה בלוח והתשובה ב-whatsapp ✅', 'success');
     } catch (error: any) {
-      addToast('שגיאת הזרקה', error.message || 'משהו נתקע בצינורות...', 'warning');
+      addToast('שגיאת הזרקה', error.message || 'שגיאת מערכת', 'warning');
     } finally {
       setIsInjecting(false);
     }
   };
 
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    setIsProcessing(true);
+    try {
+      const base64 = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (ev) => resolve(ev.target?.result as string);
+        reader.readAsDataURL(file);
+      });
+
+      const result = await processNoaBridge({
+        fileBase64: base64.split(',')[1],
+        mimeType: file.type
+      });
+      setAnalysis(result);
+      if (result.customer?.id) fetchChatHistory(result.customer.id);
+      addToast('הקובץ נותח!', 'נועה זיהתה את ההזמנה ✅', 'success');
+    } catch (error: any) {
+      addToast('שגיאה בניתוח קובץ', error.message, 'warning');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   return (
-    <div className="flex flex-col h-full bg-gray-50/50" dir="rtl">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-100 p-6 sticky top-0 z-20 shadow-sm">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <button 
-              onClick={onBack}
-              className="p-2.5 hover:bg-gray-100 rounded-2xl transition-all text-gray-500"
-            >
-              <ChevronRight size={24} />
-            </button>
-            <div className="flex items-center gap-4">
-              <div className="bg-sky-600/10 p-3 rounded-2xl">
-                <Sparkles size={28} className="text-sky-600" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-black text-gray-900 tracking-tight">Noa-Bridge Gateway</h1>
-                <p className="text-xs text-gray-400 font-bold uppercase tracking-widest leading-none mt-1">SabanOS Operational Concierge</p>
-              </div>
+    <div className="flex flex-col h-full bg-[#F8FAFC] overflow-hidden" dir="rtl">
+      {/* Dynamic Header */}
+      <div className="bg-white px-6 py-4 flex items-center justify-between shadow-sm border-b border-gray-100 z-[60]">
+        <div className="flex items-center gap-3">
+          <motion.button 
+            whileTap={{ scale: 0.9 }}
+            onClick={() => setShowClientMenu(true)}
+            className="p-2.5 bg-gray-50 rounded-2xl text-gray-700 active:bg-sky-50 transition-colors lg:hidden"
+          >
+            <Menu size={24} />
+          </motion.button>
+          <div onClick={onBack} className="cursor-pointer group flex items-center gap-3">
+            <div className="w-10 h-10 bg-sky-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-sky-600/30 group-hover:scale-105 transition-transform">
+              <Zap size={24} fill="currentColor" />
+            </div>
+            <div>
+              <h1 className="text-xl font-black text-gray-900 leading-none">SabanOS Dashboard</h1>
+              <p className="text-[10px] font-bold text-sky-600 uppercase tracking-tighter mt-1 flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-sky-500 animate-pulse" />
+                Adaptive Intelligence Center v4.0
+              </p>
             </div>
           </div>
-          
-          <div className="flex items-center gap-4">
-             <button 
-               onClick={generateEODReport}
-               className="flex items-center gap-2 bg-gray-900 text-white px-4 py-2 rounded-xl text-xs font-black shadow-lg hover:bg-sky-600 transition-all active:scale-95"
-             >
-               <Activity size={14} />
-               הפק EOD (BlackBox)
-             </button>
-             <div className="h-8 w-px bg-gray-100 mx-2" />
-             <div className="flex items-center gap-2 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-100">
-               <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-               <span className="text-[10px] font-black text-emerald-600 uppercase">System Ready</span>
-             </div>
+        </div>
+        
+        <div className="flex items-center gap-4">
+          <div className="hidden lg:flex items-center gap-6 text-[10px] font-black uppercase text-gray-400 border-l border-gray-100 pl-6 h-10">
+            <div className="flex flex-col items-end">
+              <span>Status</span>
+              <span className="text-emerald-500">Connected</span>
+            </div>
+            <div className="flex flex-col items-end">
+              <span>Region</span>
+              <span className="text-gray-900">Hod HaSharon</span>
+            </div>
           </div>
+
+          <motion.button 
+            whileTap={{ scale: 0.9 }}
+            onClick={handle1700Report}
+            disabled={isGeneratingReport}
+            className="bg-gray-900 text-white px-5 py-3 rounded-2xl shadow-lg shadow-gray-900/10 flex items-center gap-3 disabled:opacity-50 hover:bg-black transition-colors"
+          >
+            {isGeneratingReport ? <Loader2 size={18} className="animate-spin" /> : <Calendar size={18} />}
+            <span className="text-xs font-black">דוח 17:00</span>
+          </motion.button>
         </div>
       </div>
 
-      <div className="flex-1 overflow-hidden">
-        <div className="max-w-7xl mx-auto h-full grid lg:grid-cols-12">
-          {/* LEFT Sidebar / Menu */}
-          <div className="lg:col-span-1 border-l border-gray-100 flex flex-col items-center py-8 gap-6 bg-white shrink-0">
-             <input type="file" ref={inventoryInputRef} onChange={handleInventoryUpload} className="hidden" accept=".xls,.xlsx" />
-             <button 
-               onClick={() => inventoryInputRef.current?.click()}
-               className="p-4 bg-gray-50 text-gray-400 rounded-2xl hover:bg-sky-50 hover:text-sky-600 transition-all border border-transparent hover:border-sky-100 relative group"
-               title="Update Inventory Master"
-             >
-               {isUpdatingInventory ? <Loader2 size={24} className="animate-spin text-sky-600" /> : <FileSpreadsheet size={24} />}
-               <span className="absolute right-full mr-4 px-3 py-1.5 bg-gray-900 text-white text-[10px] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">Update Master Inventory</span>
-             </button>
-             <button className="p-4 bg-gray-50 text-gray-400 rounded-2xl hover:bg-sky-50 hover:text-sky-600 transition-all group relative">
-               <Tag size={24} />
-               <span className="absolute right-full mr-4 px-3 py-1.5 bg-gray-900 text-white text-[10px] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">Law Book</span>
-             </button>
-             <button className="p-4 bg-gray-50 text-gray-400 rounded-2xl hover:bg-sky-50 hover:text-sky-600 transition-all group relative">
-               <Layers size={24} />
-               <span className="absolute right-full mr-4 px-3 py-1.5 bg-gray-900 text-white text-[10px] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">History Logs</span>
-             </button>
+      <div className="flex-1 flex overflow-hidden lg:p-4 gap-4">
+        {/* Left Pane: Client Library (Desktop Only) */}
+        <aside className="hidden lg:flex flex-col w-[320px] bg-white rounded-[2rem] border border-gray-100 shadow-xl shadow-gray-900/5 overflow-hidden">
+          <div className="p-6 border-b border-gray-50 flex items-center justify-between">
+            <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+              <Users size={14} className="text-sky-600" />
+              Client Library
+            </h3>
+            <Plus size={16} className="text-gray-300" />
           </div>
-
-          {/* CENTER: Input Pane */}
-          <div className="lg:col-span-5 flex flex-col border-l border-gray-100 bg-white/50 p-6 gap-6 overflow-y-auto">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-black text-gray-900 flex items-center gap-2">
-                  <MessageSquare size={20} className="text-sky-600" />
-                  קלט גולמי (WhatsApp / PDF)
-                </h3>
-                <div className="flex items-center gap-1.5">
-                   <button 
-                    onClick={() => setInputText("")}
-                    className="text-[10px] font-black text-rose-500 hover:bg-rose-50 px-2 py-1 rounded-lg"
-                   >
-                     נקה הכל
-                   </button>
+          <div className="flex-1 overflow-y-auto p-4 space-y-2">
+            {clients.map(client => (
+              <motion.button 
+                key={client.id}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => {
+                  setSelectedClient(client);
+                  fetchChatHistory(client.id!);
+                }}
+                className={`w-full p-4 rounded-2xl flex items-center justify-between text-right transition-all group ${
+                  selectedClient?.id === client.id 
+                    ? 'bg-sky-50 shadow-sm border border-sky-100' 
+                    : 'hover:bg-gray-50 border border-transparent'
+                }`}
+              >
+                <div className="text-right">
+                  <div className="font-black text-gray-900 text-sm">{client.name}</div>
+                  <div className="text-[10px] text-gray-400 uppercase tracking-tighter">#{client.customerNumber}</div>
                 </div>
-              </div>
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${selectedClient?.id === client.id ? 'bg-sky-600 text-white' : 'bg-gray-100 text-gray-400 group-hover:bg-white'}`}>
+                  <ArrowRightCircle size={16} />
+                </div>
+              </motion.button>
+            ))}
+          </div>
+          {selectedClient && (
+            <div className="p-6 bg-gray-50 border-t border-gray-100">
+               <div className="flex items-center gap-2 mb-3">
+                 <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center shadow-sm">
+                   <Info size={14} className="text-sky-600" />
+                 </div>
+                 <span className="text-[10px] font-black uppercase text-gray-400">Context Active</span>
+               </div>
+               <p className="text-xs font-black text-gray-800 leading-relaxed">{selectedClient.name}</p>
+               <button className="mt-4 w-full py-3 bg-white border border-gray-200 rounded-xl text-[10px] font-black uppercase text-gray-500 hover:border-sky-200 hover:text-sky-600 transition-colors shadow-sm">
+                 Entry to Client File
+               </button>
+            </div>
+          )}
+        </aside>
 
+        {/* Center Pane: Operational Analysis */}
+        <main className="flex-1 flex flex-col gap-4 overflow-hidden">
+          <div className="bg-white rounded-[2.5rem] p-6 lg:p-8 border border-gray-100 shadow-xl shadow-sky-900/5 flex flex-col h-full overflow-hidden">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-lg font-black text-gray-900 flex items-center gap-3">
+                <div className="w-10 h-10 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center">
+                  <MessageSquare size={20} />
+                </div>
+                ניתוח קלט חכם
+              </h2>
+              <div className="flex gap-2">
+                <motion.button 
+                  whileTap={{ scale: 0.9 }}
+                  onClick={() => fileInputRef.current?.click()}
+                  className="p-3 bg-gray-50 text-gray-400 rounded-2xl hover:bg-sky-50 hover:text-sky-600 transition-all border border-transparent hover:border-sky-100"
+                >
+                  <Paperclip size={20} />
+                </motion.button>
+                <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileUpload} />
+              </div>
+            </div>
+
+            <div className="flex-1 flex flex-col gap-6 overflow-hidden">
               <div className="relative group">
                 <textarea 
                   value={inputText}
                   onChange={(e) => setInputText(e.target.value)}
-                  placeholder="הדבק כאן את הטקסט מהוואטסאפ או פשוט תגרור קובץ..."
-                  className="w-full h-[60vh] bg-white border-2 border-gray-100 rounded-[2.5rem] p-8 text-lg font-medium text-gray-800 placeholder:text-gray-300 focus:border-sky-500 focus:ring-0 transition-all resize-none shadow-sm"
+                  placeholder="הדבק טקסט (ווטסאפ, מייל, רשימה)..."
+                  className="w-full h-40 lg:h-56 bg-gray-50/50 border-2 border-transparent rounded-[2rem] p-6 text-lg font-medium text-gray-800 placeholder:text-gray-300 focus:bg-white focus:border-sky-500 focus:ring-0 transition-all"
                 />
-                <div className="absolute bottom-8 left-8 flex items-center gap-3">
-                  <input 
-                    type="file" 
-                    ref={fileInputRef}
-                    onChange={handleFileUpload}
-                    className="hidden" 
-                    accept=".pdf,.xls,.xlsx,image/*"
-                  />
-                  <button 
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={isProcessing}
-                    className="p-5 bg-gray-100 text-gray-500 rounded-3xl hover:bg-sky-50 hover:text-sky-600 transition-all border border-transparent hover:border-sky-100"
-                    title="העלאת קובץ"
-                  >
-                    <Paperclip size={24} />
-                  </button>
-                  <button 
+                <div className="absolute bottom-4 left-4">
+                  <motion.button 
+                    whileTap={{ scale: 0.95 }}
                     onClick={handleProcess}
                     disabled={!inputText.trim() || isProcessing}
-                    className="px-10 py-5 bg-sky-600 text-white rounded-[2rem] font-black text-xl shadow-2xl shadow-sky-600/20 hover:bg-sky-700 active:scale-95 transition-all flex items-center gap-4 disabled:opacity-50 disabled:active:scale-100"
+                    className="px-8 py-4 bg-sky-600 text-white rounded-[1.5rem] font-black shadow-xl shadow-sky-600/20 flex items-center gap-3 hover:bg-sky-700 transition-all disabled:opacity-50"
                   >
-                    {isProcessing ? (
-                      <Loader2 size={28} className="animate-spin" />
-                    ) : (
-                      <>
-                        <Zap size={26} fill="currentColor" />
-                        <span>נתחי מהר!</span>
-                      </>
-                    )}
-                  </button>
+                    {isProcessing ? <Loader2 size={22} className="animate-spin" /> : <Sparkles size={22} fill="currentColor" />}
+                    <span>Smart Analysis</span>
+                  </motion.button>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="p-5 rounded-3xl bg-amber-50/50 border border-amber-100/50">
-                  <div className="flex items-center gap-2 mb-2 text-amber-600 font-black text-[10px] uppercase tracking-widest">
-                    <AlertTriangle size={14} />
-                    Accuracy Law
+              <AnimatePresence mode="wait">
+                {analysis ? (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    key="analysis-results"
+                    className="flex-1 overflow-y-auto space-y-6 pr-1"
+                  >
+                    <div className="grid lg:grid-cols-2 gap-6">
+                      {/* Analysis Left: Data Grid */}
+                      <div className="space-y-4">
+                        <div className="p-5 bg-gray-50 rounded-[2rem] border border-gray-100">
+                          <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                            <Database size={14} className="text-sky-600" />
+                            Entity Identification
+                          </h4>
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between p-3 bg-white rounded-xl shadow-sm border border-gray-50">
+                              <span className="text-xs font-bold text-gray-500">Client</span>
+                              <div className="flex items-center gap-2">
+                                <span className={`text-[9px] px-2 py-0.5 rounded-full font-black uppercase ${analysis.customer.isNew ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                                  {analysis.customer.isNew ? 'New Detected' : 'Existing Match'}
+                                </span>
+                                <span className="text-sm font-black text-gray-900">{analysis.customer.name}</span>
+                              </div>
+                            </div>
+                            <div className="flex items-center justify-between p-3 bg-white rounded-xl shadow-sm border border-gray-50">
+                              <span className="text-xs font-bold text-gray-500">Site/Link</span>
+                              <span className="text-sm font-black text-sky-600 truncate max-w-[150px]">{analysis.site || 'TBD'}</span>
+                            </div>
+                            {analysis.customer.recallNote && (
+                              <motion.div 
+                                initial={{ opacity: 0, scale: 0.95 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                className="p-3 bg-indigo-50 border border-indigo-100 rounded-xl flex items-start gap-3 mt-2"
+                              >
+                                <Brain size={16} className="text-indigo-600 mt-0.5 shrink-0" />
+                                <div className="text-xs font-bold text-indigo-900 leading-relaxed italic">
+                                  {analysis.customer.recallNote}
+                                </div>
+                              </motion.div>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="p-5 bg-white rounded-[2rem] border border-gray-100 shadow-sm">
+                           <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center justify-between">
+                             <span>Matched Items</span>
+                             <span className="text-sky-600">{analysis.items.length} units</span>
+                           </h4>
+                           <div className="space-y-2">
+                             {analysis.items.map((item, i) => (
+                               <div key={i} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-transparent hover:border-sky-50 transition-colors">
+                                 <div className="flex flex-col">
+                                   <span className="text-xs font-black text-gray-800">{item.name}</span>
+                                   <span className="text-[9px] text-gray-400 font-mono">{item.sku || 'N/A'}</span>
+                                 </div>
+                                 <div className="flex items-center gap-3">
+                                   <span className="text-xs font-black text-gray-900">{item.qty} {item.unit}</span>
+                                   {item.status === 'validated' ? <Check size={14} className="text-emerald-500" /> : <AlertTriangle size={14} className="text-amber-500" />}
+                                 </div>
+                               </div>
+                             ))}
+                           </div>
+                        </div>
+                      </div>
+
+                      {/* Analysis Right: Output/Concierge */}
+                      <div className="space-y-4">
+                         <div className="p-6 bg-sky-600 text-white rounded-[2rem] shadow-xl shadow-sky-600/20 relative overflow-hidden">
+                           <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-3xl -mr-16 -mt-16" />
+                           <div className="flex items-center justify-between mb-4">
+                             <div className="flex items-center gap-2">
+                               <MessageSquare size={16} className="text-sky-200" />
+                               <span className="text-[10px] font-black uppercase text-sky-100">WhatsApp Concierge</span>
+                             </div>
+                             <motion.button 
+                               whileTap={{ scale: 0.9 }}
+                               onClick={() => {
+                                 navigator.clipboard.writeText(analysis.whatsappResponse);
+                                 setCopied(true);
+                                 setTimeout(() => setCopied(false), 2000);
+                                 addToast('בוצע!', 'התגובה הועתקה. זמין להדבקה.', 'success');
+                               }}
+                               className="bg-white/20 p-2.5 rounded-xl hover:bg-white/30 transition-colors backdrop-blur-md"
+                             >
+                               {copied ? <Check size={18} /> : <Copy size={18} />}
+                             </motion.button>
+                           </div>
+                           <p className="text-lg font-black leading-relaxed whitespace-pre-wrap text-right">
+                             {analysis.whatsappResponse}
+                           </p>
+                           <div className="mt-8 flex items-center justify-between">
+                             <span className="text-[9px] font-black text-sky-200 uppercase">Status: Ready for broadcast</span>
+                             <div className="flex gap-2">
+                               <div className="w-1.5 h-1.5 rounded-full bg-white/60 animate-bounce [animation-delay:-0.3s]" />
+                               <div className="w-1.5 h-1.5 rounded-full bg-white/60 animate-bounce [animation-delay:-0.15s]" />
+                               <div className="w-1.5 h-1.5 rounded-full bg-white/60 animate-bounce" />
+                             </div>
+                           </div>
+                         </div>
+
+                         <motion.button 
+                           whileTap={{ scale: 0.98 }}
+                           onClick={handleInjectOrder}
+                           disabled={isInjecting}
+                           className="w-full py-5 bg-gray-900 text-white rounded-3xl font-black shadow-2xl shadow-gray-900/20 flex items-center justify-center gap-3 disabled:opacity-50 hover:bg-black transition-all"
+                         >
+                           {isInjecting ? <Loader2 size={24} className="animate-spin" /> : <Send size={24} />}
+                           הזרקת הזמנה ללוח (Inject & Log)
+                         </motion.button>
+                      </div>
+                    </div>
+                  </motion.div>
+                ) : (
+                  <div className="flex-1 flex flex-col items-center justify-center text-center opacity-40">
+                    <div className="w-32 h-32 bg-gray-50 rounded-full flex items-center justify-center mb-6">
+                      <Smartphone size={48} className="text-gray-300" />
+                    </div>
+                    <h3 className="text-xl font-black text-gray-400">הזינו קלט לניתוח מהיר</h3>
+                    <p className="text-sm font-bold text-gray-300 mt-2">נועה תזהה לקוחות, תחשב מלאי ותכין תשובה</p>
                   </div>
-                  <p className="text-[11px] text-amber-700 leading-relaxed font-bold">זיהוי מפרטים חסרים.</p>
-                </div>
-                <div className="p-5 rounded-3xl bg-indigo-50/50 border border-indigo-100/50">
-                  <div className="flex items-center gap-2 mb-2 text-indigo-600 font-black text-[10px] uppercase tracking-widest">
-                    <TrendingDown size={14} />
-                    Delay Items
+                )}
+              </AnimatePresence>
+            </div>
+          </div>
+        </main>
+
+        {/* Right Pane: Client Brain & Real-time Tracking (Desktop Only) */}
+        <aside className="hidden xl:flex flex-col w-[380px] gap-4 overflow-hidden">
+          {/* Customer Brain Profile */}
+          <div className="bg-white rounded-[2.5rem] p-6 border border-gray-100 shadow-xl shadow-gray-900/5">
+            <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2 mb-6">
+              <Activity size={14} className="text-sky-600" />
+              Customer Brain (Live Feed)
+            </h3>
+
+            {selectedClient ? (
+              <div className="space-y-6">
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 bg-sky-50 rounded-2xl flex items-center justify-center text-sky-600 font-black text-2xl shadow-inner uppercase">
+                    {selectedClient.name[0]}
                   </div>
-                  <p className="text-[11px] text-indigo-700 leading-relaxed font-bold">סימון פריטי חנות קטנים.</p>
+                  <div>
+                    <h4 className="font-black text-gray-900 text-lg leading-tight">{selectedClient.name}</h4>
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">Verified VIP Customer</span>
+                  </div>
                 </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="p-4 bg-gray-50 rounded-2xl border border-transparent hover:border-sky-100 transition-colors group cursor-pointer">
+                    <Pin size={14} className="text-gray-300 mb-2 group-hover:text-sky-500" />
+                    <div className="text-[9px] font-black text-gray-400 uppercase">Primary Site</div>
+                    <div className="text-xs font-black text-gray-800 truncate">{selectedClient.address || 'לא הוגדר'}</div>
+                  </div>
+                  <div className="p-4 bg-emerald-50/50 rounded-2xl border border-transparent hover:border-emerald-100 transition-colors group cursor-pointer">
+                    <TrendingDown size={14} className="text-gray-300 mb-2 group-hover:text-emerald-500" />
+                    <div className="text-[9px] font-black text-gray-400 uppercase">Avg. Volume</div>
+                    <div className="text-xs font-black text-gray-800">4.5 Ton/Mo</div>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                   <div className="text-[10px] font-black text-gray-400 uppercase flex items-center justify-between">
+                     <span>Last Interactions</span>
+                     <History size={12} />
+                   </div>
+                   <div className="space-y-2">
+                     {chatHistory.slice(0, 3).map((chat, i) => (
+                       <div key={i} className="p-3 bg-gray-50 rounded-xl relative group">
+                          <p className="text-[11px] font-bold text-gray-600 leading-relaxed pr-2">{chat.text}</p>
+                          <div className="absolute top-3 left-3 text-[8px] font-mono text-gray-300">{chat.timestamp?.toDate ? format(chat.timestamp.toDate(), 'HH:mm') : ''}</div>
+                       </div>
+                     ))}
+                   </div>
+                </div>
+              </div>
+            ) : (
+              <div className="h-48 flex flex-col items-center justify-center text-center opacity-30 italic">
+                <p className="text-xs text-gray-400">בחר לקוח להצגת תובנות</p>
+              </div>
+            )}
+          </div>
+
+          {/* Real-time Order Tracking (Mini-Log) */}
+          <div className="flex-1 bg-gray-900 rounded-[2.5rem] p-6 shadow-2xl relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-sky-500/10 rounded-full blur-3xl -mr-32 -mt-32 group-hover:scale-110 transition-transform duration-1000" />
+            <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2 mb-6 relative">
+              <Layers size={14} className="text-sky-400" />
+              Live Order Pulse
+            </h3>
+
+            <div className="space-y-4 relative">
+              <div className="flex items-center justify-between">
+                <span className="text-[9px] font-black text-sky-200 uppercase">Active Shipments</span>
+                <span className="text-[9px] font-mono text-sky-400">LIVE FEED</span>
+              </div>
+              <div className="space-y-3">
+                 {[1, 2, 3].map(i => (
+                   <div key={i} className="p-4 bg-white/5 border border-white/5 rounded-2xl hover:bg-white/10 transition-colors backdrop-blur-sm">
+                      <div className="flex justify-between items-start mb-2">
+                        <div className="font-black text-white text-xs">הזמנה #00{i}</div>
+                        <div className="px-2 py-0.5 bg-sky-500/20 text-sky-400 rounded-full text-[8px] font-black">EN ROUTE</div>
+                      </div>
+                      <div className="text-[10px] text-gray-400">יעד: הוד השרון, סולאנג'</div>
+                      <div className="mt-3 h-1 bg-white/10 rounded-full overflow-hidden">
+                        <motion.div 
+                          initial={{ width: 0 }}
+                          animate={{ width: i === 1 ? '75%' : i === 2 ? '40%' : '15%' }}
+                          className="h-full bg-sky-500" 
+                        />
+                      </div>
+                   </div>
+                 ))}
+                 <button className="w-full py-4 mt-2 border border-white/10 rounded-2xl text-[10px] font-black text-gray-400 uppercase hover:bg-white/5 transition-colors">
+                   View Full Kanban Board
+                 </button>
               </div>
             </div>
           </div>
+        </aside>
+      </div>
 
-          {/* RIGHT: Output Pane */}
-          <div className="lg:col-span-6 p-6 overflow-y-auto bg-gray-50/30">
-            <AnimatePresence mode="wait">
-              {analysis ? (
-                <motion.div 
-                  key="analysis"
-                  initial={{ opacity: 0, scale: 0.98 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.98 }}
-                  className="space-y-6"
-                >
-                  {/* Customer Block */}
-                  <div className="relative">
-                    <div className="bg-white rounded-[2.5rem] p-8 border border-sky-100 shadow-xl overflow-hidden group">
-                      <div className="absolute top-0 right-0 w-32 h-32 bg-sky-50 rounded-full -mr-16 -mt-16 group-hover:scale-110 transition-transform" />
-                      <div className="relative z-10 flex items-center justify-between">
-                        <div className="flex items-center gap-5">
-                          <div className="w-16 h-16 bg-sky-600 text-white rounded-[1.5rem] flex items-center justify-center shadow-lg">
-                            <Database size={32} />
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-3 mb-1">
-                              <h3 className="text-2xl font-black text-gray-900">{analysis.customer.name}</h3>
-                              {analysis.customer.isNew ? (
-                                <span className="bg-amber-100 text-amber-600 text-[10px] font-black px-2 py-0.5 rounded-full uppercase">New Client</span>
-                              ) : (
-                                <span className="bg-emerald-100 text-emerald-600 text-[10px] font-black px-2 py-0.5 rounded-full uppercase">Identified</span>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-3">
-                              <p className="text-gray-400 font-bold text-sm tracking-wider">ID: {analysis.customer.id}</p>
-                              {analysis.site && (
-                                <>
-                                  <div className="w-1 h-1 bg-gray-200 rounded-full" />
-                                  <p className="text-sky-600 font-black text-sm">{analysis.site}</p>
-                                </>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                        <button 
-                          className="p-3 bg-gray-50 text-gray-400 rounded-2xl hover:text-sky-600 hover:bg-sky-50 transition-all border border-transparent hover:border-sky-100"
-                        >
-                          <Pin size={22} />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Items List */}
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between px-2">
-                       <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Validated Items ({analysis.items.length})</h4>
-                    </div>
-                    <div className="space-y-3">
-                      {analysis.items.map((item, idx) => (
-                        <motion.div 
-                          key={idx}
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: idx * 0.05 }}
-                          className={`bg-white p-5 rounded-3xl border shadow-sm flex items-center justify-between group hover:shadow-md transition-all ${
-                            item.status === 'validated' ? 'border-gray-100' : 'border-amber-100 bg-amber-50/20'
-                          }`}
-                        >
-                          <div className="flex items-center gap-4">
-                            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black ${
-                              item.status === 'validated' ? 'bg-sky-50 text-sky-600' : 'bg-amber-100 text-amber-600'
-                            }`}>
-                              {item.qty}
-                            </div>
-            <div>
-                               <div className="flex items-center gap-2">
-                                  {editingItemIdx === idx ? (
-                                    <input 
-                                      type="text" 
-                                      value={item.name} 
-                                      onChange={(e) => handleUpdateItem(idx, { name: e.target.value })}
-                                      onBlur={() => setEditingItemIdx(null)}
-                                      autoFocus
-                                      className="text-lg font-bold bg-sky-50 border-none p-0 focus:ring-0 w-full rounded"
-                                    />
-                                  ) : (
-                                    <span className="font-bold text-gray-800 text-lg leading-tight">{item.name}</span>
-                                  )}
-                                  {item.status !== 'validated' && <AlertCircle size={14} className="text-amber-500" />}
-                               </div>
-                               <div className="flex items-center gap-3">
-                                  {editingItemIdx === idx ? (
-                                    <div className="flex gap-2">
-                                      <input 
-                                        type="text" 
-                                        value={item.sku} 
-                                        onChange={(e) => handleUpdateItem(idx, { sku: e.target.value })}
-                                        className="text-[10px] w-20 bg-gray-50 border-none p-1 rounded"
-                                      />
-                                      <input 
-                                        type="text" 
-                                        value={item.unit} 
-                                        onChange={(e) => handleUpdateItem(idx, { unit: e.target.value })}
-                                        className="text-[10px] w-12 bg-gray-50 border-none p-1 rounded"
-                                      />
-                                    </div>
-                                  ) : (
-                                    <>
-                                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">SKU: {item.sku || 'UNKNOWN'}</span>
-                                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">UNIT: {item.unit}</span>
-                                    </>
-                                  )}
-                               </div>
-                               {item.notes && <p className="text-[10px] font-black text-amber-600 mt-1 italic">{item.notes}</p>}
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                             <button 
-                               onClick={() => setEditingItemIdx(editingItemIdx === idx ? null : idx)}
-                               className={`p-2.5 rounded-xl transition-all ${
-                                 editingItemIdx === idx ? 'bg-sky-600 text-white shadow-lg' : 'text-gray-300 hover:text-sky-600 hover:bg-sky-50'
-                               }`}
-                             >
-                               {editingItemIdx === idx ? <Check size={18} /> : <Pencil size={18} />}
-                             </button>
-                             <button 
-                               onClick={() => {
-                                 const newItems = analysis.items.filter((_, i) => i !== idx);
-                                 setAnalysis({ ...analysis, items: newItems });
-                               }}
-                               className="p-2.5 text-gray-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
-                             >
-                               <Trash2 size={18} />
-                             </button>
-                          </div>
-                        </motion.div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Actions & Response */}
-                  <div className="space-y-4 pt-4 pb-12">
-                    <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-xl p-8 space-y-6">
-                       <div className="flex items-center justify-between">
-                          <h4 className="text-xl font-black text-gray-900 flex items-center gap-3">
-                            <div className="bg-sky-600 p-2 rounded-xl text-white">
-                              <Send size={18} />
-                            </div>
-                            WhatsApp Concierge Output
-                          </h4>
-                          <button 
-                            onClick={handleCopyResponse}
-                            className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl text-[10px] font-black transition-all ${
-                              copied ? 'bg-emerald-100 text-emerald-600' : 'bg-sky-50 text-sky-600 hover:bg-sky-100'
-                            }`}
-                          >
-                            {copied ? <Check size={16} /> : <Copy size={16} />}
-                            {copied ? 'הועתק!' : 'העתקת תגובה'}
-                          </button>
-                       </div>
-
-                       <div className="bg-gray-50/50 rounded-3xl p-8 relative border border-gray-100">
-                          <p className="text-gray-700 leading-relaxed font-bold text-lg whitespace-pre-wrap text-right" dir="rtl">{analysis.whatsappResponse}</p>
-                       </div>
-
-                       <div className="pt-4 flex gap-4">
-                          <button 
-                            onClick={handleInjectOrder}
-                            disabled={isInjecting}
-                            className="flex-1 bg-gray-900 text-white py-6 rounded-3xl font-black text-xl shadow-2xl hover:bg-sky-600 transition-all flex items-center justify-center gap-4 active:scale-95 disabled:opacity-50"
-                          >
-                            {isInjecting ? (
-                              <Loader2 size={24} className="animate-spin" />
-                            ) : (
-                              <>
-                                <ArrowRightCircle size={26} />
-                                הזרקת הזמנה לסלון!
-                              </>
-                            )}
-                          </button>
-                       </div>
-                    </div>
-                    
-                    <div className="text-center py-6">
-                       <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest">באדיבות נועה ❤️ (Operations Bridge v1.0)</p>
-                    </div>
-                  </div>
-                </motion.div>
-              ) : (
-                <div className="h-full flex flex-col items-center justify-center text-center p-12">
-                   <div className="w-40 h-40 bg-gray-100 rounded-[3rem] flex items-center justify-center text-gray-300 mb-8 border-2 border-dashed border-gray-200">
-                      <Sparkles size={80} />
-                   </div>
-                   <h3 className="text-3xl font-black text-gray-400">ממתינה לנתונים...</h3>
-                   <p className="max-w-xs text-gray-400 font-bold mt-4 leading-relaxed">הדבק טקסט או העלה קובץ משמאל כדי שנועה תוכל לגשר בין השטח למערכת.</p>
-                   
-                   <div className="mt-16 w-full max-w-sm space-y-4">
-                      <div className="p-6 rounded-3xl bg-white border border-gray-100 flex items-center gap-5 opacity-40">
-                        <div className="w-14 h-14 bg-gray-50 rounded-2xl" />
-                        <div className="space-y-2">
-                           <div className="h-2.5 w-40 bg-gray-100 rounded-full" />
-                           <div className="h-2 w-24 bg-gray-100 rounded-full opacity-50" />
-                        </div>
-                      </div>
-                      <div className="p-6 rounded-3xl bg-white border border-gray-100 flex items-center gap-5 opacity-20">
-                        <div className="w-14 h-14 bg-gray-50 rounded-2xl" />
-                        <div className="space-y-2">
-                           <div className="h-2.5 w-32 bg-gray-100 rounded-full" />
-                           <div className="h-2 w-20 bg-gray-100 rounded-full opacity-50" />
-                        </div>
-                      </div>
-                   </div>
+      {/* Mobile-Only Client Search Drawer */}
+      <AnimatePresence>
+        {showClientMenu && (
+          <>
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowClientMenu(false)}
+              className="fixed inset-0 bg-black/40 backdrop-blur-md z-[100] lg:hidden"
+            />
+            <motion.div 
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              className="fixed inset-y-0 right-0 w-[85%] max-w-sm bg-white shadow-2xl z-[101] flex flex-col lg:hidden"
+            >
+              <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+                <h3 className="text-xl font-black text-gray-900">Client Engine</h3>
+                <button onClick={() => setShowClientMenu(false)} className="p-3 text-gray-400 hover:bg-gray-50 rounded-2xl">
+                  <X size={24} />
+                </button>
+              </div>
+              
+              <div className="p-4 border-b border-gray-50 bg-gray-50/50">
+                <div className="relative">
+                  <Search className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                  <input 
+                    type="text" 
+                    placeholder="Search clients..."
+                    className="w-full pr-12 pl-4 py-4 bg-white rounded-2xl border-transparent focus:border-sky-500 focus:ring-0 text-sm font-bold shadow-sm"
+                  />
                 </div>
-              )}
-            </AnimatePresence>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                {clients.map(client => (
+                  <motion.button 
+                    key={client.id}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => {
+                      setSelectedClient(client);
+                      fetchChatHistory(client.id!);
+                      setShowClientMenu(false);
+                      addToast('Focus Switched', `Context set to: ${client.name}`, 'info');
+                    }}
+                    className={`w-full p-5 rounded-3xl flex items-center justify-between text-right border transition-all ${
+                      selectedClient?.id === client.id 
+                        ? 'bg-sky-600 border-sky-400 text-white shadow-xl shadow-sky-600/20' 
+                        : 'bg-white border-gray-100 hover:bg-gray-50 text-gray-900 shadow-sm'
+                    }`}
+                  >
+                    <div>
+                      <div className={`font-black text-sm text-right ${selectedClient?.id === client.id ? 'text-white' : 'text-gray-900'}`}>{client.name}</div>
+                      <div className={`text-[10px] text-right mt-0.5 ${selectedClient?.id === client.id ? 'text-sky-100' : 'text-gray-400'}`}>ID: {client.customerNumber}</div>
+                    </div>
+                    <ArrowRightCircle size={20} className={selectedClient?.id === client.id ? 'text-white' : 'text-gray-200'} />
+                  </motion.button>
+                ))}
+              </div>
+              
+              <div className="p-6 bg-gray-50 border-t border-gray-100">
+                <div className="flex gap-3">
+                  <button className="flex-1 py-4 bg-white border border-gray-200 rounded-2xl font-black text-[10px] uppercase text-gray-500 shadow-sm">
+                    New Client
+                  </button>
+                  <button className="flex-1 py-4 bg-gray-900 text-white rounded-2xl font-black text-[10px] uppercase shadow-lg">
+                    Full Library
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Report Summary Modal */}
+      <UIModal isOpen={!!reportResult} onClose={() => setReportResult(null)} title="Operational Summary (17:00)">
+        <div className="p-8 space-y-6">
+          <div className="bg-gray-50 p-8 rounded-[2rem] border border-gray-100 whitespace-pre-wrap font-bold text-gray-800 leading-relaxed text-right max-h-[60vh] overflow-y-auto" dir="rtl">
+            {reportResult}
+          </div>
+          <div className="flex gap-4">
+            <motion.button 
+              whileTap={{ scale: 0.95 }}
+              onClick={() => {
+                navigator.clipboard.writeText(reportResult || '');
+                addToast('Copied Successfully! ✅', 'Ready to broadcast via WhatsApp', 'success');
+              }}
+              className="flex-1 py-5 bg-emerald-600 text-white rounded-2xl font-black shadow-xl shadow-emerald-600/20 flex items-center justify-center gap-3 hover:bg-emerald-700 transition-colors"
+            >
+              <Copy size={22} />
+              Copy for WhatsApp
+            </motion.button>
+            <motion.button 
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setReportResult(null)}
+              className="px-10 py-5 bg-gray-100 text-gray-600 rounded-2xl font-black hover:bg-gray-200 transition-colors"
+            >
+              Close
+            </motion.button>
           </div>
         </div>
-      </div>
+      </UIModal>
     </div>
   );
 };

@@ -161,6 +161,14 @@
     }
   },
   "firestore": {
+    "/chat_history/{messageId}": {
+      "schema": "TeamChatMessage",
+      "description": "Log of messages exchanged with customers for Noa Bridge to reference"
+    },
+    "/bridge_sessions/{sessionId}": {
+      "schema": "Order",
+      "description": "History of Noa Bridge analysis sessions"
+    },
     "/user_magic_pages/{userId}": {
       "schema": "UserProfile",
       "description": "VIP User Magic Pages collection"

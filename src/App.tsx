@@ -34,6 +34,8 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
+  ArrowLeft,
+  Database,
   Info,
   CheckCircle,
   AlertTriangle,
@@ -44,7 +46,8 @@ import {
   Paperclip,
   Loader2,
   ListTodo,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Activity
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
@@ -82,6 +85,8 @@ import { initOneSignal, sendOrderNotification } from './services/notificationSer
 import { DeliveryImport } from './components/DeliveryImport';
 import { InventoryManager } from './components/InventoryManager';
 import { InventoryDashboard } from './components/InventoryDashboard';
+import { ClientDesktopDashboard } from './components/ClientDesktopDashboard';
+import { LiveOrderPulse } from './components/LiveOrderPulse';
 import OrderForm from './components/OrderForm';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { NoaBridgeGateway } from './components/NoaBridgeGateway';
@@ -323,11 +328,13 @@ const Drawer = ({
               </div>
             </div>
             {[
+                  { id: 'live_pulse', label: 'Live Order Pulse (חדש!)', icon: Activity },
                   { id: 'noa_bridge', label: 'Noa Bridge (מהיר)', icon: Sparkles },
                   { id: 'chat_full', label: "חדר צ'אט חברתי (חדש!)", icon: Sparkles },
               { id: 'chat', label: 'דברו עם נועה (AI)', icon: MessageSquare },
               { id: 'list', label: 'לוח הזמנות', icon: LayoutList },
               { id: 'kanban', label: 'לוח קנבן', icon: Trello },
+              { id: 'desktop_dashboard', label: 'ניהול לקוחות (SabanOS)', icon: Users },
               { id: 'calendar', label: 'סידור עבודה שבועי', icon: CalendarDays },
               { id: 'import', label: 'יבוא אקסל (Export.xls)', icon: FileSpreadsheet },
               { id: 'reports', label: 'דוח בוקר (ארכיון)', icon: FileText },
@@ -444,6 +451,7 @@ function AppContent() {
   });
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [isInitialDataLoading, setIsInitialDataLoading] = useState(true);
+  const [highlightedOrderId, setHighlightedOrderId] = useState<string | null>(null);
   const [dataLoadingStatus, setDataLoadingStatus] = useState({
     orders: true,
     drivers: true,
@@ -649,7 +657,7 @@ function AppContent() {
 
   // --- User Memory Persistence ---
   const [settings, setSettings] = useUserMemory(user?.uid, 'ui_settings', {
-    viewMode: 'kanban' as 'list' | 'calendar' | 'reports' | 'chat' | 'drivers' | 'kanban' | 'import' | 'chat_full' | 'admin_users',
+    viewMode: 'desktop_dashboard' as 'list' | 'calendar' | 'reports' | 'chat' | 'drivers' | 'kanban' | 'import' | 'chat_full' | 'admin_users' | 'desktop_dashboard',
     statusFilter: 'all',
     driverFilter: 'all',
     warehouseFilter: 'all',
@@ -776,14 +784,29 @@ function AppContent() {
 
   const handleStatusUpdate = async (id: string, newStatus: Order['status']) => {
     try {
+      const { GasService } = await import('./services/gasService');
+      const oldOrder = orders.find(o => o.id === id);
+      
       await updateOrder(id, { status: newStatus });
       
       const order = orders.find(o => o.id === id);
       if (order) {
+        // Sync to Order_Tracking and BlackBox_Logs
+        GasService.syncOrder(order);
+        GasService.logBlackBox({
+          operation: 'STATUS_UPDATE',
+          user: user?.displayName || 'System',
+          collection: 'orders',
+          newValue: { status: newStatus },
+          path: `orders/${id}/status`,
+          origin: 'Desktop Dashboard'
+        });
+
         const statusLabels: Record<string, string> = {
           pending: 'ממתין',
           preparing: 'בהכנה',
           ready: 'מוכן',
+          on_the_way: 'בדרך',
           delivered: 'סופק',
           cancelled: 'בוטל'
         };
@@ -791,6 +814,10 @@ function AppContent() {
           'עדכון סטטוס! 🔄', 
           `ההזמנה של ${order.customerName} עודכנה ל-${statusLabels[newStatus] || newStatus}`
         );
+
+        if (newStatus === 'on_the_way') {
+           addToast('יצא לדרך 🚚', `ההזמנה של ${order.customerName} בדרך ליעד`, 'info');
+        }
       }
 
       // Auto-predict ETA when status changes to 'preparing'
@@ -1157,15 +1184,16 @@ function AppContent() {
   }, [dataLoadingStatus.orders, dataLoadingStatus.drivers]);
 
   const NavigationItems = [
+    { id: 'live_pulse', icon: Activity, label: 'דופק הזמנות' },
     { id: 'noa_bridge', icon: Sparkles, label: 'Noa Bridge' },
+    { id: 'desktop_dashboard', icon: Database, label: 'תיק לקוח' },
     { id: 'list', icon: LayoutList, label: 'דוח בוקר' },
     { id: 'kanban', icon: Trello, label: 'קנבן' },
     { id: 'calendar', icon: CalendarDays, label: 'לוח שנתי' },
     { id: 'table', icon: Table, label: 'ניהול מלאי' },
     { id: 'drivers', icon: Users, label: 'נהגים/ביצועים' },
     { id: 'reports', icon: FileText, label: 'ארכיון' },
-    { id: 'chat', icon: MessageSquare, label: 'נועה AI' },
-    { id: 'chat_full', icon: Sparkles, label: 'צ\'אט חברתי' },
+    { id: 'chat_full', icon: MessageSquare, label: 'צ\'אט צוות' },
   ];
 
   if (loading || (isInitialDataLoading && user)) return (
@@ -1403,7 +1431,18 @@ function AppContent() {
                   ))}
                 </nav>
 
-                <div className="mt-10 pt-8 border-t border-gray-100">
+                <div className="mt-10 pt-8 border-t border-gray-100 flex flex-col gap-4">
+                  <button 
+                    onClick={() => setViewMode('reports')}
+                    className="w-full flex items-center justify-between px-5 py-4 bg-gray-900 text-white rounded-2xl shadow-xl hover:bg-sky-600 transition-all group"
+                  >
+                    <div className="flex items-center gap-3">
+                      <Clock size={18} className="text-sky-400" />
+                      <span className="text-xs font-black">דוח סוף יום (17:00)</span>
+                    </div>
+                    <ArrowLeft size={14} className="opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0 transition-all" />
+                  </button>
+
                   <div className="bg-sky-50/50 p-5 rounded-3xl border border-sky-100/50">
                     <p className="text-[9px] font-black text-sky-600/60 uppercase tracking-[0.2em] mb-2">System Status</p>
                     <div className="flex items-center gap-2.5 text-xs font-black text-sky-900">
@@ -1454,7 +1493,27 @@ function AppContent() {
                 </header>
 
                 <div className="flex-1 flex flex-col">
-                  {viewMode === 'noa_bridge' ? (
+                  {viewMode === 'live_pulse' ? (
+                    <LiveOrderPulse 
+                      onViewKanban={() => setViewMode('kanban')}
+                      onAddToast={addToast}
+                    />
+                  ) : viewMode === 'desktop_dashboard' ? (
+                    <ClientDesktopDashboard 
+                      orders={orders}
+                      onViewOrder={(id) => {
+                        setViewMode('kanban');
+                        setHighlightedOrderId(id);
+                        // Filter the Kanban board to show this specific order
+                        setSearchQuery(id.slice(-6));
+                        setTimeout(() => {
+                          const el = document.getElementById(`order-card-${id}`);
+                          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        }, 500);
+                      }}
+                      onAddToast={addToast}
+                    />
+                  ) : viewMode === 'noa_bridge' ? (
                     <NoaBridgeGateway 
                       onBack={() => setViewMode('list')}
                     />
@@ -2046,6 +2105,7 @@ function AppContent() {
               onOrderCreateCustomer={handleCreateCustomer}
               onAddToast={addToast}
               onUploadDoc={handleDriveFileUpload}
+              highlightedOrderId={highlightedOrderId}
             />
           ) : (
             <div className="grid gap-4">

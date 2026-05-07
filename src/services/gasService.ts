@@ -28,20 +28,16 @@ export class GasService {
         mode: 'no-cors',
         headers: {
           'Content-Type': 'text/plain;charset=utf-8',
-          'Authorization': `Bearer ${idToken}`
         },
         body: JSON.stringify(payload),
       });
 
-      // Note: With no-cors, we can't read the response body or status.
-      // We assume it worked if the browser doesn't throw.
-      console.log(`✅ Direct POST attempted to GAS [${action}]`);
+      console.log(`✅ Direct POST attempted to GAS [${action}] (Opaque Mode)`);
       return { status: 'success', mode: 'no-cors' };
     } catch (error: any) {
-      console.error(`❌ Proxy GAS Sync Failed [${action}]:`, error);
-      // Construct a better error message for the UI
-      const errorMessage = error.message || 'Unknown network error';
-      throw new Error(`סנכרון נכשל: ${errorMessage}`);
+      console.warn(`⚠️ Proxy GAS Sync Warning [${action}]:`, error);
+      // Don't throw for best-effort sync actions to avoid UI disruption
+      return { status: 'failed', error: error.message };
     }
   }
 
@@ -50,15 +46,25 @@ export class GasService {
   }
 
   static async syncOrder(orderData: any) {
-    // If there's a signature, GAS often expects it as 'base64Data' at top level
+    // Also sync to tracking sheet
+    this.syncTracking(orderData);
+
     const payload = { 
       ...orderData,
-      sheetName: 'Orders' // Ensure GAS knows which sheet to target
+      sheetName: 'Orders' // Main storage
     };
     if (orderData.signature && !orderData.base64Data) {
       payload.base64Data = orderData.signature;
     }
     return this.push('syncOrder', payload);
+  }
+
+  static async syncTracking(orderData: any) {
+    return this.push('syncOrderTracking', { 
+      ...orderData, 
+      sheetName: 'Order_Tracking',
+      updatedAt: new Date().toISOString()
+    });
   }
 
   static async syncInventory(inventoryData: any) {

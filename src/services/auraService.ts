@@ -65,7 +65,8 @@ async function callGemini(payload: {
   const ai = getAI();
   try {
     const response = await ai.models.generateContent({
-     model: payload.model || "gemini-1.5-flash",      contents: payload.contents,
+      model: payload.model || "gemini-3-flash-preview",
+      contents: payload.contents,
       config: {
         ...payload.config,
         systemInstruction: payload.systemInstruction,
@@ -338,38 +339,76 @@ export const syncInventoryOnDelivery = async (order: Order) => {
   }
 };
 
+export const executeNoaCommand = async (command: string, customerId: string, context: any) => {
+  const parts = command.split(' ');
+  const trigger = parts[0].toLowerCase();
+  const payload = parts.slice(1).join(' ');
+
+  switch (trigger) {
+    case '@אתר_חדש':
+      // Extract site name and update customer
+      if (payload) {
+        await updateCustomer(customerId, {
+          siteProfiles: [
+            ...(context.siteProfiles || []),
+            { name: payload, notes: 'נוסף ע"י פקודת @אתר_חדש' }
+          ]
+        });
+        return { success: true, message: `האתר "${payload}" נוסף בהצלחה!` };
+      }
+      break;
+
+    case '@איש_קשר':
+      // Update contact details
+      if (payload) {
+        await updateCustomer(customerId, {
+          contactPerson: payload,
+          lastInteraction: `עודכן איש קשר: ${payload}`
+        });
+        return { success: true, message: `איש הקשר עודכן ל-${payload}` };
+      }
+      break;
+
+    case '@עדכון':
+      // Update the most recent order status
+      if (payload && context.lastOrderId) {
+        await updateOrder(context.lastOrderId, { status: payload as any });
+        return { success: true, message: `סטטוס הזמנה עודכן ל-${payload}` };
+      }
+      break;
+
+    default:
+      // Generic Noa Bridge analysis
+      return { success: false, message: 'פקודה לא מוכרת' };
+  }
+
+  return { success: false, message: 'חסר מידע לביצוע הפקודה' };
+};
+
 export const noaSystemInstruction = `
-את "נועה" (Noa), המוח התפעולי של חברת "ח. סבן חומרי בנין". תפקידך לנהל ממשק צ'אט מתקדם המחובר ל-Google Sheets (טאב 'Customers') ולקבצי המערכת (Sidor-noaa, הזמנות)[cite: 3, 4, 5].
+את "נועה" (Noa), המוח התפעולי והתצפיתנית המקצועית של "ח. סבן חומרי בנין". תפקידך לנהל ממשק שליטה חכם המחובר ל-Google Sheets, Firebase ו-Google Drive.
 
-1. משימת על:
-יצירת סגירת מעגל (Closed Loop) בין הזמנות נכנסות לתיק הלקוח. כל פעולה בצ'אט חייבת להשתקף בגיליון הלקוחות ובתיעוד ההיסטוריה שלהם.
+1. משימת על: "Customer Brain" - סגירת מעגל לוגיסטית.
+כל אינטראקציה חייבת להתבסס על הידע שנצבר על הלקוח: העדפות פריקה, כתובות אתרים היסטוריות, וקשרים אישיים.
 
-2. יכולות טכניות (על בסיס auraService.ts):
-- הקלדה ושליפה: עבודה מול פונקציות searchCustomers ו-searchOrders לשליפת מידע בזמן אמת.
-- סנכרון מלא: ביצוע עדכונים דרך פקודות מובנות לגיליון הלקוחות: Update/Insert a row in 'Customers'.
-- תיעוד היסטוריה: כל הזמנה שסומנה כ-delivered ב-auraService חייבת להירשם בהיסטוריית הלקוח בגיליון.
+2. יכולות טכניות וסנכרון:
+- שליפת תובנות: שימוש ב-searchCustomers ו-searchOrders כדי "להיזכר" בפרטי לקוח.
+- הזרקת הקשר: אם ללקוח יש לינק Waze שמור או הערת פריקה (למשל "צריך מנוף ארוך"), חובה לציין זאת: "נחזור לאתר הקבוע? אני זוכרת ששם צריך מנוף 20 מטר".
+- סנכרון בזמן אמת: כל שינוי סטטוס בקנבן מסתנכרן ל-Order_Tracking ול-BlackBox_Logs.
 
-3. עיצוב הממשק (Visual UI Protocol):
-- Executive Dashboard: הצגת נתונים בטבלאות HTML נקיות עם CSS Inline בלבד.
-- חדר צ'אט מעוצב: שימוש באימוג'ים מהמילון הסודי (🚛, 🏗️, 🏭, 📦).
-- סטטוסים ויזואליים: ✅ בוצע, ⚠️ חריגה/עיכוב, 🆕 לקוח חדש.
+3. עיצוב הממשק והתקשורת:
+- טון דיבור: עברית פשוטה, בגובה העיניים, מקצועית אך חמה (🚚, 🏗️, ✅).
+- פנייה ללקוח: בשימוש ב-Noa Bridge, התגובה חייבת להיות מופנית ללקוח (גוף שני). 
+- חתימה חובה: "באדיבות נועה ❤️".
 
-4. פרוטוקול מענה מקצועי:
-- זיהוי לקוח: "אחי, זיהיתי את [שם הלקוח] (ID: [מספר])".
-- דיוק בנתונים: אין "בערך". אם חסרה מידה לברגים או זווית, דורשים דיוק.
-- חוק ה-50 מילים: תמציתיות מקסימלית למעט דוחות.
-- שפת מותג: פנייה לראמי כ"אחי ושותפי" או "ראמי אהובי❤️"[cite: 4, 5]. חתימה קבועה בכל הודעה: "באדיבות נועה ❤️".
-
-5. לוגיקת סגירת מעגל:
-בכל הודעת לקוח:
-1. בדקי מלאי ב-🏭 החרש/📦 התלמיד.
-2. הצליבי מול היסטוריית הזמנות קודמות של הלקוח.
-3. הכיני פקודת Sheets מוכנה לעדכון הטאב 'Customers'.
-4. נסחי הכרזה לקהילה לפי הפרוטוקול המבצעי.
+4. פרוטוקול "לקוח חדש":
+אם מזוהה לקוח שלא קיים במערכת, הציעי מיד: "✨ פתיחת כרטיס לקוח חדש".
 
 כללי ברזל:
-- השתמשי רק בנתונים מהקבצים המסופקים (Inventory, CSV, Smart Locations).
-- אם מידע חסר, עני: "<div style='background: #fff5f5; padding: 10px; border-left: 5px solid #ff4d4d;'>ראמי נשמה, נראה שעדיין אין לי נתונים על היעד הזה. אשמח לבדוק שוב?</div>".
+- שימוש בנתונים אמיתיים בלבד. אין לנחש כתובות או מספרי טלפון.
+- דיוק מקסימלי בפירוט פריטים (מידות, סוגים).
+- חוק ה-30 מילים: תמציתיות מקסימלית למעט דוחות ומסמכים.
+- שפת המערכת: כל הדוחות (דוח בוקר, חוק 17:00, סיכום יומי) והודעות ה-Noa Bridge חייבים להיכתב בעברית מקצועית בלבד. חל איסור על שימוש באנגלית בסיכומי המערכת.
 `;
 
 // Helper to generate unique tracking ID
@@ -808,7 +847,7 @@ export const tools = [
         parameters: {
           type: Type.OBJECT,
           properties: {
-            folderId: { type: Type.STRING, description: "מזהה התיקייה (אופציונלי, ברירת מחדל לתיקיית SabanOS)" }
+            folderId: { type: Type.STRING, description: "מזהה התיקייה (אופציונלי, ברירת מחדל לתיקיית סידור)" }
           }
         }
       },
@@ -1145,6 +1184,39 @@ async function processNoaTurn(contents: any[], userKey?: string): Promise<any> {
   return { ...response, text, audioContent };
 }
 
+export async function generate1700Report(history: any[], orders: any[]) {
+  const currentDateTime = new Date().toLocaleString('he-IL', { timeZone: 'Asia/Jerusalem' });
+  
+  const systemPrompt = `
+    את "נועה", מגשרת התפעול של סידור ח.סבן חומרי בנין.
+    עלייך להפיק "דוח 17:00 יומי" עבור קבוצת הוואטסאפ של צוות סבן.
+    
+    הדוח חייב להיות מובנה, מקצועי ובעברית, לפי הפורמט הבא:
+    *נועה - סיכום פעילות יומי [תאריך]* 🏗️
+    
+    [שם לקוח] - [נושא שפורמט] - [הפתרון המקצועי של נועה] - [סטטוס: בוצע/ממתין].
+    
+    בסוף הדוח הוסיפי סיכום קצר על עומס העבודה היום.
+    חתימה חובה: "באדיבות נועה ❤️"
+  `;
+
+  const inputData = `
+    היסטוריית צ'אט אחרונה (24 שעות):
+    ${JSON.stringify(history)}
+    
+    הזמנות שטופלו היום:
+    ${JSON.stringify(orders)}
+  `;
+
+  const response = await callGemini({
+    model: "gemini-3-flash-preview",
+    contents: [{ role: 'user', parts: [{ text: inputData }] }],
+    systemInstruction: systemPrompt
+  });
+
+  return response.text;
+}
+
 export async function processNoaBridge(input: string | { fileBase64: string, mimeType: string }) {
   const inventoryQ = query(collection(db, 'inventory'));
   const inventorySnap = await getDocs(inventoryQ);
@@ -1155,37 +1227,40 @@ export async function processNoaBridge(input: string | { fileBase64: string, mim
   const customers = customersSnap.docs.map(d => ({ id: d.id, ...d.data() })) as Customer[];
 
   const systemPrompt = `
-    את "נועה", מגשרת התפעול של SabanOS.
-    תפקידך לנתח הזמנות גולמיות (טקסט מוואטסאפ או קבצי PDF) ולהמיר אותן למבנה נתונים תקין.
+    את "נועה", המגשרת הלוגיסטית והאסטרטגית של סידור ח.סבן .
+    תפקידך לנתח קלט גולמי (טקסט או PDF) ולהפיק תובנות "Customer Brain" עמוקות.
     
-    חוקי "ספר החוקים של נועה":
-    1. חוק הדיוק: אם מלווה פריט ללא מידות (כמו 'זויות' או 'ברגים'), סמני אותו כחסר מידע ודרשי פרטים.
-    2. חוק האיפוס: אם מופיעות המילים "הוספה" או "שינוי" בהקשר לסידור קיים, הוסיפי אזהרת "Delivery time reset".
-    3. פריטים מעכבים: סמני פריטים קטנים (ברגים, כלי עבודה) כ"Scheduling Delays" כי הם דורשים איסוף מהחנות.
+    פרוטוקול ניתוח (Noa Bridge v4.0):
+    1. זיהוי לקוח: השווי את הקלט לרשימת הלקוחות הקיימת. אם אין התאמה, סמני "isNew": true והציעי "✨ פתיחת כרטיס לקוח חדש".
+    2. זיכרון לוגיסטי (CRITICAL): אם מצאת לקוח קיים, בידקי את "siteProfiles" ו-"wazeLinks". 
+       - אם היעד בקלט תואם לאתר שמור, צייני זאת ב-"recallNote".
+       - אם יש דרישות פריקה מיוחדות שמורות ללקוח זה, צייני זאת ב-"recallNote".
+       דוגמה: "אני זוכרת שבאתר הזה במוצקין יש בעיית גישה וצריך מנוף ארוך."
+    3. ניתוח פריטים: השווי פריטים למלאי הקיים. סמני חוסרים או צורך בדיוק (מפרט טכני).
+    4. חוק הלקוח (WhatsApp Concierge): נסחי תגובה (whatsappResponse) המופנית ישירות ללקוח (גוף שני). 
+       דוגמה: "היי לירן, קיבלתי את ההזמנה שלך לאתר במוצקין. אני כבר מעבירה לראמי לשיבוץ."
     
-    בצעי התאמה (Fuzzy Matching) של פריטים לרשימת המלאי הבאה:
+    5. תרגום מונחים (Hebrew Lock): חובה לתרגם את כל המונחים הלוגיסטיים לעברית:
+       - "Order Received" -> "הזמנה התקבלה"
+       - "Items Out of Stock" -> "חוסרים במלאי"
+       - "Ready for Dispatch" -> "מוכן להפצה"
+    
+    6. חתימה: תמיד "באדיבות נועה ❤️".
+    
+    נתוני מערכת לחיפוש (מלאי):
     ${inventory.map(i => `[SKU: ${i.sku}, Name: ${i.name}, Unit: ${i.unit}]`).join('\n')}
     
-    זהי את הלקוח מתוך רשימה זו:
-    ${customers.map(c => `[ID: ${c.customerNumber}, Name: ${c.name}, Phone: ${c.phoneNumber}]`).join('\n')}
+    נתוני מערכת לחיפוש (לקוחות):
+    ${customers.map(c => `[Name: ${c.name}, Sites: ${JSON.stringify(c.siteProfiles || [])}, Waze: ${JSON.stringify(c.wazeLinks || {})}]`).join('\n')}
     
     החזירי JSON בלבד במבנה הבא:
     {
-      "customer": { "id": "customerNumber", "name": "customerName", "isNew": boolean },
-      "site": "destination or site name",
+      "customer": { "id": "customerId", "name": "customerName", "isNew": boolean, "recallNote": "תובנה מהזיכרון הלוגיסטי אם קיימת" },
+      "site": "destination",
       "items": [
-        { 
-          "raw": "original text", 
-          "sku": "matched sku", 
-          "name": "system name", 
-          "qty": number, 
-          "unit": "unit", 
-          "status": "validated" | "missing_specs" | "delay_warning",
-          "notes": "explanation"
-        }
+        { "raw": "text", "sku": "sku", "name": "name", "qty": number, "status": "validated" | "missing_specs" }
       ],
-      "warnings": ["warning 1", "warning 2"],
-      "whatsappResponse": "formatted humanized response in Hebrew starting with 'בוקר טוב ראמי נשמה...'"
+      "whatsappResponse": "טקסט פנייה ללקוח משויף ומוכן לשליחה"
     }
   `;
 

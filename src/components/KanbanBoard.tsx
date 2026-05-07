@@ -9,7 +9,8 @@ import {
   Truck, 
   CheckCircle2, 
   CheckCircle, 
-  AlertCircle
+  AlertCircle,
+  Package
 } from 'lucide-react';
 
 interface KanbanBoardProps {
@@ -25,14 +26,14 @@ interface KanbanBoardProps {
   onAddToast: (title: string, msg: string, type?: any) => void;
   onUploadDoc: (file: File, orderId?: string, documentType?: any) => Promise<void>;
   inventoryItems?: any[];
+  highlightedOrderId?: string | null;
 }
 
 const statusConfig = [
-  { status: 'pending', label: 'ממתין לאישור', icon: Clock, color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-100', accent: 'bg-amber-500' },
-  { status: 'preparing', label: 'בהכנה במחסן', icon: Truck, color: 'text-sky-600', bg: 'bg-sky-50', border: 'border-sky-100', accent: 'bg-sky-500' },
-  { status: 'ready', label: 'מוכן להפצה', icon: CheckCircle2, color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-100', accent: 'bg-emerald-500' },
-  { status: 'delivered', label: 'סופק בהצלחה', icon: CheckCircle, color: 'text-green-700', bg: 'bg-green-50', border: 'border-green-100', accent: 'bg-green-500' },
-  { status: 'cancelled', label: 'בוטל / נדחה', icon: AlertCircle, color: 'text-rose-600', bg: 'bg-rose-50', border: 'border-rose-100', accent: 'bg-rose-500' },
+  { status: 'pending', label: 'ממתינים (Pending)', icon: Clock, color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-100', accent: 'bg-amber-500' },
+  { status: 'preparing', label: 'בהעמסה (Loading)', icon: Package, color: 'text-sky-600', bg: 'bg-sky-50', border: 'border-sky-100', accent: 'bg-sky-500' },
+  { status: 'on_the_way', label: 'בדרך (En Route)', icon: Truck, color: 'text-indigo-600', bg: 'bg-indigo-50', border: 'border-indigo-100', accent: 'bg-indigo-500' },
+  { status: 'delivered', label: 'סופק (Delivered)', icon: CheckCircle, color: 'text-green-700', bg: 'bg-green-50', border: 'border-green-100', accent: 'bg-green-500' },
 ] as const;
 
 export const KanbanBoard: React.FC<KanbanBoardProps> = ({
@@ -47,7 +48,8 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   onOrderCreateCustomer,
   onAddToast,
   onUploadDoc,
-  inventoryItems = []
+  inventoryItems = [],
+  highlightedOrderId
 }) => {
   const onDragEnd = (result: DropResult) => {
     const { destination, source, draggableId } = result;
@@ -76,7 +78,12 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
     <DragDropContext onDragEnd={onDragEnd}>
       <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-gray-200 scrollbar-track-transparent snap-x" dir="rtl" style={{ height: 'calc(100vh - 280px)' }}>
         {statusConfig.map((col) => {
-          const colOrders = orders.filter(o => o.status === col.status);
+          const colOrders = orders.filter(o => {
+            if (col.status === 'preparing') {
+              return o.status === 'preparing' || o.status === 'ready';
+            }
+            return o.status === col.status;
+          });
           const Icon = col.icon;
 
           return (
@@ -155,6 +162,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                                     onUploadDoc={onUploadDoc}
                                     inventoryItems={inventoryItems}
                                     isCompact={true}
+                                    isHighlighted={highlightedOrderId === order.id}
                                   />
                                 </motion.div>
                               </div>

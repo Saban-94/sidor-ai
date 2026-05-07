@@ -41,17 +41,31 @@ export interface Driver {
   updatedAt?: Timestamp;
 }
 
+export interface SiteProfile {
+  siteName: string;
+  address: string;
+  wazeLink?: string;
+  contactPerson?: string;
+  unloadingRequirements?: string;
+}
+
 export interface Customer {
   id?: string;
   customerNumber: string;
   name: string;
   contactPerson: string;
   phoneNumber: string;
-  phone?: string; // Standardized field
+  phone?: string; 
+  email?: string;
   address?: string;
   totalOrders?: number;
   lastOrderAt?: Timestamp;
   driveFolderId?: string;
+  wazeLinks?: Record<string, string>; // Map of site names to Waze links
+  unloadingRequirements?: string;
+  historicalTrends?: string;
+  siteProfiles?: SiteProfile[];
+  lastInteraction?: string;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
 }

@@ -26,7 +26,8 @@ import {
   ChevronLeft
 } from 'lucide-react';
 import { AnimatePresence } from 'motion/react';
-import { predictOrderEta } from '../services/auraService';
+import { predictOrderEta, askNoa, updateCustomer } from '../services/auraService';
+import { serverTimestamp } from 'firebase/firestore';
 import { Order, Driver, InventoryItem } from '../types';
 import { highlightText, parseItems, isKnownProduct, cn } from '../lib/utils';
 import { UIModal } from './UIModal';
@@ -38,6 +39,7 @@ export const StatusBadge = ({ status }: { status: Order['status'] }) => {
     ready: { color: 'bg-emerald-50 text-emerald-700 border-emerald-200', icon: CheckCircle2, label: 'מוכן', emoji: '🚚' },
     delivered: { color: 'bg-green-100 text-green-800 border-green-300', icon: CheckCircle, label: 'סופק', emoji: '✅' },
     cancelled: { color: 'bg-rose-50 text-rose-700 border-rose-200', icon: AlertCircle, label: 'בוטל', emoji: '🛑' },
+    on_the_way: { color: 'bg-indigo-50 text-indigo-700 border-indigo-200', icon: Truck, label: 'בדרך', emoji: '🚚' },
   };
 
   const config = configs[status] || configs.pending;
@@ -67,6 +69,7 @@ interface OrderCardProps {
   searchQuery?: string;
   onUploadDoc?: (file: File, orderId?: string, docType?: any) => Promise<void>;
   isCompact?: boolean;
+  isHighlighted?: boolean;
   key?: React.Key;
 }
 
@@ -379,7 +382,8 @@ export const OrderCard = ({
   allOrders,
   searchQuery = '',
   onUploadDoc,
-  isCompact = false
+  isCompact = false,
+  isHighlighted = false
 }: OrderCardProps) => {
   const [isPredicting, setIsPredicting] = useState(false);
   const [showDocs, setShowDocs] = useState(false);
@@ -388,6 +392,73 @@ export const OrderCard = ({
   const [isRescheduling, setIsRescheduling] = useState(false);
   const [rescheduleData, setRescheduleData] = useState({ date: order.date, time: order.time });
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isGeneratingShare, setIsGeneratingShare] = useState(false);
+
+  const handleSmartShare = async () => {
+    if (!order || !order.customerName) {
+      onAddToast('שגיאה', 'לא ניתן לייצר הודעה, חסר מידע על ההזמנה', 'warning');
+      return;
+    }
+
+    setIsGeneratingShare(true);
+    try {
+      const statusHebrew: Record<string, string> = {
+        pending: 'ממתין',
+        preparing: 'בהעמסה 🛠️',
+        ready: 'מוכן ליציאה 🚚',
+        on_the_way: 'בדרך אליך 🚛',
+        delivered: 'סופק ✅',
+        cancelled: 'בוטל 🛑'
+      };
+      
+      const parsedItems = parseItems(order.items);
+      const itemsList = parsedItems.map(item => 
+        `• *${item.name}* (${item.sku || 'ללא מק"ט'}) - ${item.status === 'validated' ? 'תקין ✅' : 'חסר מידע ⚠️'}`
+      ).join('\n');
+
+      let warningNote = "";
+      if (order.status === 'preparing') {
+        warningNote = "\n⚠️ *חוק האיפוס:* שיבוץ יציאה עשוי להשתנות עקב העמסה.";
+      } else if (order.status === 'pending' && parsedItems.some(i => i.status !== 'validated')) {
+        warningNote = "\n⚠️ *חוק הדיוק:* יש פריטים שדורשים הבהרה לגבי מידות.";
+      }
+      
+      const text = `שלום ${order.customerName}, כאן נועה מ-SabanOS 🏗️
+העדכון לגבי אתר *${order.destination || 'כללי'}*:
+הסטטוס השתנה ל: *${statusHebrew[order.status] || order.status}* ✅
+
+פירוט הפריטים:
+${itemsList}
+
+${warningNote}
+
+באדיבות נועה ❤️`;
+
+      await navigator.clipboard.writeText(text);
+      onAddToast('התשובה הועתקה! ✅', `שלח עכשיו בוואטסאפ של ${order.customerName}`, 'success');
+      
+      // Deep Link Sync: Update Client Brain
+      if (order.customerId) {
+        await updateCustomer(order.customerId, {
+          lastInteraction: 'Status Update Sent via WhatsApp',
+          updatedAt: serverTimestamp() as any
+        });
+      }
+
+      if (navigator.share) {
+        try {
+          await navigator.share({ title: 'עדכון סטטוס SabanOS', text });
+        } catch (e) {
+          // Fallback to clipboard handled above
+        }
+      }
+    } catch (err) {
+      console.error('Smart Share Error:', err);
+      onAddToast('שגיאה', 'לא ניתן לייצר הודעה, חסר מידע על ההזמנה', 'warning');
+    } finally {
+      setIsGeneratingShare(false);
+    }
+  };
 
   const handleReschedule = async () => {
      try {
@@ -477,10 +548,17 @@ export const OrderCard = ({
   return (
     <motion.div 
       layout
+      id={`order-card-${order.id}`}
       initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
+      animate={{ 
+        opacity: 1, 
+        y: 0,
+        scale: isHighlighted ? 1.05 : 1,
+        boxShadow: isHighlighted ? '0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)' : '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)'
+      }}
       className={cn(
-        "bg-white/95 backdrop-blur-sm rounded-[2rem] border border-sky-100 shadow-lg hover:shadow-xl transition-all relative group",
+        "bg-white/95 backdrop-blur-sm rounded-[2rem] border transition-all relative group",
+        isHighlighted ? "border-sky-500 ring-4 ring-sky-500/10" : "border-sky-100",
         isCompact ? "p-4" : "p-5"
       )}
     >
@@ -783,11 +861,28 @@ export const OrderCard = ({
               </button>
 
               <button 
+                onClick={handleSmartShare}
+                disabled={isGeneratingShare}
+                title="שתף עדכון חכם (Noa AI)"
+                className={cn(
+                  "bg-emerald-600 text-white p-3.5 rounded-2xl transition-all active:scale-95 shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-2",
+                  isGeneratingShare ? "opacity-50" : "hover:bg-emerald-700"
+                )}
+              >
+                {isGeneratingShare ? (
+                  <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full" />
+                ) : (
+                  <Share2 size={18} />
+                )}
+                <span className="hidden lg:inline text-[10px] font-black uppercase tracking-widest">Smart Share</span>
+              </button>
+
+              <button 
                 onClick={handleShare}
-                title="שתף הזמנה"
+                title="שיתוף פרטים יבש"
                 className="bg-white border-2 border-gray-100 text-gray-600 p-3.5 rounded-2xl hover:bg-sky-50 hover:text-sky-600 hover:border-sky-100 transition-all active:scale-95 shadow-sm"
               >
-                <Share2 size={18} />
+                <div className="opacity-60"><Share2 size={16} /></div>
               </button>
 
               <button 

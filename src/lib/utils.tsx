@@ -27,6 +27,7 @@ export interface ParsedItem {
   quantity: string;
   name: string;
   sku: string;
+  status: 'validated' | 'missing_specs';
 }
 
 /**
@@ -53,11 +54,6 @@ export function parseItems(text: string): ParsedItem[] {
     }
     
     // 2. Extract Quantity and Unit
-    // Matches: "5", "5 שקים", "2.5 טון", "חצי קוב"
-    // Regex breakdown:
-    // ^(\d+(?:\.\d+)?)? -> Optional Number (integers or decimals)
-    // \s*
-    // (שק|שקים|משט|משטחים|טון|טונות|קוב|יחידות|יח|מ"ר|מ"ק|ק"ג|קג|ליטר|ליטרים)? -> Optional Unit
     const qtyRegex = /^(\d+(?:\.\d+)?|חצי|רבע)?\s*(שק|שקים|משט|משטחים|טון|טונות|קוב|יחידות|יח|מ"ר|מ"ק|ק"ג|קג|ליטר|ליטרים)?\s+/;
     const qtyMatch = workingLine.match(qtyRegex);
     
@@ -76,7 +72,7 @@ export function parseItems(text: string): ParsedItem[] {
       name = workingLine.replace(qtyRegex, '').trim();
     }
     
-    // 3. Fallback: Check if quantity/unit are at the end (e.g. "מלט 5 שקים")
+    // 3. Fallback: Check if quantity/unit are at the end
     if (!qtyMatch) {
       const endQtyRegex = /\s+(\d+(?:\.\d+)?|חצי|רבע)?\s*(שק|שקים|משט|משטחים|טון|טונות|קוב|יחידות|יח|מ"ר|מ"ק|ק"ג|קג|ליטר|ליטרים)$/;
       const endQtyMatch = workingLine.match(endQtyRegex);
@@ -96,15 +92,14 @@ export function parseItems(text: string): ParsedItem[] {
     name = name.replace(/לא צוין/g, '').trim();
     if (!name && sku) name = `מוצר ${sku}`;
     
-    // If we have a unit, append it to quantity or keep it separate if we change the interface
-    // For now, let's keep it in the name or quantity string to be safe with existing types
     const displayQuantity = unit ? `${quantity} ${unit}` : quantity;
 
     if (name || sku) {
       items.push({
         quantity: displayQuantity,
         name: name || 'פריט ללא שם',
-        sku: sku || ''
+        sku: sku || '',
+        status: sku ? 'validated' : 'missing_specs'
       });
     }
   }
