@@ -124,50 +124,68 @@ const ItemsModal = ({
           <table className="w-full text-right border-collapse">
             <thead>
               <tr className="border-b border-gray-100">
+                <th className="py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest w-12 text-center">תמונה</th>
                 <th className="py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest w-12 text-center">כמות</th>
                 <th className="py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest px-4">תיאור פריט</th>
                 <th className="py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest w-24 text-left">מק"ט</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {parsedItems.map((item, idx) => (
-                <tr key={idx} className="group hover:bg-sky-50/50 transition-colors">
-                  <td className="py-4 text-center">
-                    <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-gray-900 text-white text-xs font-black shadow-sm group-hover:bg-sky-600 transition-colors">
-                      {item.quantity}
-                    </span>
-                  </td>
-                  <td className="py-4 px-4">
-                    <p className={cn(
-                      "text-sm font-black leading-tight",
-                      isKnownProduct(item.name) ? "text-sky-600" : "text-gray-900"
-                    )}>
-                      {item.name}
-                    </p>
-                  </td>
-                  <td className="py-4 text-left">
-                    <div className="flex flex-col items-end gap-1">
-                      {item.sku ? (
-                        <span className="text-[10px] font-bold text-gray-400 bg-gray-100 px-2 py-1 rounded-lg">
-                          {item.sku}
-                        </span>
-                      ) : (
-                        <span className="text-[10px] font-bold text-gray-300 italic">לא צוין</span>
-                      )}
-                      
-                      {inventoryItems.find(inv => inv.sku === item.sku) && (
-                        <span className={`text-[9px] font-black px-1.5 py-0.5 rounded ${
-                          (inventoryItems.find(inv => inv.sku === item.sku)?.currentStock || 0) > 0 
-                            ? 'bg-emerald-50 text-emerald-600' 
-                            : 'bg-rose-50 text-rose-600'
-                        }`}>
-                          {(inventoryItems.find(inv => inv.sku === item.sku)?.currentStock || 0) > 0 ? 'במלאי' : 'חסר'}
-                        </span>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
+              {parsedItems.map((item, idx) => {
+                const inventoryItem = inventoryItems.find(inv => inv.sku === item.sku);
+                return (
+                  <tr key={idx} className="group hover:bg-sky-50/50 transition-colors">
+                    <td className="py-4 text-center">
+                      <div className="w-10 h-10 rounded-lg bg-gray-50 border border-gray-100 overflow-hidden flex items-center justify-center mx-auto">
+                        {inventoryItem?.imageUrl ? (
+                          <img 
+                            src={inventoryItem.imageUrl} 
+                            alt={item.name} 
+                            className="w-full h-full object-cover"
+                            referrerPolicy="no-referrer"
+                          />
+                        ) : (
+                          <Package size={16} className="text-gray-300" />
+                        )}
+                      </div>
+                    </td>
+                    <td className="py-4 text-center">
+                      <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-gray-900 text-white text-xs font-black shadow-sm group-hover:bg-sky-600 transition-colors">
+                        {item.quantity}
+                      </span>
+                    </td>
+                    <td className="py-4 px-4">
+                      <p className={cn(
+                        "text-sm font-black leading-tight",
+                        isKnownProduct(item.name) ? "text-sky-600" : "text-gray-900"
+                      )}>
+                        {item.name}
+                      </p>
+                    </td>
+                    <td className="py-4 text-left">
+                      <div className="flex flex-col items-end gap-1">
+                        {item.sku ? (
+                          <span className="text-[10px] font-bold text-gray-400 bg-gray-100 px-2 py-1 rounded-lg">
+                            {item.sku}
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-bold text-gray-300 italic">לא צוין</span>
+                        )}
+                        
+                        {inventoryItem && (
+                          <span className={`text-[9px] font-black px-1.5 py-0.5 rounded ${
+                            (inventoryItem.currentStock || 0) > 0 
+                              ? 'bg-emerald-50 text-emerald-600' 
+                              : 'bg-rose-50 text-rose-600'
+                          }`}>
+                            {(inventoryItem.currentStock || 0) > 0 ? 'במלאי' : 'חסר'}
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
 

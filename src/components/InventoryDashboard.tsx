@@ -91,11 +91,17 @@ export const InventoryDashboard: React.FC<InventoryDashboardProps> = ({ orders =
     calculateInventoryStats(items, sales), 
   [items, sales]);
 
-  const filteredItems = allStats.filter(item => 
-    item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    item.sku.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    item.category?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredItems = allStats.filter(item => {
+    const name = item?.name || "";
+    const sku = item?.sku || "";
+    const category = item?.category || "";
+    const query = searchQuery || "";
+    return (
+      name.toLowerCase().includes(query.toLowerCase()) ||
+      sku.toLowerCase().includes(query.toLowerCase()) ||
+      category.toLowerCase().includes(query.toLowerCase())
+    );
+  });
 
   const handleQuickUpdate = async (id: string, newValue: number) => {
     try {
@@ -283,13 +289,14 @@ export const InventoryDashboard: React.FC<InventoryDashboardProps> = ({ orders =
             <div className="overflow-x-auto">
               <table className="w-full text-right border-collapse">
                 <thead className="sticky top-0 z-10 bg-slate-50/90 backdrop-blur-md">
-                  <tr className="border-b border-slate-100">
-                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">מוצר</th>
-                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">מק"ט</th>
+                  <tr className="border-b border-slate-100 italic">
+                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">תמונה</th>
+                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">מוצר</th>
+                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">מק"ט</th>
                     <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">מלאי נוכחי</th>
                     <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">מלאי שיצא</th>
                     <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">מינימום</th>
-                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">סטטוס</th>
+                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">סטטוס</th>
                     <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">פעולות</th>
                   </tr>
                 </thead>
@@ -305,26 +312,26 @@ export const InventoryDashboard: React.FC<InventoryDashboardProps> = ({ orders =
                         className="hover:bg-slate-50/50 transition-colors group"
                       >
                         <td className="px-6 py-4">
-                          <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 rounded-2xl overflow-hidden bg-slate-100 flex items-center justify-center border border-slate-200 shadow-sm">
-                              {item.imageUrl ? (
-                                <img 
-                                  src={item.imageUrl.startsWith('http:') ? item.imageUrl.replace('http:', 'https:') : item.imageUrl} 
-                                  alt={item.name} 
-                                  className="w-full h-full object-cover"
-                                  referrerPolicy="no-referrer"
-                                  onError={(e) => {
-                                    (e.target as HTMLImageElement).src = 'https://via.placeholder.com/100?text=?';
-                                  }}
-                                />
-                              ) : (
-                                <ImageIcon className="text-slate-300" size={20} />
-                              )}
-                            </div>
-                            <div>
-                              <p className="text-sm font-black text-slate-900">{item.name}</p>
-                              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">{item.category || 'ללא קטגוריה'}</p>
-                            </div>
+                          <div className="w-12 h-12 rounded-2xl overflow-hidden bg-slate-100 flex items-center justify-center border border-slate-200 shadow-sm">
+                            {item.imageUrl ? (
+                              <img 
+                                src={item.imageUrl.startsWith('http:') ? item.imageUrl.replace('http:', 'https:') : item.imageUrl} 
+                                alt={item.name} 
+                                className="w-full h-full object-cover"
+                                referrerPolicy="no-referrer"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).src = 'https://via.placeholder.com/100?text=?';
+                                }}
+                              />
+                            ) : (
+                              <ImageIcon className="text-slate-300" size={20} />
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div>
+                            <p className="text-sm font-black text-slate-900">{item.name}</p>
+                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">{item.category || 'ללא קטגוריה'}</p>
                           </div>
                         </td>
                         <td className="px-6 py-4">

@@ -193,7 +193,22 @@ export const ClientDesktopDashboard: React.FC<ClientDesktopDashboardProps> = ({
       const response = await askNoa(prompt, []);
       const messageText = response.answer;
 
-      await navigator.clipboard.writeText(messageText);
+      try {
+        await navigator.clipboard.writeText(messageText);
+      } catch (clipErr) {
+        // Robust Fallback for Clipboard API permissions
+        const textArea = document.createElement("textarea");
+        textArea.value = messageText;
+        textArea.style.position = "fixed";
+        textArea.style.left = "-9999px";
+        textArea.style.top = "0";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+      }
+
       setCopiedOrderId(order.id!);
       onAddToast('התשובה הועתקה! ✅', `שלח עכשיו בוואטסאפ של ${order.customerName}`, 'success');
       

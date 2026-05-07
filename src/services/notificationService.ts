@@ -54,8 +54,7 @@ export const sendOrderNotification = async (title: string, message: string) => {
   const apiKey = (import.meta as any).env.VITE_ONESIGNAL_REST_API_KEY;
 
   if (!apiKey) {
-    // Silence persistent warning, log only as info for developers
-    console.info("OneSignal: REST API Key (VITE_ONESIGNAL_REST_API_KEY) is not configured. External notifications skipped.");
+    // Silence persistent warning if not in use
     return;
   }
 

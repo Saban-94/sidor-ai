@@ -13,7 +13,8 @@ import {
   CheckSquare,
   Square,
   PlusCircle,
-  MoreHorizontal
+  MoreHorizontal,
+  Package
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -29,10 +30,11 @@ import {
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { handleFirestoreError, OperationType } from '../lib/firebaseUtils';
-import { Order, Driver } from '../types';
+import { Order, Driver, InventoryItem } from '../types';
 import { format } from 'date-fns';
 import { he } from 'date-fns/locale';
 import { UIModal } from './UIModal';
+import { parseItems } from '../lib/utils';
 
 interface MorningReport {
   id?: string;
@@ -42,7 +44,15 @@ interface MorningReport {
   createdAt: any;
 }
 
-export default function MorningReportSystem({ onBack, drivers }: { onBack: () => void, drivers: Driver[] }) {
+export default function MorningReportSystem({ 
+  onBack, 
+  drivers, 
+  inventory = [] 
+}: { 
+  onBack: () => void, 
+  drivers: Driver[], 
+  inventory?: InventoryItem[] 
+}) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [reports, setReports] = useState<MorningReport[]>([]);
   const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
@@ -220,6 +230,7 @@ export default function MorningReportSystem({ onBack, drivers }: { onBack: () =>
                     <thead>
                       <tr className="bg-gray-50/30 text-gray-400 text-[10px] uppercase font-bold tracking-widest">
                         <th className="px-6 py-4 w-12 text-center text-gray-900 italic">#</th>
+                        <th className="px-6 py-4 w-12 text-center text-gray-900 italic">תמונה</th>
                         <th className="px-6 py-4">לקוח</th>
                         <th className="px-6 py-4">נהג</th>
                         <th className="px-6 py-4">זמן</th>
@@ -262,6 +273,28 @@ export default function MorningReportSystem({ onBack, drivers }: { onBack: () =>
                                 <span className="text-[10px] font-black bg-gray-900 text-white px-1.5 py-0.5 rounded-md">
                                   #{order.orderNumber || order.id?.slice(-4).toUpperCase()}
                                 </span>
+                              </td>
+                              <td className="px-6 py-4">
+                                <div className="w-10 h-10 rounded-lg bg-gray-100 border border-gray-100 overflow-hidden flex items-center justify-center mx-auto">
+                                  {(() => {
+                                    const items = parseItems(order.items);
+                                    if (items.length > 0) {
+                                      const firstItem = items[0];
+                                      const invItem = inventory.find(i => i.sku === firstItem.sku || i.name === firstItem.name);
+                                      if (invItem?.imageUrl) {
+                                        return (
+                                          <img 
+                                            src={invItem.imageUrl} 
+                                            alt={firstItem.name} 
+                                            className="w-full h-full object-cover"
+                                            referrerPolicy="no-referrer"
+                                          />
+                                        );
+                                      }
+                                    }
+                                    return <Package size={16} className="text-gray-300" />;
+                                  })()}
+                                </div>
                               </td>
                               <td className="px-6 py-4">
                                 <div className="font-bold text-gray-900 text-sm">{order.customerName}</div>

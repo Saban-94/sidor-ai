@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { cleanImageUrl } from '../lib/utils';
 
 interface AvatarProps {
   src?: string | null;
@@ -7,6 +8,8 @@ interface AvatarProps {
   className?: string;
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
 }
+
+const SABAN_PLACEHOLDER = "https://i.postimg.cc/qqWtk5qr/Gemini-Generated-Image-6z6qts6z6qts6z6q.png";
 
 export const Avatar: React.FC<AvatarProps> = ({ 
   src, 
@@ -34,7 +37,8 @@ export const Avatar: React.FC<AvatarProps> = ({
   };
 
   const initials = getInitials(name || 'User');
-  const showInitials = error || !src || src.includes('placeholder') || src.includes('unsplash');
+  const cleanedSrc = cleanImageUrl(src);
+  const showInitials = !cleanedSrc || cleanedSrc.includes('placeholder') || cleanedSrc.includes('unsplash');
 
   // Simple hash for color
   const colors = [
@@ -47,15 +51,17 @@ export const Avatar: React.FC<AvatarProps> = ({
   return (
     <div className={`relative flex-shrink-0 ${sizeClasses[size]} ${className}`}>
       <AnimatePresence mode="wait">
-        {showInitials ? (
+        {showInitials || error ? (
           <motion.div
-            key="initials"
+            key={error ? "placeholder" : "initials"}
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.8 }}
-            className={`w-full h-full rounded-2xl ${bgColor} text-white font-black flex items-center justify-center shadow-sm border-2 border-white`}
+            className={`w-full h-full rounded-2xl ${error ? 'bg-gray-100' : bgColor} text-white font-black flex items-center justify-center shadow-sm border-2 border-white overflow-hidden`}
           >
-            {initials}
+            {error ? (
+              <img src={SABAN_PLACEHOLDER} alt="Placeholder" className="w-full h-full object-cover opacity-50" />
+            ) : initials}
           </motion.div>
         ) : (
           <motion.img
@@ -63,7 +69,7 @@ export const Avatar: React.FC<AvatarProps> = ({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            src={src!}
+            src={cleanedSrc}
             alt={name}
             onError={() => setError(true)}
             className="w-full h-full rounded-2xl object-cover border-2 border-white shadow-sm"

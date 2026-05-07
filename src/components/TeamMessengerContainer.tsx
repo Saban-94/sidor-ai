@@ -32,7 +32,6 @@ import { MessageBubble } from './MessageBubble';
 import { handleFirestoreError, OperationType } from '../lib/firebaseUtils';
 import { uploadFileToDrive, getDirectDriveLink } from '../services/driveService';
 import { Avatar } from './Avatar';
-import { cleanupBadMediaUrls } from '../services/cleanupService';
 import { useNotifications } from './NotificationProvider';
 import { ChatInput } from './ChatInput';
 import { ChatWindow } from './ChatWindow';
@@ -86,10 +85,6 @@ export const TeamMessengerContainer: React.FC<TeamMessengerContainerProps> = ({
   useEffect(() => {
     if (fullScreen) setIsOpen(true);
   }, [fullScreen]);
-
-  useEffect(() => {
-    cleanupBadMediaUrls();
-  }, []);
 
   useEffect(() => {
     // Fetch team members

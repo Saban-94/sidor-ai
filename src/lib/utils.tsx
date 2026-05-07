@@ -114,6 +114,25 @@ export function isKnownProduct(name: string) {
 }
 
 /**
+ * Sanitizes image URLs by stripping unwanted characters like quotes or URL-encoded quotes.
+ */
+export function cleanImageUrl(url: string | null | undefined): string {
+  if (!url) return '';
+  // Strip common artifacts from poor data entry or API errors
+  let cleaned = url.trim();
+  cleaned = cleaned.replace(/^["']/, '').replace(/["']$/, ''); // Strip surrounding quotes
+  cleaned = cleaned.replace(/^(\/%22|\/\"|\")/, ''); // Strip leading /%22 or /"
+  cleaned = cleaned.replace(/(\/%22|\/\"|\")$/, ''); // Strip trailing
+  
+  if (!cleaned.startsWith('http') && !cleaned.startsWith('data:') && !cleaned.startsWith('/')) {
+    // If it's a relative path without leading slash, add it
+    cleaned = '/' + cleaned;
+  }
+  
+  return cleaned;
+}
+
+/**
  * Utility to combine class names
  */
 export function cn(...classes: (string | boolean | undefined | null)[]) {

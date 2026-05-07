@@ -58,9 +58,17 @@ export const SyncManager: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     });
 
+    const handleGasFailure = () => {
+      setStatus('error');
+      addToast('⚠️ סנכרון נכשל', 'עובד על נתונים מקומיים. החיבור לגוגל נכשל.', 'warning');
+    };
+
+    window.addEventListener('gas-sync-failed', handleGasFailure);
+
     return () => {
       unsubscribeAuth();
       if (unsubscribeSync) unsubscribeSync();
+      window.removeEventListener('gas-sync-failed', handleGasFailure);
     };
   }, []);
 

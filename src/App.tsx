@@ -1,3 +1,5 @@
+import { cleanupBadMediaUrls } from './services/cleanupService';
+
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -899,6 +901,14 @@ function AppContent() {
   // --- Auth & Init ---
   useEffect(() => {
     initOneSignal();
+    cleanupBadMediaUrls();
+
+    const handleSyncFailure = () => {
+      addToast('⚠️ שגיאת סנכרון', 'סנכרון נכשל - עובד על נתונים מקומיים. המערכת תנסה שוב אוטומטית בהמשך.', 'warning');
+    };
+
+    window.addEventListener('gas-sync-failed', handleSyncFailure);
+    return () => window.removeEventListener('gas-sync-failed', handleSyncFailure);
   }, []);
 
   useEffect(() => {
@@ -1320,11 +1330,17 @@ function AppContent() {
 
   const filteredOrders = orders
     .filter(order => {
+      const customer = order?.customerName || "";
+      const orderNum = order?.orderNumber || "";
+      const dest = order?.destination || "";
+      const itemsStr = order?.items || "";
+      const term = searchQuery || "";
+
       const matchesSearch = 
-        order.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        order.orderNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        order.destination.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        order.items.toLowerCase().includes(searchQuery.toLowerCase());
+        customer.toLowerCase().includes(term.toLowerCase()) ||
+        orderNum.toLowerCase().includes(term.toLowerCase()) ||
+        dest.toLowerCase().includes(term.toLowerCase()) ||
+        itemsStr.toLowerCase().includes(term.toLowerCase());
       
       const matchesStatus = viewMode === 'kanban' ? true : (statusFilter === 'all' || order.status === statusFilter);
       const matchesDriver = driverFilter === 'all' || order.driverId === driverFilter;
@@ -1518,7 +1534,11 @@ function AppContent() {
                       onBack={() => setViewMode('list')}
                     />
                   ) : viewMode === 'reports' ? (
-                     <MorningReportSystem onBack={() => setViewMode('list')} drivers={drivers} />
+                     <MorningReportSystem 
+                       onBack={() => setViewMode('list')} 
+                       drivers={drivers} 
+                       inventory={inventoryItems}
+                     />
                   ) : viewMode === 'chat' ? (
                     <NoaChat 
                       chatHistory={chatHistory}
