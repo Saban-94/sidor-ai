@@ -20,21 +20,21 @@ export const SearchSuggestions = ({ orders, inventoryItems = [], searchQuery, is
   // Extract unique matches from different fields
   const suggestions = {
     customers: Array.from(new Set(orders
-      .filter(o => o.customerName.toLowerCase().includes(query))
-      .map(o => o.customerName))).slice(0, 3),
+      .filter(o => (o.customerName || "").toLowerCase().includes(query))
+      .map(o => o.customerName))).slice(0, 3) as string[],
     destinations: Array.from(new Set(orders
-      .filter(o => o.destination.toLowerCase().includes(query))
-      .map(o => o.destination))).slice(0, 3),
+      .filter(o => (o.destination || "").toLowerCase().includes(query))
+      .map(o => o.destination))).slice(0, 3) as string[],
     orders: Array.from(new Set(orders
-      .filter(o => o.orderNumber?.toLowerCase().includes(query))
-      .map(o => o.orderNumber))).slice(0, 3),
+      .filter(o => (o.orderNumber || "").toLowerCase().includes(query))
+      .map(o => o.orderNumber))).slice(0, 3) as string[],
     items: Array.from(new Set([
       ...orders
-        .filter(o => o.items.toLowerCase().includes(query))
-        .flatMap(o => o.items.split(/[,|\n]/).map(i => i.trim()))
+        .filter(o => (o.items || "").toLowerCase().includes(query))
+        .flatMap(o => (o.items || "").split(/[,|\n]/).map(i => i.trim()))
         .filter(i => i.toLowerCase().includes(query)),
       ...inventoryItems
-        .filter(i => i.name.toLowerCase().includes(query))
+        .filter(i => (i.name || "").toLowerCase().includes(query))
         .map(i => i.name)
     ]))
       .filter(val => val.length > 0)
@@ -42,13 +42,13 @@ export const SearchSuggestions = ({ orders, inventoryItems = [], searchQuery, is
     skus: Array.from(new Set([
       ...orders
         .filter(o => {
-          const skus = o.items.match(/\b\d{5}\b/g);
+          const skus = (o.items || "").match(/\b\d{5}\b/g);
           return skus?.some(s => s.includes(query));
         })
-        .flatMap(o => o.items.match(/\b\d{5}\b/g) || [])
+        .flatMap(o => (o.items || "").match(/\b\d{5}\b/g) || [])
         .filter(s => s.includes(query)),
       ...inventoryItems
-        .filter(i => i.sku.toLowerCase().includes(query))
+        .filter(i => (i.sku || "").toLowerCase().includes(query))
         .map(i => i.sku)
     ]))
       .slice(0, 3)

@@ -21,34 +21,32 @@ export class GasService {
         ...data
       };
 
-      let gasUrl = import.meta.env.VITE_GAS_URL;
-      if (!gasUrl) {
-         console.warn("VITE_GAS_URL is not defined. Synchronization skipped.");
-         return { status: 'skipped', reason: 'no-url' };
-      }
+      // Use internal proxy instead of direct GAS URL to avoid CORS and fetch issues
+      const proxyUrl = '/api/sync';
 
-      // Cleanup URL (robust wrapping)
-      gasUrl = gasUrl.trim().replace(/['"]+/g, '');
-
-      console.log(`📤 Syncing to GAS [${action}] | Attempt ${5 - retries}`);
+      console.log(`📤 Syncing to GAS [${action}] via Proxy | Attempt ${5 - retries}`);
 
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
 
       try {
-        const response = await fetch(gasUrl, {
+        const response = await fetch(proxyUrl, {
           method: 'POST',
-          mode: 'no-cors', // Opaque response for GAS usually works best for CORS skipping
           headers: {
-            'Content-Type': 'text/plain;charset=utf-8',
+            'Content-Type': 'application/json',
           },
           body: JSON.stringify(payload),
           signal: controller.signal
         });
         
+        if (!response.ok) {
+          throw new Error(`Proxy returned status ${response.status}`);
+        }
+
         clearTimeout(timeoutId);
-        console.log(`✅ Direct POST attempted to GAS [${action}] (Opaque Mode)`);
-        return { status: 'success', mode: 'no-cors' };
+        const result = await response.json().catch(() => ({ status: 'success' }));
+        console.log(`✅ Sync successful for GAS [${action}]`);
+        return result;
       } catch (fetchError: any) {
         clearTimeout(timeoutId);
         throw fetchError;
@@ -88,7 +86,7 @@ export class GasService {
   static async syncTracking(orderData: any) {
     return this.push('syncOrderTracking', { 
       ...orderData, 
-      sheetName: 'Order_Tracking',
+      sheetName: 'Order_Tracking', 
       updatedAt: new Date().toISOString()
     });
   }

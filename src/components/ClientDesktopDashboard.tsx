@@ -78,7 +78,7 @@ export const ClientDesktopDashboard: React.FC<ClientDesktopDashboardProps> = ({
   const filteredCustomers = useMemo(() => 
     customers.filter(c => 
       c.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-      c.customerNumber.includes(searchQuery)
+      (c.customerNumber || "").includes(searchQuery)
     ), 
     [customers, searchQuery]
   );

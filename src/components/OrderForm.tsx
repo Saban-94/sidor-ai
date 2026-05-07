@@ -174,8 +174,8 @@ const OrderForm: React.FC<OrderFormProps> = ({
   }, [editingOrder, isOpen]);
 
   const filteredInventory = inventory.filter(item => 
-    item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    item.sku.toLowerCase().includes(searchQuery.toLowerCase())
+    (item.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (item.sku || "").toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const handleAddItem = (item: InventoryItem) => {

@@ -32,6 +32,43 @@ async function startServer() {
     res.json({ status: "ok", time: new Date().toISOString() });
   });
 
+  // Proxy for Google Apps Script (Bypasses CORS and allows server-side logging)
+  app.post("/api/sync", async (req, res) => {
+    try {
+      const gasUrl = process.env.VITE_GAS_URL;
+      
+      if (!gasUrl) {
+        console.error("❌ [PROXY] VITE_GAS_URL is not defined in environment");
+        return res.status(500).json({ status: "error", message: "GAS URL not configured" });
+      }
+
+      console.log(`📡 [PROXY] Forwarding sync request to GAS: ${req.body?.action || 'unknown'}`);
+      
+      const response = await fetch(gasUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(req.body)
+      });
+
+      // GAS usually returns a 302 redirect for web apps, but native fetch should follow it.
+      // If it doesn't return JSON, it might be a text response.
+      const responseText = await response.text();
+      
+      try {
+        const json = JSON.parse(responseText);
+        res.status(response.status).json(json);
+      } catch (e) {
+        // If not JSON, return as is (GAS sometimes returns HTML or plain text on error)
+        res.status(response.status).send(responseText);
+      }
+    } catch (error: any) {
+      console.error("💥 [PROXY] Sync failed:", error.message);
+      res.status(500).json({ status: "error", message: error.message });
+    }
+  });
+
   // Fallback for API routes
   app.all("/api/*", (req, res) => {
     console.warn(`⚠️ [SERVER] 404 on API route: ${req.method} ${req.url}`);

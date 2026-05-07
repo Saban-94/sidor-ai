@@ -321,7 +321,7 @@ export const MobileOrderForm: React.FC<MobileOrderFormProps> = ({
                       </div>
                       <div className="flex-1 overflow-y-auto space-y-2 pr-1">
                         {inventory
-                          .filter(i => i.name.toLowerCase().includes(searchQuery.toLowerCase()))
+                          .filter(i => (i.name || "").toLowerCase().includes(searchQuery.toLowerCase()))
                           .slice(0, 15)
                           .map(item => (
                             <button

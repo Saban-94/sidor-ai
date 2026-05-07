@@ -428,6 +428,50 @@ const EmptyState = () => (
 
 // --- Main App ---
 
+const BottomNavigation = ({ viewMode, setViewMode }: { viewMode: string, setViewMode: (v: any) => void }) => {
+  const items = [
+    { id: 'live_pulse', icon: Activity, label: 'בית' },
+    { id: 'table', icon: Package, label: 'מלאי' },
+    { id: 'kanban', icon: Trello, label: 'הזמנות' },
+    { id: 'desktop_dashboard', icon: Database, label: 'ניהול' },
+  ];
+
+  return (
+    <nav className="lg:hidden fixed bottom-6 left-6 right-6 z-[200] bg-white/95 backdrop-blur-2xl border border-white/60 shadow-[0_20px_60px_rgba(30,58,138,0.25)] rounded-[2.5rem] p-2 flex items-center justify-around touch-manipulation ring-1 ring-black/5">
+      {items.map((item) => {
+        const isActive = viewMode === item.id;
+        const Icon = item.icon;
+        return (
+          <button
+            key={item.id}
+            id={`nav-item-${item.id}`}
+            onClick={() => {
+              setViewMode(item.id);
+              if (window.navigator.vibrate) window.navigator.vibrate(12);
+            }}
+            className={`flex flex-col items-center justify-center w-16 h-16 rounded-[2rem] transition-all duration-500 relative group active:scale-90 ${
+              isActive 
+                ? 'bg-sky-600 text-white shadow-2xl shadow-sky-600/40 -translate-y-4' 
+                : 'text-gray-500 hover:text-gray-900 active:bg-gray-100'
+            }`}
+          >
+            <Icon size={isActive ? 30 : 24} strokeWidth={isActive ? 3 : 2} className="transition-all" />
+            <span className={`text-[11px] font-black uppercase tracking-widest mt-1.5 transition-all ${isActive ? 'opacity-100 translate-y-0 text-white' : 'opacity-0 scale-50 translate-y-2'}`}>
+              {item.label}
+            </span>
+            {isActive && (
+              <motion.div 
+                layoutId="active-pill"
+                className="absolute -bottom-1 w-2.5 h-2.5 bg-white rounded-full border-2 border-sky-600 shadow-sm"
+              />
+            )}
+          </button>
+        );
+      })}
+    </nav>
+  );
+};
+
 export default function App() {
   return (
     <NotificationProvider>
@@ -1285,7 +1329,7 @@ function AppContent() {
             const { customerName, orderId } = call.args as any;
             let targetOrder = orders.find(o => 
               (orderId && o.id === orderId) || 
-              (customerName && o.customerName.includes(customerName))
+              (customerName && o.customerName?.includes(customerName))
             );
             
             if (targetOrder) {
@@ -1416,7 +1460,7 @@ function AppContent() {
         ) : (
           <div className="flex bg-gray-50 border-gray-100 font-sans min-h-screen" dir="rtl">
             {/* DESKTOP SIDEBAR */}
-            <aside className="hidden md:flex flex-col w-72 bg-white border-l border-gray-100 h-screen sticky top-0 overflow-y-auto z-30 shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
+            <aside className="hidden lg:flex flex-col w-72 bg-white border-l border-gray-100 h-screen sticky top-0 overflow-y-auto z-30 shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
               <div className="p-8">
                 <div className="flex items-center gap-4 mb-10">
                   <img 
@@ -1490,25 +1534,31 @@ function AppContent() {
             </aside>
 
             <main className="flex-1 min-w-0 flex flex-col h-screen overflow-y-auto bg-gray-50 hide-scrollbar scroll-smooth">
-              <div className="p-4 md:p-10 max-w-7xl mx-auto w-full flex-1 flex flex-col relative pb-32 md:pb-10">
-                <header className="flex md:hidden justify-between items-center mb-6 bg-white/70 backdrop-blur-2xl p-4 rounded-[2rem] border border-white/50 shadow-xl shadow-gray-200/50 sticky top-0 z-40" dir="rtl">
+              <div className="p-4 md:p-10 max-w-7xl mx-auto w-full flex-1 flex flex-col relative pb-32 lg:pb-10">
+                <header className="flex lg:hidden justify-between items-center mb-6 bg-white/70 backdrop-blur-2xl p-4 rounded-[2rem] border border-white/50 shadow-xl shadow-gray-200/50 sticky top-4 z-[90]" dir="rtl">
                   <div className="flex items-center gap-4">
                     <img 
                       src="https://i.postimg.cc/qqWtk5qr/Gemini-Generated-Image-6z6qts6z6qts6z6q.png" 
                       alt="Logo" 
                       className="w-10 h-10 rounded-xl object-cover"
                     />
-                    <h1 className="text-xl font-black text-gray-900 tracking-tighter">סידור</h1>
+                    <div className="flex flex-col">
+                      <h1 className="text-xl font-black text-gray-900 tracking-tighter leading-none">סידור</h1>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Live Noa ✅</span>
+                      </div>
+                    </div>
                   </div>
                   <button 
                     onClick={() => setIsDrawerOpen(true)}
-                    className="p-3 bg-gray-50 rounded-2xl text-gray-500"
+                    className="p-3 bg-gray-50 rounded-2xl text-gray-900 shadow-sm active:scale-90 transition-all touch-manipulation"
                   >
                     <Menu size={24} />
                   </button>
                 </header>
 
-                <div className="flex-1 flex flex-col">
+                <div className="flex-1 flex flex-col relative">
                   {viewMode === 'live_pulse' ? (
                     <LiveOrderPulse 
                       onViewKanban={() => setViewMode('kanban')}
@@ -2152,30 +2202,20 @@ function AppContent() {
         </div>
       </div>
 
-      {/* MOBILE FAB */}
-      <button 
-        onClick={() => setIsAddingOrder(true)}
-        className="md:hidden fixed bottom-28 left-6 z-40 bg-sky-600 text-white p-5 rounded-[2.5rem] shadow-2xl shadow-sky-600/40 transform hover:scale-110 active:scale-95 transition-all outline-none"
-      >
-        <Plus size={28} strokeWidth={3} />
-      </button>
+      {/* MOBILE FAB - Relocated for better accessibility */}
+      {viewMode === 'list' && (
+        <button 
+          onClick={() => setIsAddingOrder(true)}
+          className="lg:hidden fixed bottom-32 left-6 z-[180] bg-sky-600 text-white p-5 rounded-[2.5rem] shadow-2xl shadow-sky-600/40 transform hover:scale-110 active:scale-95 transition-all outline-none ring-4 ring-white"
+        >
+          <Plus size={28} strokeWidth={3} />
+        </button>
+      )}
 
-      {/* MOBILE BOTTOM NAV */}
-      <nav className="md:hidden fixed bottom-6 left-6 right-6 z-[60] bg-white/70 backdrop-blur-2xl border border-white/40 shadow-[0_20px_50px_rgba(0,0,0,0.15)] rounded-[2.5rem] p-2 flex items-center justify-around">
-        {NavigationItems.slice(0, 5).map((item) => (
-          <button
-            key={item.id}
-            onClick={() => setViewMode(item.id as any)}
-            className={`flex flex-col items-center justify-center w-14 h-14 rounded-2xl transition-all ${
-              viewMode === item.id 
-                ? 'bg-sky-600 text-white shadow-xl shadow-sky-600/20' 
-                : 'text-gray-400 hover:text-gray-600 active:bg-gray-100'
-            }`}
-          >
-            <item.icon size={22} strokeWidth={viewMode === item.id ? 2.5 : 2} />
-          </button>
-        ))}
-      </nav>
+      {/* FOOTER SIGNATURE */}
+      <div className="fixed bottom-3 right-6 z-[190] lg:hidden pointer-events-none">
+        <p className="text-[10px] font-black text-gray-400 bg-white/50 backdrop-blur-sm px-3 py-1 rounded-full">באדיבות נועה ❤️</p>
+      </div>
             </div>
           </motion.div>
         </div>
@@ -2186,6 +2226,9 @@ function AppContent() {
 </div>
 )} />
     </Routes>
+      {/* MOBILE BOTTOM NAV */}
+      {user && <BottomNavigation viewMode={viewMode} setViewMode={setViewMode} />}
+
       <UIModal 
         isOpen={modalConfig.isOpen}
         onClose={() => setModalConfig(prev => ({ ...prev, isOpen: false }))}
