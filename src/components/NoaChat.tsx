@@ -8,7 +8,8 @@ import {
   VolumeX,
   Speaker,
   Settings,
-  Waves
+  Waves,
+  Paperclip
 } from 'lucide-react';
 import { Order } from '../types';
 import { parseItems } from '../lib/utils';
@@ -18,7 +19,7 @@ interface NoaChatProps {
   chatHistory: any[];
   chatScrollRef?: React.RefObject<HTMLDivElement>;
   onBack: () => void;
-  onAction: (action: string) => void;
+  onAction: (action: string, file?: File | string) => void;
   orders: Order[];
   onOrderView?: (order: Order) => void;
   isPopup?: boolean;
@@ -36,8 +37,10 @@ export const NoaChat = ({
   currentContext = 'general'
 }: NoaChatProps) => {
   const internalRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const chatScrollRef = externalRef || internalRef;
   const [isAutoVoice, setIsAutoVoice] = useState(() => localStorage.getItem('noa_auto_voice') === 'true');
+  const [isUploading, setIsUploading] = useState(false);
   const [currentlySpeaking, setCurrentlySpeaking] = useState<number | null>(null);
   const synthRef = useRef<SpeechSynthesis | null>(window.speechSynthesis);
 
@@ -239,6 +242,14 @@ const dynamicSuggestions = [
         <div 
           ref={chatScrollRef}
           className="flex-1 overflow-y-auto p-4 md:p-8 space-y-6 w-full scroll-smooth custom-scrollbar"
+          onClick={(e) => {
+            const target = e.target as HTMLElement;
+            const suggestionBtn = target.closest('[data-suggestion]');
+            if (suggestionBtn) {
+              const action = suggestionBtn.getAttribute('data-suggestion');
+              if (action) onAction(action);
+            }
+          }}
         >
           {chatHistory.length === 0 && (
             <div className="text-center py-16 px-4">
@@ -250,14 +261,17 @@ const dynamicSuggestions = [
                    referrerPolicy="no-referrer"
                  />
               </div>
-              <h2 className="text-2xl font-black mb-2 italic text-slate-900 tracking-tight">שלום ראמי  ❤️</h2>
+              <h2 className="text-2xl font-black mb-2 italic text-slate-900 tracking-tight">ראמי אהובי, שלום ❤️</h2>
               <p className="text-xs font-bold text-slate-400 mb-10 max-w-[280px] mx-auto italic uppercase tracking-widest">מערכת סידור חכמה • BRIDGE v2.0</p>
               
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-w-4xl mx-auto">
                  {dynamicSuggestions.slice(0, 6).map(suggestion => (
                    <button 
                      key={suggestion.label}
-                     onClick={() => onAction(suggestion.action)}
+                     onClick={(e) => {
+                       e.stopPropagation();
+                       onAction(suggestion.action);
+                     }}
                      className="p-5 bg-white rounded-2xl border border-slate-200 text-[10px] font-black text-slate-700 hover:border-slate-400 transition-all text-right shadow-sm flex items-center justify-between group"
                    >
                      <span>{suggestion.label}</span>
@@ -356,7 +370,10 @@ const dynamicSuggestions = [
               {dynamicSuggestions.map((btn, i) => (
                 <button 
                   key={i}
-                  onClick={() => onAction(btn.action)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onAction(btn.action);
+                  }}
                   className="whitespace-nowrap bg-slate-50 hover:bg-slate-900 hover:text-white text-slate-500 text-[9px] font-black uppercase px-3.5 py-2 rounded-xl transition-all border border-slate-100 shadow-sm active:scale-95 flex items-center gap-2"
                 >
                   {btn.label}
@@ -376,6 +393,33 @@ const dynamicSuggestions = [
               }}
               className="flex gap-2 items-center"
             >
+              <input 
+                type="file"
+                ref={fileInputRef}
+                className="hidden"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    setIsUploading(true);
+                    try {
+                      onAction(`מנתחת מסמך: ${file.name}...`, file);
+                    } finally {
+                      setIsUploading(false);
+                    }
+                  }
+                }}
+              />
+              <button 
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploading}
+                className={`p-3 rounded-xl transition-all shadow-sm active:scale-95 flex items-center justify-center shrink-0 border ${
+                  isUploading ? 'bg-slate-50 text-slate-300' : 'bg-white text-slate-400 border-slate-200 hover:text-slate-900 hover:border-slate-300'
+                }`}
+                title="צירוף מסמך (הזמנה / תעודת משלוח)"
+              >
+                <Paperclip size={18} className={isUploading ? 'animate-pulse' : ''} />
+              </button>
               <input 
                 name="message"
                 autoComplete="off"

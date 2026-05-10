@@ -1298,20 +1298,26 @@ function AppContent() {
   );
 
   // --- Noa AI Handlers ---
-  const handleNoaAction = async (msg: string) => {
+  const handleNoaAction = async (msg: string, file?: File | string) => {
     if (!user) return;
+    
+    const actualFile = file instanceof File ? file : undefined;
     const userMsg = { role: 'user', parts: [{ text: msg }] };
     setChatHistory(prev => [...prev, userMsg]);
     
     // Save user message to Firestore
-    addDoc(collection(db, `users/${user.uid}/messages`), {
-      role: 'user',
-      content: msg,
-      timestamp: serverTimestamp()
-    });
-
     try {
-      const result = await askNoa(msg, chatHistory, user?.displayName || user?.email || 'אורח');
+      await addDoc(collection(db, `users/${user.uid}/messages`), {
+        role: 'user',
+        content: msg,
+        timestamp: serverTimestamp()
+      });
+    } catch (saveError) {
+      console.error("Noa Save Error (User):", saveError);
+    }
+    
+    try {
+      const result = await askNoa(msg, chatHistory, user?.displayName || user?.email || 'אורח', actualFile);
       
       const functionCalls = result.functionCalls;
 
@@ -1361,11 +1367,15 @@ function AppContent() {
       }]);
 
       // Save AI response to Firestore
-      addDoc(collection(db, `users/${user.uid}/messages`), {
-        role: 'model',
-        content: result.text,
-        timestamp: serverTimestamp()
-      });
+      try {
+        await addDoc(collection(db, `users/${user.uid}/messages`), {
+          role: 'model',
+          content: result.text,
+          timestamp: serverTimestamp()
+        });
+      } catch (saveError) {
+        console.error("Noa Save Error (Model):", saveError);
+      }
     } catch (error: any) {
       console.error(error);
       const errorMsg = "משהו השתבש בתקשורת עם נועה. נסה שוב בעוד רגע.";

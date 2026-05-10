@@ -6,7 +6,7 @@ import { Order } from '../types';
 
 interface NoaFloatingChatProps {
   chatHistory: any[];
-  onAction: (action: string) => void;
+  onAction: (action: string, file?: File | string) => void;
   orders: Order[];
   currentContext?: string;
 }
