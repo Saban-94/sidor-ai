@@ -16,21 +16,27 @@ import { MiniOrderCard } from './MiniOrderCard';
 
 interface NoaChatProps {
   chatHistory: any[];
-  chatScrollRef: React.RefObject<HTMLDivElement>;
+  chatScrollRef?: React.RefObject<HTMLDivElement>;
   onBack: () => void;
   onAction: (action: string) => void;
   orders: Order[];
   onOrderView?: (order: Order) => void;
+  isPopup?: boolean;
+  currentContext?: string;
 }
 
 export const NoaChat = ({ 
   chatHistory, 
-  chatScrollRef, 
+  chatScrollRef: externalRef, 
   onBack, 
   onAction,
   orders,
-  onOrderView
+  onOrderView,
+  isPopup = false,
+  currentContext = 'general'
 }: NoaChatProps) => {
+  const internalRef = useRef<HTMLDivElement>(null);
+  const chatScrollRef = externalRef || internalRef;
   const [isAutoVoice, setIsAutoVoice] = useState(() => localStorage.getItem('noa_auto_voice') === 'true');
   const [currentlySpeaking, setCurrentlySpeaking] = useState<number | null>(null);
   const synthRef = useRef<SpeechSynthesis | null>(window.speechSynthesis);
@@ -103,15 +109,37 @@ export const NoaChat = ({
     }
   }, [chatHistory.length]);
 
+  // Auto-scroll to bottom
+  useEffect(() => {
+    if (chatScrollRef.current) {
+      chatScrollRef.current.scrollTo({
+        top: chatScrollRef.current.scrollHeight,
+        behavior: 'smooth'
+      });
+    }
+  }, [chatHistory]);
+
+const contextSuggestions: Record<string, {label: string, action: string}[]> = {
+  table: [
+    { label: 'בדיקת חוסרים 📦', action: 'הצלבי מלאי קיים מול הזמנות פתוחות ודוחי לי חוסרים בברזל או בטון' },
+    { label: 'תחזית הזמנות 📈', action: 'על בסיס המלאי הנוכחי, אילו מוצרים כדאי להזמין השבוע?' }
+  ],
+  kanban: [
+    { label: 'סטטוס הפצה 🚚', action: 'תני לי תמונת מצב של כל המשאיות כרגע על המפה' },
+    { label: 'חריגות זמן ⏱️', action: 'האם יש הזמנות שמתעכבות מעבר לממוצע בפריקה?' }
+  ],
+  reports: [
+    { label: 'סיכום רווחיות 💰', action: 'נתחי את דוח הבוקר האחרון מבחינת חיסכון בדלק ומסלולים' },
+    { label: 'ביצועי נהגים 👨‍✈️', action: 'השווי בין זמני הפריקה של עלי וחכמת בשבוע האחרון' }
+  ],
+  general: [
+    { label: 'סנכרון חכם 📂', action: 'סרוק את SabanOS, חלץ נתונים והצלבת כתובות מול מאגר המיקומים החכמים' },
+    { label: 'אופטימיזציה למחר 🏗️', action: 'תכנני מסלול אופטימלי לחכמת ועלי למחר על בסיס נתוני עבר' }
+  ]
+};
+
 const dynamicSuggestions = [
-  { 
-    label: 'סנכרון חכם 📂', 
-    action: 'סרוק את SabanOS, חלץ נתונים והצלבת כתובות מול מאגר המיקומים החכמים' 
-  },
-  { 
-    label: 'אופטימיזציה למחר 🏗️', 
-    action: 'תכנני מסלול אופטימלי לחכמת ועלי למחר על בסיס נתוני עבר' 
-  },
+  ...(contextSuggestions[currentContext] || contextSuggestions.general),
   { 
     label: 'דוח בוקר HTML 📋', 
     action: 'תכיני דוח בוקר מעוצב בטבלה כולל צפי הגעה לכל נהג' 
@@ -119,18 +147,6 @@ const dynamicSuggestions = [
   { 
     label: 'אימות פריקה (PTO) ✅', 
     action: 'בדקי חריגות בין מיקומי GPS להפעלת מנוף בסידור האחרון' 
-  },
-  { 
-    label: 'תובנות אתרים 🧠', 
-    action: 'אילו אתרים מוכרים לנו מהסידור של היום ומה זמן הפריקה הממוצע בהם?' 
-  },
-  { 
-    label: 'חריגות מלאי ⚠️', 
-    action: 'האם יש חוסרים בבטון או ריצופית ביחס להזמנות הפתוחות?' 
-  },
-  { 
-    label: 'סטטוס הפצה חי 📊', 
-    action: 'מה סטטוס ההפצה כרגע? הצג בפורמט ציר זמן (Timeline)' 
   },
   // קישורים דינמיים לפי הזמנות בביצוע עם חיזוי חכם
   ...orders.filter(o => o.status === 'preparing').slice(0, 3).map(o => ({
@@ -140,110 +156,113 @@ const dynamicSuggestions = [
 ];
 
   return (
-    <div className="h-[100dvh] bg-white flex flex-col md:flex-row overflow-hidden" dir="rtl">
+    <div className={`h-full ${isPopup ? 'bg-white' : 'bg-[#F8FAFC]'} flex flex-col md:flex-row overflow-hidden`} dir="rtl">
       {/* Left Sidebar for Desktop (Quick Info) */}
-      <div className="hidden md:flex w-72 bg-gray-50 border-l border-gray-100 flex-col p-6 overflow-y-auto shrink-0">
-        <div className="flex items-center gap-3 mb-8">
-          <button onClick={onBack} className="p-2 hover:bg-gray-200 rounded-xl transition-colors">
-            <ChevronRight size={20} />
-          </button>
-          <div className="flex items-center gap-2">
-            <img 
-              src="https://i.postimg.cc/qqWtk5qr/Gemini-Generated-Image-6z6qts6z6qts6z6q.png" 
-              alt="Noa" 
-              className="w-8 h-8 rounded-full object-cover"
-            />
-            <h1 className="text-xl font-black">סידור</h1>
-          </div>
-        </div>
-        
-          <div className="space-y-6">
-            <div>
-              <p className="text-[10px] font-black text-gray-400 mb-2 uppercase tracking-widest text-right">סטטוס מוח</p>
-              <div className="bg-white p-4 rounded-2xl border border-gray-100 flex items-center gap-3">
-                <div className="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(34,197,94,0.5)]"></div>
-                <span className="text-xs font-black">נועה - מנהלת סידור ❤️ | מחוברת ✅</span>
-              </div>
+      {!isPopup && (
+        <div className="hidden md:flex w-64 bg-white border-l border-[#E2E8F0] flex-col p-6 overflow-y-auto shrink-0 shadow-sm">
+          <div className="flex items-center gap-3 mb-6">
+            <button onClick={onBack} className="p-2 hover:bg-slate-50 rounded-xl transition-colors border border-slate-100">
+              <ChevronRight size={18} />
+            </button>
+            <div className="flex items-center gap-3">
+              <img 
+                src="https://i.postimg.cc/qqWtk5qr/Gemini-Generated-Image-6z6qts6z6qts6z6q.png" 
+                alt="Noa" 
+                className="w-8 h-8 rounded-xl object-cover shadow-sm"
+              />
+              <h1 className="text-lg font-black text-slate-900 tracking-tight">SabanOS</h1>
             </div>
-
-            <div>
-              <p className="text-[10px] font-black text-gray-400 mb-2 uppercase tracking-widest text-right">הגדרות קול</p>
-              <div className="bg-white p-4 rounded-2xl border border-gray-100 flex flex-col gap-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-gray-600">נועה מדברת</span>
-                  <button 
-                    onClick={() => setIsAutoVoice(!isAutoVoice)}
-                    className={`relative w-10 h-5 rounded-full transition-colors ${isAutoVoice ? 'bg-sky-600' : 'bg-gray-200'}`}
-                  >
-                    <motion.div 
-                      animate={{ x: isAutoVoice ? 20 : 2 }}
-                      className="absolute top-1 left-0 w-3 h-3 bg-white rounded-full shadow-sm"
-                    />
-                  </button>
+          </div>
+          
+            <div className="space-y-5">
+              <div>
+                <p className="text-[9px] font-black text-slate-400 mb-2 uppercase tracking-widest text-right">System Diagnostics</p>
+                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex items-center gap-3">
+                  <div className="w-2 h-2 bg-[#22c55e] rounded-full animate-pulse shadow-sm"></div>
+                  <span className="text-[10px] font-black text-slate-700">נועה | מחוברת ✅</span>
                 </div>
-                <p className="text-[9px] text-gray-400 leading-tight">במצב פעיל, נועה תקריא כל תשובה חדשה באופן אוטומטי.</p>
+              </div>
+
+              <div>
+                <p className="text-[9px] font-black text-slate-400 mb-2 uppercase tracking-widest text-right">Voice Settings</p>
+                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex flex-col gap-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold text-slate-600">Auto-Voice Voice</span>
+                    <button 
+                      onClick={() => setIsAutoVoice(!isAutoVoice)}
+                      className={`relative w-8 h-4 rounded-full transition-colors ${isAutoVoice ? 'bg-slate-900' : 'bg-slate-200'}`}
+                    >
+                      <motion.div 
+                        animate={{ x: isAutoVoice ? 16 : 2 }}
+                        className="absolute top-0.5 left-0 w-3 h-3 bg-white rounded-full shadow-sm"
+                      />
+                    </button>
+                  </div>
+                  <p className="text-[8px] text-slate-400 leading-tight">נועה תקריא פקודות חדשות באופן אוטומטי.</p>
+                </div>
               </div>
             </div>
-          </div>
-      </div>
+        </div>
+      )}
 
       {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col h-full bg-[#f4f7f6] relative overflow-hidden">
-        {/* Saban Chat Styled Header */}
-        <header className="p-3 bg-[#e67e22] text-white flex items-center justify-between shadow-lg z-30 shrink-0">
-          <div className="flex items-center gap-3">
-             <button onClick={onBack} className="p-1 hover:bg-white/20 rounded-lg transition-colors">
-               <ChevronRight size={20} />
-             </button>
-             <div className="flex flex-col">
-               <h1 className="font-black text-sm uppercase tracking-wider">צאט עם נועה</h1>
-               <div className="flex items-center gap-1.5">
-                 <div className="w-2 h-2 bg-green-400 rounded-full shadow-[0_0_5px_rgba(74,222,128,0.8)]" />
-                 <span className="text-[10px] font-bold">נועה - מנהלת סידור ❤️ | מחוברת ✅</span>
+      <div className={`flex-1 flex flex-col h-full ${isPopup ? 'bg-white' : 'bg-[#F8FAFC]'} relative overflow-hidden`}>
+        {/* Professional Styled Header */}
+        {!isPopup && (
+          <header className="p-4 bg-white border-b border-[#E2E8F0] shadow-sm text-slate-900 flex items-center justify-between z-30 shrink-0">
+            <div className="flex items-center gap-3">
+               <button onClick={onBack} className="p-2 hover:bg-slate-50 rounded-xl transition-colors border border-slate-100 md:hidden">
+                 <ChevronRight size={18} />
+               </button>
+               <div className="flex flex-col">
+                 <h1 className="font-black text-sm uppercase tracking-tight">Enterprise Logistics Bridge</h1>
+                 <div className="flex items-center gap-1.5 pt-0.5">
+                   <div className="w-2 h-2 bg-[#22c55e] rounded-full" />
+                   <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Noa Operations Node • Connected</span>
+                 </div>
                </div>
-             </div>
-          </div>
-          <div className="flex items-center gap-3">
-             <img 
-               src="https://i.postimg.cc/qqWtk5qr/Gemini-Generated-Image-6z6qts6z6qts6z6q.png" 
-               alt="Noa" 
-               className="w-9 h-9 rounded-full object-cover border-2 border-white/50"
-             />
-             <div className="flex gap-2 text-white/80">
-                <button className="hover:text-white"><Settings size={16} /></button>
-                <button onClick={onBack} className="hover:text-white"><ChevronRight size={16} className="rotate-90" /></button>
-             </div>
-          </div>
-        </header>
+            </div>
+            <div className="flex items-center gap-3">
+               <img 
+                 src="https://i.postimg.cc/qqWtk5qr/Gemini-Generated-Image-6z6qts6z6qts6z6q.png" 
+                 alt="Noa" 
+                 className="w-10 h-10 rounded-xl object-cover border border-slate-200 shadow-sm"
+               />
+               <div className="hidden sm:flex gap-1.5">
+                  <button className="p-2 rounded-lg hover:bg-slate-50 text-slate-400 border border-transparent hover:border-slate-100"><Settings size={18} /></button>
+               </div>
+            </div>
+          </header>
+        )}
 
         {/* Message List */}
         <div 
           ref={chatScrollRef}
-          className="flex-1 overflow-y-auto p-4 md:p-8 space-y-8 w-full scroll-smooth"
+          className="flex-1 overflow-y-auto p-4 md:p-8 space-y-6 w-full scroll-smooth custom-scrollbar"
         >
           {chatHistory.length === 0 && (
-            <div className="text-center py-20 px-4">
-              <div className="w-32 h-32 rounded-[4rem] flex items-center justify-center mx-auto mb-8 shadow-2xl relative overflow-hidden bg-white/50 backdrop-blur-xl border-4 border-white">
+            <div className="text-center py-16 px-4">
+              <div className="w-24 h-24 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-sm border border-slate-200 bg-white p-2">
                  <img 
                    src="https://i.postimg.cc/qqWtk5qr/Gemini-Generated-Image-6z6qts6z6qts6z6q.png" 
                    alt="Noa" 
-                   className="w-full h-full object-cover"
+                   className="w-full h-full object-cover rounded-2xl"
                    referrerPolicy="no-referrer"
                  />
               </div>
-              <h2 className="text-4xl font-black mb-4 italic text-gray-900 tracking-tighter">שלום ראמי  ❤️</h2>
-              <p className="text-lg font-bold text-gray-400 mb-12 max-w-[300px] mx-auto">איך אני יכולה לעזור לך ולאחי ושותפי היום? 🏗️</p>
+              <h2 className="text-2xl font-black mb-2 italic text-slate-900 tracking-tight">שלום ראמי  ❤️</h2>
+              <p className="text-xs font-bold text-slate-400 mb-10 max-w-[280px] mx-auto italic uppercase tracking-widest">מערכת סידור חכמה • BRIDGE v2.0</p>
               
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-w-5xl mx-auto">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-w-4xl mx-auto">
                  {dynamicSuggestions.slice(0, 6).map(suggestion => (
                    <button 
                      key={suggestion.label}
                      onClick={() => onAction(suggestion.action)}
-                     className="p-6 bg-white/70 backdrop-blur-xl rounded-[2rem] border border-white/50 text-sm font-black text-gray-700 hover:bg-sky-50/80 hover:border-sky-200 transition-all text-right shadow-xl shadow-gray-200/20 flex items-center justify-between group"
+                     className="p-5 bg-white rounded-2xl border border-slate-200 text-[10px] font-black text-slate-700 hover:border-slate-400 transition-all text-right shadow-sm flex items-center justify-between group"
                    >
                      <span>{suggestion.label}</span>
-                     <div className="w-8 h-8 rounded-xl bg-gray-50 flex items-center justify-center group-hover:bg-sky-100 group-hover:text-sky-600 transition-all">
-                       <ChevronRight size={18} />
+                     <div className="w-7 h-7 rounded-lg bg-slate-50 flex items-center justify-center group-hover:bg-slate-900 group-hover:text-white transition-all">
+                       <ChevronRight size={14} />
                      </div>
                    </button>
                  ))}
@@ -254,40 +273,40 @@ const dynamicSuggestions = [
           {chatHistory.map((chat, idx) => (
             <motion.div 
               key={idx} 
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className={`flex w-full gap-5 ${chat.role === 'user' ? 'justify-start' : 'justify-end flex-row-reverse'}`}
+              className={`flex w-full gap-4 ${chat.role === 'user' ? 'justify-start' : 'justify-end flex-row-reverse'}`}
             >
               {chat.role !== 'user' && (
-                <div className="shrink-0 mt-2">
+                <div className="shrink-0 mt-1">
                   <img 
                     src="https://i.postimg.cc/qqWtk5qr/Gemini-Generated-Image-6z6qts6z6qts6z6q.png" 
                     alt="Noa" 
-                    className="w-12 h-12 rounded-2xl object-cover shadow-2xl border-2 border-white"
+                    className="w-9 h-9 rounded-xl object-cover shadow-sm border border-slate-200"
                   />
                 </div>
               )}
-              <div className={`w-full max-w-full p-8 md:p-10 rounded-[2.5rem] text-sm md:text-lg font-bold leading-relaxed shadow-2xl relative group/msg transition-all backdrop-blur-2xl ${
+              <div className={`w-full max-w-full p-6 md:p-8 rounded-2xl text-[13px] md:text-sm font-bold leading-relaxed shadow-sm transition-all border ${
                 chat.role === 'user' 
-                  ? 'bg-sky-600 text-white rounded-tr-none shadow-sky-200/50' 
-                  : 'bg-white/80 text-gray-900 rounded-tl-none border border-white/50 shadow-gray-200/50'
+                  ? 'bg-slate-100 text-slate-800 border-slate-200 rounded-tr-none' 
+                  : 'bg-white text-slate-900 rounded-tl-none border-slate-200'
               }`}>
                 {chat.parts[0].text.includes('<table') || chat.parts[0].text.includes('<div') ? (
                   <div 
-                    className="prose prose-lg max-w-none text-right"
+                    className={`prose prose-sm max-w-none text-right ${chat.role === 'user' ? 'prose-slate' : 'prose-invert'}`}
                     dangerouslySetInnerHTML={{ __html: chat.parts[0].text }}
                   />
                 ) : (
                   <div className="whitespace-pre-wrap">
                     {chat.parts[0].text}
-                    {/* Order ID Detection Logic */}
+                    {/* detection logic remains */}
                     {(() => {
                       const orderIdRegex = /#?(\d{4,8})/g;
                       const matches = [...chat.parts[0].text.matchAll(orderIdRegex)];
                       const orderIds = [...new Set(matches.map(m => m[1]))];
                       
                       return orderIds.length > 0 && (
-                        <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-3">
                           {orderIds.map(id => (
                             <MiniOrderCard 
                               key={id} 
@@ -302,22 +321,22 @@ const dynamicSuggestions = [
                 )}
                 
                 {chat.role !== 'user' && (
-                  <div className="flex items-center gap-2 mt-3 pt-2 border-t border-sky-50/50">
+                  <div className="flex items-center gap-2 mt-4 pt-4 border-t border-white/10">
                     <button 
                       onClick={() => speak(chat.parts[0].text, idx)}
-                      className={`p-2 rounded-xl transition-all ${currentlySpeaking === idx ? 'bg-sky-100 text-sky-600' : 'hover:bg-gray-100 text-gray-400'}`}
+                      className={`p-2 rounded-lg transition-all ${currentlySpeaking === idx ? 'bg-white/10 text-white' : 'hover:bg-white/5 text-white/50'}`}
                     >
-                      {currentlySpeaking === idx ? <VolumeX size={16} /> : <Volume2 size={16} />}
+                      {currentlySpeaking === idx ? <VolumeX size={14} /> : <Volume2 size={14} />}
                     </button>
                     
                     {currentlySpeaking === idx && (
-                      <div className="flex items-center gap-0.5 h-4">
+                      <div className="flex items-center gap-0.5 h-3">
                         {[1, 2, 3, 4, 3, 2, 1].map((h, i) => (
                           <motion.div 
                             key={i}
-                            animate={{ height: [4, h * 4, 4] }}
+                            animate={{ height: [3, h * 3, 3] }}
                             transition={{ duration: 0.5, repeat: Infinity, delay: i * 0.1 }}
-                            className="w-0.5 bg-sky-400 rounded-full"
+                            className="w-0.5 bg-white/40 rounded-full"
                           />
                         ))}
                       </div>
@@ -330,15 +349,15 @@ const dynamicSuggestions = [
         </div>
 
         {/* Input Area */}
-        <div className="bg-gradient-to-t from-white via-white to-transparent pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))] md:pb-6 px-4 md:px-6 z-20 shrink-0 border-t border-gray-50/50">
-          <div className="max-w-full md:max-w-4xl mx-auto space-y-4">
+        <div className={`bg-white border-t border-slate-200 pt-3 ${isPopup ? 'pb-3' : 'pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:pb-4'} px-4 md:px-6 z-20 shrink-0`}>
+          <div className="max-w-4xl mx-auto space-y-3">
             {/* Quick Actions Scrollable */}
-            <div className="flex gap-2 overflow-x-auto no-scrollbar py-2 scroll-smooth">
+            <div className="flex gap-2 overflow-x-auto no-scrollbar py-1">
               {dynamicSuggestions.map((btn, i) => (
                 <button 
                   key={i}
                   onClick={() => onAction(btn.action)}
-                  className="whitespace-nowrap bg-white/95 backdrop-blur-md hover:bg-sky-600 hover:text-white text-sky-950 text-[11px] font-black px-4 py-3 rounded-full transition-all border border-sky-100 shadow-md hover:shadow-sky-200 active:scale-95 flex items-center gap-2"
+                  className="whitespace-nowrap bg-slate-50 hover:bg-slate-900 hover:text-white text-slate-500 text-[9px] font-black uppercase px-3.5 py-2 rounded-xl transition-all border border-slate-100 shadow-sm active:scale-95 flex items-center gap-2"
                 >
                   {btn.label}
                 </button>
@@ -355,19 +374,19 @@ const dynamicSuggestions = [
                 onAction(val);
                 input.value = '';
               }}
-              className="flex gap-3 items-center"
+              className="flex gap-2 items-center"
             >
               <input 
                 name="message"
                 autoComplete="off"
-                placeholder="כיצד אוכל לעזור?"
-                className="flex-1 bg-white/90 backdrop-blur-md border-[3px] border-sky-100 rounded-[2.5rem] px-5 md:px-8 py-3.5 md:py-4 text-sm md:text-base focus:border-sky-600 transition-all outline-none shadow-2xl font-bold"
+                placeholder="הקלד פקודה לוגיסטית..."
+                className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-5 py-3 text-sm md:text-base focus:border-slate-400 transition-all outline-none font-bold text-slate-900"
               />
               <button 
                 type="submit"
-                className="bg-gray-900 text-white p-3.5 md:p-4 rounded-full hover:bg-sky-600 transition-all shadow-2xl hover:scale-105 active:scale-95 flex items-center justify-center shrink-0"
+                className="bg-slate-900 text-white p-3 rounded-xl hover:bg-slate-800 transition-all shadow-sm active:scale-95 flex items-center justify-center shrink-0"
               >
-                <Send size={20} className="md:w-6 md:h-6" strokeWidth={2.5} />
+                <Send size={18} strokeWidth={2.5} />
               </button>
             </form>
           </div>

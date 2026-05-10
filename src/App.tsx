@@ -108,7 +108,8 @@ import { Avatar } from './components/Avatar';
 import { NotificationProvider, useNotifications } from './components/NotificationProvider';
 import { MobileApp } from './MobileApp';
 import { SabanOrderEngine } from './components/SabanOrderEngine';
-import { PackageCheck, PackageX, PackageOpen } from 'lucide-react';
+import { PackageCheck, PackageX, PackageOpen, Brain } from 'lucide-react';
+import { NoaFloatingChat } from './components/NoaFloatingChat';
 import { 
   createOrder, 
   getOrderByTrackingId,
@@ -440,7 +441,7 @@ const BottomNavigation = ({ viewMode, setViewMode }: { viewMode: string, setView
   ];
 
   return (
-    <nav className="lg:hidden fixed bottom-6 left-6 right-6 z-[200] bg-white/95 backdrop-blur-2xl border border-white/60 shadow-[0_20px_60px_rgba(30,58,138,0.25)] rounded-[2.5rem] p-2 flex items-center justify-around touch-manipulation ring-1 ring-black/5">
+    <nav className="lg:hidden fixed bottom-6 left-6 right-6 z-[200] bg-white/95 backdrop-blur-2xl border border-slate-200 shadow-xl rounded-[2rem] p-1.5 flex items-center justify-around touch-manipulation">
       {items.map((item) => {
         const isActive = viewMode === item.id;
         const Icon = item.icon;
@@ -452,22 +453,16 @@ const BottomNavigation = ({ viewMode, setViewMode }: { viewMode: string, setView
               setViewMode(item.id);
               if (window.navigator.vibrate) window.navigator.vibrate(12);
             }}
-            className={`flex flex-col items-center justify-center w-16 h-16 rounded-[2rem] transition-all duration-500 relative group active:scale-90 ${
+            className={`flex flex-col items-center justify-center w-14 h-14 rounded-2xl transition-all duration-300 relative group active:scale-90 ${
               isActive 
-                ? 'bg-sky-600 text-white shadow-2xl shadow-sky-600/40 -translate-y-4' 
-                : 'text-gray-500 hover:text-gray-900 active:bg-gray-100'
+                ? 'bg-slate-900 text-white shadow-lg -translate-y-2' 
+                : 'text-slate-400 hover:text-slate-900'
             }`}
           >
-            <Icon size={isActive ? 30 : 24} strokeWidth={isActive ? 3 : 2} className="transition-all" />
-            <span className={`text-[11px] font-black uppercase tracking-widest mt-1.5 transition-all ${isActive ? 'opacity-100 translate-y-0 text-white' : 'opacity-0 scale-50 translate-y-2'}`}>
+            <Icon size={isActive ? 24 : 20} strokeWidth={isActive ? 3 : 2} />
+            <span className={`text-[8px] font-black uppercase tracking-widest mt-1 transition-all ${isActive ? 'opacity-100' : 'opacity-0 scale-50'}`}>
               {item.label}
             </span>
-            {isActive && (
-              <motion.div 
-                layoutId="active-pill"
-                className="absolute -bottom-1 w-2.5 h-2.5 bg-white rounded-full border-2 border-sky-600 shadow-sm"
-              />
-            )}
           </button>
         );
       })}
@@ -1245,16 +1240,14 @@ function AppContent() {
 
   const NavigationItems = [
     { id: 'live_pulse', icon: Activity, label: 'דופק הזמנות' },
+    { id: 'chat', label: 'Noa AI (לוגיסטיקה)', icon: Brain, highlight: true },
     { id: 'noa_bridge', icon: Sparkles, label: 'Noa Bridge' },
     { id: 'order_engine', icon: PackageCheck, label: 'מנוע הזמנות' },
     { id: 'desktop_dashboard', icon: Database, label: 'תיק לקוח' },
-    { id: 'list', icon: LayoutList, label: 'דוח בוקר' },
     { id: 'kanban', icon: Trello, label: 'קנבן' },
-    { id: 'calendar', icon: CalendarDays, label: 'לוח שנתי' },
     { id: 'table', icon: Table, label: 'ניהול מלאי' },
-    { id: 'drivers', icon: Users, label: 'נהגים/ביצועים' },
+    { id: 'calendar', icon: CalendarDays, label: 'לוח שנתי' },
     { id: 'reports', icon: FileText, label: 'ארכיון' },
-    { id: 'chat_full', icon: MessageSquare, label: 'צ\'אט צוות' },
   ];
 
   if (loading || (isInitialDataLoading && user)) return (
@@ -1470,76 +1463,79 @@ function AppContent() {
             </div>
           </div>
         ) : (
-          <div className="flex bg-gray-50 border-gray-100 font-sans min-h-screen" dir="rtl">
+          <div className="flex bg-[#F8FAFC] border-slate-100 font-sans min-h-screen" dir="rtl">
             {/* DESKTOP SIDEBAR */}
-            <aside className={`hidden lg:flex flex-col ${isSidebarCollapsed ? 'w-24' : 'w-72'} bg-white border-l border-gray-100 h-screen sticky top-0 overflow-y-auto z-30 shadow-[4px_0_24px_rgba(0,0,0,0.02)] transition-all duration-300 ease-in-out`}>
-              <div className="p-8 flex flex-col items-center">
-                <div className={`flex items-center gap-4 mb-10 w-full ${isSidebarCollapsed ? 'flex-col justify-center' : 'justify-between'}`}>
-                  <div className="flex items-center gap-4">
+            <aside className={`hidden lg:flex flex-col ${isSidebarCollapsed ? 'w-20' : 'w-64'} bg-white border-l border-slate-200 h-screen sticky top-0 overflow-y-auto z-30 transition-all duration-300 ease-in-out`}>
+              <div className="p-6 flex flex-col items-center">
+                <div className={`flex items-center gap-3 mb-8 w-full ${isSidebarCollapsed ? 'flex-col justify-center' : 'justify-between'}`}>
+                  <div className="flex items-center gap-3 overflow-hidden">
                     <img 
                       src="https://i.postimg.cc/qqWtk5qr/Gemini-Generated-Image-6z6qts6z6qts6z6q.png" 
                       alt="Logo" 
-                      className="w-12 h-12 rounded-2xl object-cover shadow-xl flex-shrink-0"
+                      className="w-10 h-10 rounded-xl object-cover shadow-sm flex-shrink-0"
                     />
                     {!isSidebarCollapsed && (
-                      <div>
-                        <h1 className="text-xl font-black text-gray-900 tracking-tighter font-sans">סידור</h1>
-                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest leading-none mt-1">v3.5 Enterprise</p>
+                      <div className="animate-in fade-in slide-in-from-right-4 duration-300">
+                        <h1 className="text-lg font-black text-slate-900 tracking-tighter leading-none">סידור</h1>
+                        <p className="text-[8px] text-slate-400 font-bold uppercase tracking-widest mt-1">Enterprise</p>
                       </div>
                     )}
                   </div>
                   
                   <button 
                     onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-                    className="p-2.5 rounded-xl bg-gray-50 text-gray-400 hover:bg-sky-50 hover:text-sky-600 transition-colors"
+                    className="p-2 rounded-lg bg-slate-50 text-slate-400 hover:bg-slate-100 hover:text-slate-900 transition-colors"
                   >
-                    {isSidebarCollapsed ? <ArrowRight size={18} /> : <ArrowLeft size={18} />}
+                    {isSidebarCollapsed ? <ArrowRight size={14} /> : <ArrowLeft size={14} />}
                   </button>
                 </div>
 
-                <nav className="space-y-1.5 w-full">
+                <nav className="space-y-1 w-full">
                   {NavigationItems.map((item) => (
                     <button
                       key={item.id}
                       onClick={() => setViewMode(item.id as any)}
                       title={isSidebarCollapsed ? item.label : undefined}
-                      className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center px-0' : 'px-5'} py-4 rounded-[1.25rem] text-sm font-black transition-all ${
+                      className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center px-0' : 'px-4'} py-3 rounded-xl text-xs font-black transition-all group relative overflow-hidden ${
                         viewMode === item.id 
-                          ? 'bg-sky-600 text-white shadow-xl shadow-sky-600/20 translate-x-1' 
-                          : 'text-gray-400 hover:bg-gray-50 hover:text-gray-900'
+                          ? 'bg-slate-900 text-white shadow-md translate-x-1' 
+                          : 'text-slate-400 hover:bg-slate-50 hover:text-slate-900'
                       }`}
                     >
-                      <item.icon size={22} strokeWidth={viewMode === item.id ? 2.5 : 2} />
-                      {!isSidebarCollapsed && <span className="mr-4">{item.label}</span>}
+                      {item.highlight && viewMode !== item.id && (
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-amber-400/20 to-transparent -translate-x-full group-hover:animate-shimmer" />
+                      )}
+                      <item.icon size={18} strokeWidth={viewMode === item.id ? 2.5 : 2} className={item.highlight && viewMode !== item.id ? 'text-amber-500' : ''} />
+                      {!isSidebarCollapsed && <span className="mr-3">{item.label}</span>}
                     </button>
                   ))}
                 </nav>
 
-                <div className="mt-10 pt-8 border-t border-gray-100 flex flex-col gap-4">
+                <div className="mt-8 pt-6 border-t border-slate-100 flex flex-col gap-3">
                   <button 
                     onClick={() => setViewMode('reports')}
-                    className="w-full flex items-center justify-between px-5 py-4 bg-gray-900 text-white rounded-2xl shadow-xl hover:bg-sky-600 transition-all group"
+                    className="w-full flex items-center justify-between px-4 py-3 bg-slate-900 text-white rounded-xl shadow-sm hover:bg-slate-800 transition-all group"
                   >
                     <div className="flex items-center gap-3">
-                      <Clock size={18} className="text-sky-400" />
-                      <span className="text-xs font-black">דוח סוף יום (17:00)</span>
+                      <Clock size={16} className="text-slate-400" />
+                      <span className="text-[10px] font-black uppercase">דוח סוף יום</span>
                     </div>
-                    <ArrowLeft size={14} className="opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0 transition-all" />
+                    <ArrowLeft size={12} className="opacity-0 group-hover:opacity-100 -translate-x-1 group-hover:translate-x-0 transition-all" />
                   </button>
 
-                  <div className="bg-sky-50/50 p-5 rounded-3xl border border-sky-100/50">
-                    <p className="text-[9px] font-black text-sky-600/60 uppercase tracking-[0.2em] mb-2">System Status</p>
-                    <div className="flex items-center gap-2.5 text-xs font-black text-sky-900">
-                      <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.4)] animate-pulse" />
+                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                    <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1.5">System Status</p>
+                    <div className="flex items-center gap-2 text-[10px] font-black text-slate-700">
+                      <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                       מחובר בזמן אמת
                     </div>
                   </div>
                 </div>
               </div>
 
-              <div className="mt-auto p-8 border-t border-gray-100">
-                <div className="flex items-center gap-4 mb-6">
-                  <div className="w-12 h-12 rounded-2xl bg-gray-100 flex items-center justify-center text-gray-500 font-black overflow-hidden border border-gray-200">
+              <div className="mt-auto p-6 border-t border-slate-100">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-500 font-black overflow-hidden border border-slate-200">
                    {user?.photoURL && user.photoURL.trim() !== "" ? (
                      <img src={user.photoURL} alt="" className="w-full h-full object-cover" />
                    ) : (
@@ -1547,22 +1543,22 @@ function AppContent() {
                    )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-black text-gray-900 truncate">{user?.displayName || user?.email}</p>
-                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">Administrator</p>
+                    <p className="text-[10px] font-black text-slate-900 truncate uppercase tracking-tight">{user?.displayName || user?.email}</p>
+                    <p className="text-[8px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">Administrator</p>
                   </div>
                 </div>
                 <button 
                   onClick={() => setIsLogoutConfirmOpen(true)}
-                  className="w-full flex items-center justify-center gap-2.5 px-6 py-4 rounded-[1.25rem] text-sm font-black text-rose-500 hover:bg-rose-50 transition-all border border-transparent hover:border-rose-100"
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-xs font-black text-rose-500 hover:bg-rose-50 transition-all border border-transparent hover:border-rose-100"
                 >
-                  <LogOut size={20} />
+                  <LogOut size={16} />
                   יציאה מהמערכת
                 </button>
               </div>
             </aside>
 
-            <main className={`flex-1 min-w-0 flex flex-col h-screen overflow-y-auto bg-gray-50 hide-scrollbar scroll-smooth transition-all duration-500 ease-in-out ${isSidebarCollapsed ? 'lg:pl-8' : ''}`}>
-              <div className={`flex-1 flex flex-col relative w-full ${isSidebarCollapsed ? 'max-w-full' : 'max-w-7xl mx-auto'} p-8 md:p-12 gap-8 pb-32 lg:pb-12 transition-all duration-500`}>
+            <main className={`flex-1 min-w-0 flex flex-col h-screen overflow-y-auto bg-[#F8FAFC] hide-scrollbar scroll-smooth transition-all duration-500 ease-in-out`}>
+              <div className={`flex-1 flex flex-col relative w-full ${isSidebarCollapsed ? 'max-w-full px-12' : 'max-w-[1400px] mx-auto px-8'} py-8 gap-6 pb-32 lg:pb-12 transition-all duration-500`}>
                 <header className="flex lg:hidden justify-between items-center mb-6 bg-white/70 backdrop-blur-2xl p-4 rounded-[2rem] border border-white/50 shadow-xl shadow-gray-200/50 sticky top-4 z-[90]" dir="rtl">
                   <div className="flex items-center gap-4">
                     <img 
@@ -1623,14 +1619,19 @@ function AppContent() {
                        inventory={inventoryItems}
                      />
                   ) : viewMode === 'chat' ? (
-                    <NoaChat 
-                      chatHistory={chatHistory}
-                      chatScrollRef={chatScrollRef}
-                      onBack={() => setViewMode('list')}
-                      onAction={handleNoaAction}
-                      orders={orders}
-                      onOrderView={(order) => setEditingOrder(order)}
-                    />
+                    <div className="flex-1 max-w-5xl mx-auto w-full h-[calc(100vh-64px)] md:h-[calc(100vh-120px)] flex flex-col bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm mt-4">
+                      <NoaChat 
+                        chatHistory={chatHistory}
+                        onBack={() => setViewMode('live_pulse')}
+                        onAction={handleNoaAction}
+                        orders={orders}
+                        onOrderView={(order) => {
+                          setEditingOrder(order);
+                          setViewMode('kanban');
+                        }}
+                        currentContext={viewMode}
+                      />
+                    </div>
                   ) : viewMode === 'chat_full' ? (
                     <div className="fixed inset-0 z-[1000] bg-white">
                       <TeamMessengerContainer 
@@ -2260,6 +2261,14 @@ function AppContent() {
 )} />
     </Routes>
       {/* MOBILE BOTTOM NAV */}
+      {user && (
+        <NoaFloatingChat 
+          chatHistory={chatHistory}
+          onAction={handleNoaAction}
+          orders={orders}
+          currentContext={viewMode}
+        />
+      )}
       {user && <BottomNavigation viewMode={viewMode} setViewMode={setViewMode} />}
 
       <UIModal 
