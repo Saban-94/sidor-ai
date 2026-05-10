@@ -686,6 +686,17 @@ export const tools = [
   {
     functionDeclarations: [
       {
+        name: "process_order",
+        description: "נתח רשימת פריטים להזמנה והעבר אותם למנוע ההזמנות החכם לעיבוד לוגיסטי. השתמש בזה כשיש רשימה של פריטים לעבור עליהם.",
+        parameters: {
+          type: Type.OBJECT,
+          properties: {
+            items: { type: Type.STRING, description: "רשימת הפריטים כפי שהתקבלו מהלקוח (טקסט חופשי)" }
+          },
+          required: ["items"]
+        }
+      },
+      {
         name: "create_order",
         description: "צור הזמנה חדשה במערכת (מבצע אוטומטית Onboarding ללקוחות חדשים לפי טלפון)",
         parameters: {

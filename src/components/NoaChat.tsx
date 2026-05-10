@@ -219,31 +219,32 @@ const dynamicSuggestions = [
         {/* Message List */}
         <div 
           ref={chatScrollRef}
-          className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 max-w-full md:max-w-4xl mx-auto w-full scroll-smooth"
+          className="flex-1 overflow-y-auto p-4 md:p-8 space-y-8 w-full scroll-smooth"
         >
           {chatHistory.length === 0 && (
             <div className="text-center py-20 px-4">
-              <div className="w-24 h-24 rounded-[3rem] flex items-center justify-center mx-auto mb-6 shadow-2xl relative overflow-hidden bg-sky-50">
+              <div className="w-32 h-32 rounded-[4rem] flex items-center justify-center mx-auto mb-8 shadow-2xl relative overflow-hidden bg-white/50 backdrop-blur-xl border-4 border-white">
                  <img 
                    src="https://i.postimg.cc/qqWtk5qr/Gemini-Generated-Image-6z6qts6z6qts6z6q.png" 
                    alt="Noa" 
                    className="w-full h-full object-cover"
                    referrerPolicy="no-referrer"
                  />
-                 <div className="absolute inset-0 border-4 border-white/20 rounded-[3rem]" />
               </div>
-              <h2 className="text-2xl font-black mb-2 italic">שלום ראמי  ❤️</h2>
-              <p className="text-sm font-bold text-gray-400 mb-8 max-w-[250px] mx-auto">איך אני יכולה לעזור לך ולאחי ושותפי היום? 🏗️</p>
+              <h2 className="text-4xl font-black mb-4 italic text-gray-900 tracking-tighter">שלום ראמי  ❤️</h2>
+              <p className="text-lg font-bold text-gray-400 mb-12 max-w-[300px] mx-auto">איך אני יכולה לעזור לך ולאחי ושותפי היום? 🏗️</p>
               
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-md mx-auto">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-w-5xl mx-auto">
                  {dynamicSuggestions.slice(0, 6).map(suggestion => (
                    <button 
                      key={suggestion.label}
                      onClick={() => onAction(suggestion.action)}
-                     className="p-4 bg-gray-50 rounded-2xl border border-gray-100 text-xs font-bold text-gray-600 hover:bg-sky-50 hover:border-sky-100 transition-all text-right shadow-sm flex items-center justify-between group"
+                     className="p-6 bg-white/70 backdrop-blur-xl rounded-[2rem] border border-white/50 text-sm font-black text-gray-700 hover:bg-sky-50/80 hover:border-sky-200 transition-all text-right shadow-xl shadow-gray-200/20 flex items-center justify-between group"
                    >
                      <span>{suggestion.label}</span>
-                     <ChevronRight size={14} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                     <div className="w-8 h-8 rounded-xl bg-gray-50 flex items-center justify-center group-hover:bg-sky-100 group-hover:text-sky-600 transition-all">
+                       <ChevronRight size={18} />
+                     </div>
                    </button>
                  ))}
               </div>
@@ -253,29 +254,31 @@ const dynamicSuggestions = [
           {chatHistory.map((chat, idx) => (
             <motion.div 
               key={idx} 
-              initial={{ opacity: 0, scale: 0.95, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              className={`flex w-full gap-3 ${chat.role === 'user' ? 'justify-start' : 'justify-end flex-row-reverse'}`}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className={`flex w-full gap-5 ${chat.role === 'user' ? 'justify-start' : 'justify-end flex-row-reverse'}`}
             >
               {chat.role !== 'user' && (
-                <img 
-                  src="https://i.postimg.cc/qqWtk5qr/Gemini-Generated-Image-6z6qts6z6qts6z6q.png" 
-                  alt="Noa" 
-                  className="w-8 h-8 rounded-full object-cover shrink-0 mt-1 shadow-md"
-                />
+                <div className="shrink-0 mt-2">
+                  <img 
+                    src="https://i.postimg.cc/qqWtk5qr/Gemini-Generated-Image-6z6qts6z6qts6z6q.png" 
+                    alt="Noa" 
+                    className="w-12 h-12 rounded-2xl object-cover shadow-2xl border-2 border-white"
+                  />
+                </div>
               )}
-              <div className={`max-w-[85%] md:max-w-md p-4 rounded-2xl text-sm md:text-base font-bold leading-relaxed shadow-sm relative group/msg ${
+              <div className={`w-full max-w-full p-8 md:p-10 rounded-[2.5rem] text-sm md:text-lg font-bold leading-relaxed shadow-2xl relative group/msg transition-all backdrop-blur-2xl ${
                 chat.role === 'user' 
-                  ? 'bg-sky-500 text-white rounded-tr-none' 
-                  : 'bg-[#e2e8e4] text-gray-800 rounded-tl-none border border-gray-200/50'
+                  ? 'bg-sky-600 text-white rounded-tr-none shadow-sky-200/50' 
+                  : 'bg-white/80 text-gray-900 rounded-tl-none border border-white/50 shadow-gray-200/50'
               }`}>
                 {chat.parts[0].text.includes('<table') || chat.parts[0].text.includes('<div') ? (
                   <div 
-                    className="prose prose-sm max-w-none text-right"
+                    className="prose prose-lg max-w-none text-right"
                     dangerouslySetInnerHTML={{ __html: chat.parts[0].text }}
                   />
                 ) : (
-                  <div>
+                  <div className="whitespace-pre-wrap">
                     {chat.parts[0].text}
                     {/* Order ID Detection Logic */}
                     {(() => {
@@ -284,7 +287,7 @@ const dynamicSuggestions = [
                       const orderIds = [...new Set(matches.map(m => m[1]))];
                       
                       return orderIds.length > 0 && (
-                        <div className="mt-4 space-y-2">
+                        <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4">
                           {orderIds.map(id => (
                             <MiniOrderCard 
                               key={id} 

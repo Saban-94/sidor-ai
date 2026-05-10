@@ -37,6 +37,7 @@ import {
   ArrowUp,
   ArrowDown,
   ArrowLeft,
+  ArrowRight,
   Database,
   Info,
   CheckCircle,
@@ -106,6 +107,8 @@ import { ConnectionOrbit } from './components/ConnectionOrbit';
 import { Avatar } from './components/Avatar';
 import { NotificationProvider, useNotifications } from './components/NotificationProvider';
 import { MobileApp } from './MobileApp';
+import { SabanOrderEngine } from './components/SabanOrderEngine';
+import { PackageCheck, PackageX, PackageOpen } from 'lucide-react';
 import { 
   createOrder, 
   getOrderByTrackingId,
@@ -508,6 +511,7 @@ function AppContent() {
   const [activeAlertReminder, setActiveAlertReminder] = useState<Reminder | null>(null);
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
   const [isScreenShaking, setIsScreenShaking] = useState(false);
+  const [noaLastExtractedItems, setNoaLastExtractedItems] = useState<string>("");
   const loopAudioRef = useRef<HTMLAudioElement | null>(null);
   const [modalConfig, setModalConfig] = useState<{isOpen: boolean, title: string, message: string, type: 'alert'|'confirm', onConfirm?: () => void}>({
     isOpen: false,
@@ -1237,9 +1241,12 @@ function AppContent() {
     }
   }, [dataLoadingStatus.orders, dataLoadingStatus.drivers]);
 
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+
   const NavigationItems = [
     { id: 'live_pulse', icon: Activity, label: 'דופק הזמנות' },
     { id: 'noa_bridge', icon: Sparkles, label: 'Noa Bridge' },
+    { id: 'order_engine', icon: PackageCheck, label: 'מנוע הזמנות' },
     { id: 'desktop_dashboard', icon: Database, label: 'תיק לקוח' },
     { id: 'list', icon: LayoutList, label: 'דוח בוקר' },
     { id: 'kanban', icon: Trello, label: 'קנבן' },
@@ -1317,7 +1324,12 @@ function AppContent() {
 
       if (functionCalls) {
         for (const call of functionCalls) {
-          if (call.name === 'create_order') {
+          if (call.name === 'process_order') {
+            const { items: raw } = call.args as any;
+            setNoaLastExtractedItems(raw);
+            setViewMode('order_engine');
+            addToast('מנוע הזמנות', 'מעבירה את הרשימה לעיבוד במנוע המערכת... 🧪', 'info');
+          } else if (call.name === 'create_order') {
             const args = call.args as any;
             sendOrderNotification('הזמנה חדשה! 🚛', `${args.customerName} - ${args.items}`);
           } else if (call.name === 'search_orders') {
@@ -1460,33 +1472,45 @@ function AppContent() {
         ) : (
           <div className="flex bg-gray-50 border-gray-100 font-sans min-h-screen" dir="rtl">
             {/* DESKTOP SIDEBAR */}
-            <aside className="hidden lg:flex flex-col w-72 bg-white border-l border-gray-100 h-screen sticky top-0 overflow-y-auto z-30 shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
-              <div className="p-8">
-                <div className="flex items-center gap-4 mb-10">
-                  <img 
-                    src="https://i.postimg.cc/qqWtk5qr/Gemini-Generated-Image-6z6qts6z6qts6z6q.png" 
-                    alt="Logo" 
-                    className="w-12 h-12 rounded-2xl object-cover shadow-xl"
-                  />
-                  <div>
-                    <h1 className="text-xl font-black text-gray-900 tracking-tighter font-sans">סידור</h1>
-                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest leading-none mt-1">v3.5 Enterprise</p>
+            <aside className={`hidden lg:flex flex-col ${isSidebarCollapsed ? 'w-24' : 'w-72'} bg-white border-l border-gray-100 h-screen sticky top-0 overflow-y-auto z-30 shadow-[4px_0_24px_rgba(0,0,0,0.02)] transition-all duration-300 ease-in-out`}>
+              <div className="p-8 flex flex-col items-center">
+                <div className={`flex items-center gap-4 mb-10 w-full ${isSidebarCollapsed ? 'flex-col justify-center' : 'justify-between'}`}>
+                  <div className="flex items-center gap-4">
+                    <img 
+                      src="https://i.postimg.cc/qqWtk5qr/Gemini-Generated-Image-6z6qts6z6qts6z6q.png" 
+                      alt="Logo" 
+                      className="w-12 h-12 rounded-2xl object-cover shadow-xl flex-shrink-0"
+                    />
+                    {!isSidebarCollapsed && (
+                      <div>
+                        <h1 className="text-xl font-black text-gray-900 tracking-tighter font-sans">סידור</h1>
+                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest leading-none mt-1">v3.5 Enterprise</p>
+                      </div>
+                    )}
                   </div>
+                  
+                  <button 
+                    onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                    className="p-2.5 rounded-xl bg-gray-50 text-gray-400 hover:bg-sky-50 hover:text-sky-600 transition-colors"
+                  >
+                    {isSidebarCollapsed ? <ArrowRight size={18} /> : <ArrowLeft size={18} />}
+                  </button>
                 </div>
 
-                <nav className="space-y-1.5">
+                <nav className="space-y-1.5 w-full">
                   {NavigationItems.map((item) => (
                     <button
                       key={item.id}
                       onClick={() => setViewMode(item.id as any)}
-                      className={`w-full flex items-center gap-4 px-5 py-4 rounded-[1.25rem] text-sm font-black transition-all ${
+                      title={isSidebarCollapsed ? item.label : undefined}
+                      className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center px-0' : 'px-5'} py-4 rounded-[1.25rem] text-sm font-black transition-all ${
                         viewMode === item.id 
                           ? 'bg-sky-600 text-white shadow-xl shadow-sky-600/20 translate-x-1' 
                           : 'text-gray-400 hover:bg-gray-50 hover:text-gray-900'
                       }`}
                     >
                       <item.icon size={22} strokeWidth={viewMode === item.id ? 2.5 : 2} />
-                      {item.label}
+                      {!isSidebarCollapsed && <span className="mr-4">{item.label}</span>}
                     </button>
                   ))}
                 </nav>
@@ -1537,8 +1561,8 @@ function AppContent() {
               </div>
             </aside>
 
-            <main className="flex-1 min-w-0 flex flex-col h-screen overflow-y-auto bg-gray-50 hide-scrollbar scroll-smooth">
-              <div className="p-4 md:p-10 max-w-7xl mx-auto w-full flex-1 flex flex-col relative pb-32 lg:pb-10">
+            <main className={`flex-1 min-w-0 flex flex-col h-screen overflow-y-auto bg-gray-50 hide-scrollbar scroll-smooth transition-all duration-500 ease-in-out ${isSidebarCollapsed ? 'lg:pl-8' : ''}`}>
+              <div className={`flex-1 flex flex-col relative w-full ${isSidebarCollapsed ? 'max-w-full' : 'max-w-7xl mx-auto'} p-8 md:p-12 gap-8 pb-32 lg:pb-12 transition-all duration-500`}>
                 <header className="flex lg:hidden justify-between items-center mb-6 bg-white/70 backdrop-blur-2xl p-4 rounded-[2rem] border border-white/50 shadow-xl shadow-gray-200/50 sticky top-4 z-[90]" dir="rtl">
                   <div className="flex items-center gap-4">
                     <img 
@@ -1586,6 +1610,11 @@ function AppContent() {
                   ) : viewMode === 'noa_bridge' ? (
                     <NoaBridgeGateway 
                       onBack={() => setViewMode('list')}
+                    />
+                  ) : viewMode === 'order_engine' ? (
+                    <SabanOrderEngine 
+                      rawItems={noaLastExtractedItems} 
+                      onProcessed={(p) => console.log('Processed for sync:', p)}
                     />
                   ) : viewMode === 'reports' ? (
                      <MorningReportSystem 
