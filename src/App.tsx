@@ -1516,7 +1516,11 @@ function AppContent() {
               <div className="mt-auto p-8 border-t border-gray-100">
                 <div className="flex items-center gap-4 mb-6">
                   <div className="w-12 h-12 rounded-2xl bg-gray-100 flex items-center justify-center text-gray-500 font-black overflow-hidden border border-gray-200">
-                    {user?.photoURL ? <img src={user.photoURL} alt="" className="w-full h-full object-cover" /> : user?.email?.charAt(0).toUpperCase()}
+                   {user?.photoURL && user.photoURL.trim() !== "" ? (
+                     <img src={user.photoURL} alt="" className="w-full h-full object-cover" />
+                   ) : (
+                     user?.email?.charAt(0).toUpperCase()
+                   )}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-black text-gray-900 truncate">{user?.displayName || user?.email}</p>

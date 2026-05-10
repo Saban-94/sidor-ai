@@ -73,6 +73,10 @@ export const InventoryAnalytics: React.FC = () => {
   }, [orderItems]);
 
   // 2. Data for Pie Chart: Sales by originWarehouse
+  const atRiskProducts = useMemo(() => {
+    return inventory.filter(item => item.currentStock <= item.minStock);
+  }, [inventory]);
+
   const warehouseData = useMemo(() => {
     const counts: Record<string, number> = {};
     orderItems.forEach(item => {

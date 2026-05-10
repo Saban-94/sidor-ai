@@ -39,6 +39,7 @@ import { InventoryItem, SaleRecord, Order } from '../types';
 import { calculateInventoryStats } from '../lib/inventoryUtils';
 import { InventoryAnalytics } from './InventoryAnalytics';
 import { UIModal } from './UIModal';
+import { InventorySlideOver } from './InventorySlideOver';
 import { format } from 'date-fns';
 import { he } from 'date-fns/locale';
 
@@ -52,10 +53,12 @@ export const InventoryDashboard: React.FC<InventoryDashboardProps> = ({ orders =
   const [sales, setSales] = useState<SaleRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [editingItemId, setEditingItemId] = useState<string | null>(null);
-  const [editValue, setEditValue] = useState<number>(0);
   const [activeTab, setActiveTab] = useState<'inventory' | 'analytics'>('inventory');
   
+  // Slide-over State
+  const [isAddingItem, setIsAddingItem] = useState(false);
+  const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
+
   // Modal State
   const [modalOpen, setModalOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
@@ -93,7 +96,7 @@ export const InventoryDashboard: React.FC<InventoryDashboardProps> = ({ orders =
 
   const filteredItems = allStats.filter(item => {
     const name = item?.name || "";
-    const sku = item?.sku || "";
+    const sku = item?.sku ? String(item.sku) : "";
     const category = item?.category || "";
     const query = searchQuery || "";
     return (
@@ -103,17 +106,6 @@ export const InventoryDashboard: React.FC<InventoryDashboardProps> = ({ orders =
     );
   });
 
-  const handleQuickUpdate = async (id: string, newValue: number) => {
-    try {
-      await updateDoc(doc(db, 'inventory', id), {
-        currentStock: newValue,
-        updatedAt: serverTimestamp()
-      });
-      setEditingItemId(null);
-    } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, 'inventory');
-    }
-  };
 
   const confirmDelete = (id: string) => {
     setItemToDelete(id);
@@ -151,20 +143,33 @@ export const InventoryDashboard: React.FC<InventoryDashboardProps> = ({ orders =
           <p className="text-slate-500 font-medium mt-1">סקירה מלאה של תנועות מלאי וביצועי מכירות</p>
         </div>
         
-        <div className="flex bg-slate-100 p-1 rounded-2xl">
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="flex bg-slate-100 p-1 rounded-2xl">
+            <button 
+              onClick={() => setActiveTab('inventory')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-black transition-all ${activeTab === 'inventory' ? 'bg-white text-sky-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+            >
+              <ListIcon size={18} />
+              רשימת מלאי
+            </button>
+            <button 
+              onClick={() => setActiveTab('analytics')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-black transition-all ${activeTab === 'analytics' ? 'bg-white text-sky-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+            >
+              <BarChart3 size={18} />
+              אנליטיקה
+            </button>
+          </div>
+
           <button 
-            onClick={() => setActiveTab('inventory')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-black transition-all ${activeTab === 'inventory' ? 'bg-white text-sky-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+            onClick={() => {
+              setEditingItem(null);
+              setIsAddingItem(true);
+            }}
+            className="bg-gray-900 text-white flex items-center gap-2 px-6 py-3 rounded-2xl font-black shadow-xl shadow-slate-200 hover:bg-sky-600 transition-all hover:scale-[1.02] active:scale-95"
           >
-            <ListIcon size={18} />
-            רשימת מלאי
-          </button>
-          <button 
-            onClick={() => setActiveTab('analytics')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-black transition-all ${activeTab === 'analytics' ? 'bg-white text-sky-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-          >
-            <BarChart3 size={18} />
-            אנליטיקה
+            <Box size={18} />
+            הוסף מוצר חדש
           </button>
         </div>
       </div>
@@ -317,7 +322,7 @@ export const InventoryDashboard: React.FC<InventoryDashboardProps> = ({ orders =
                     <div className="p-6 flex-1 flex flex-col">
                       <div className="flex items-start gap-4 mb-6">
                         <div className="w-20 h-20 rounded-3xl overflow-hidden bg-slate-50 border border-slate-100 shadow-sm relative group-hover:scale-105 transition-transform duration-500">
-                          {item.imageUrl ? (
+                          {item.imageUrl && item.imageUrl.trim() !== "" ? (
                             <img 
                               src={item.imageUrl.startsWith('http:') ? item.imageUrl.replace('http:', 'https:') : item.imageUrl} 
                               alt={item.name} 
@@ -375,16 +380,16 @@ export const InventoryDashboard: React.FC<InventoryDashboardProps> = ({ orders =
                     </div>
 
                     {/* Quick Access Overlay Buttons */}
-                    <div className="px-6 py-4 bg-slate-50 flex items-center gap-2">
+                    <div className="px-6 py-4 bg-slate-50 flex items-center gap-2 mt-auto">
                        <button 
                         onClick={() => {
-                          setEditingItemId(item.id!);
-                          setEditValue(item.currentStock);
+                          setEditingItem(item);
+                          setIsAddingItem(true);
                         }}
                         className="flex-1 bg-white border border-slate-200 hover:border-sky-500 hover:text-sky-600 rounded-xl py-2.5 text-xs font-black transition-all flex items-center justify-center gap-2 shadow-sm active:scale-95"
                       >
                         <Edit3 size={14} />
-                        עדכון מהיר
+                        ערוך מוצר
                       </button>
                       <button 
                         onClick={() => confirmDelete(item.id!)}
@@ -410,6 +415,15 @@ export const InventoryDashboard: React.FC<InventoryDashboardProps> = ({ orders =
         onConfirm={handleDeleteItem}
         confirmText="כן, מחק מוצר"
         cancelText="לא, חזור"
+      />
+
+      <InventorySlideOver 
+        isOpen={isAddingItem}
+        onClose={() => {
+          setIsAddingItem(false);
+          setEditingItem(null);
+        }}
+        editingItem={editingItem}
       />
     </div>
   );

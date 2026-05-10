@@ -476,7 +476,7 @@ export const LiveOrderPulse: React.FC<LiveOrderPulseProps> = ({
                          >
                             <div className="flex items-center gap-5">
                                <div className="w-14 h-14 bg-slate-50 rounded-2xl overflow-hidden flex items-center justify-center text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors border border-slate-100">
-                                 {invItem?.imageUrl ? (
+                                 {invItem?.imageUrl && invItem.imageUrl.trim() !== "" ? (
                                    <img 
                                      src={invItem.imageUrl} 
                                      alt={item.name} 

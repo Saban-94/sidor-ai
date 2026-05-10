@@ -35,10 +35,11 @@ async function startServer() {
   // Proxy for Google Apps Script (Bypasses CORS and allows server-side logging)
   app.post("/api/sync", async (req, res) => {
     try {
-      const gasUrl = process.env.VITE_GAS_URL;
+      const fallbackUrl = "https://script.google.com/macros/s/AKfycbzhEuTe-PZpjD0lL5GziypNd-ZOged2XqWvJ4RFu9GvpImk3-YyorpbQGuIGipLTYts_Q/exec";
+      const gasUrl = process.env.VITE_GAS_URL || fallbackUrl;
       
       if (!gasUrl) {
-        console.error("❌ [PROXY] VITE_GAS_URL is not defined in environment");
+        console.error("❌ [PROXY] GAS URL not configured and no fallback available");
         return res.status(500).json({ status: "error", message: "GAS URL not configured" });
       }
 

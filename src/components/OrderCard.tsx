@@ -137,7 +137,7 @@ const ItemsModal = ({
                   <tr key={idx} className="group hover:bg-sky-50/50 transition-colors">
                     <td className="py-4 text-center">
                       <div className="w-10 h-10 rounded-lg bg-gray-50 border border-gray-100 overflow-hidden flex items-center justify-center mx-auto">
-                        {inventoryItem?.imageUrl ? (
+                        {inventoryItem?.imageUrl && inventoryItem.imageUrl.trim() !== "" ? (
                           <img 
                             src={inventoryItem.imageUrl} 
                             alt={item.name} 

@@ -77,7 +77,7 @@ export const DriverCard = ({
               animate="shake"
               className={`relative ${driver.avatar ? 'p-0 overflow-hidden' : 'p-5'} rounded-[2rem] shadow-inner ${driver.vehicleType === 'crane' ? 'bg-sky-100 text-sky-600' : 'bg-blue-100 text-blue-600'} w-20 h-20 flex items-center justify-center border-4 border-white shadow-lg`}
             >
-              {driver.avatar ? (
+              {driver.avatar && driver.avatar.trim() !== "" ? (
                 <img 
                   src={driver.avatar} 
                   alt={driver.name} 

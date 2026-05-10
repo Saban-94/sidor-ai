@@ -124,7 +124,7 @@ export const MobileApp: React.FC = () => {
         <div className="flex items-center gap-3">
           <ConnectionOrbit />
           <div className="w-10 h-10 rounded-full bg-gray-800 border-2 border-white/10 overflow-hidden shadow-inner">
-             {user.photoURL ? <img src={user.photoURL} alt="User" /> : <Users size={20} className="m-2" />}
+             {user.photoURL && user.photoURL.trim() !== "" ? <img src={user.photoURL} alt="User" /> : <Users size={20} className="m-2" />}
           </div>
         </div>
       </header>

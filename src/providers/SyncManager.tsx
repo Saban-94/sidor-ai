@@ -80,13 +80,20 @@ export const SyncManager: React.FC<{ children: React.ReactNode }> = ({ children 
     console.log(`🧬 SyncManager starting push to GAS URL: ${import.meta.env.VITE_GAS_URL}`);
     try {
       // Process batch
+      let allPassed = true;
       for (const item of items) {
-        if (item.type === 'order') await GasService.syncOrder(item.data);
-        if (item.type === 'inventory') await GasService.syncInventory(item.data);
-        if (item.type === 'log') await GasService.logBlackBox(item.data);
+        let res;
+        if (item.type === 'order') res = await GasService.syncOrder(item.data);
+        else if (item.type === 'inventory') res = await GasService.syncInventory(item.data);
+        else if (item.type === 'log') res = await GasService.logBlackBox(item.data);
+        
+        if (res && res.status === 'failed') {
+          console.error(`🧬 SyncManager: Item failed sync [${item.type}]`, res.error);
+          allPassed = false;
+        }
       }
       
-      setSyncResult(true);
+      setSyncResult(allPassed);
     } catch (err) {
       setSyncResult(false);
     } finally {
