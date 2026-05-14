@@ -35,7 +35,7 @@
     height: 100%;
     overscroll-behavior: none;
     direction: rtl;
-    font-size: 18px; /* High legibility base */
+    font-size: 18px; /* High legibility base per Lead UI/UX Engineer */
   }
 
   @media (max-width: 768px) {
@@ -48,9 +48,10 @@
     @apply font-sans bg-white text-[#1E293B] antialiased;
     background-image: none;
     -webkit-tap-highlight-color: transparent;
-    overflow-x: hidden;
+    overflow: hidden; /* Lock scroll to app canvas */
     width: 100vw;
     height: 100vh;
+    height: 100svh;
     position: fixed;
     inset: 0;
     padding-bottom: env(safe-area-inset-bottom);
@@ -65,12 +66,16 @@
     pointer-events: auto;
   }
 
-  /* Full impact Hebrew Typography */
-  h1, h2, h3, h4, h5, h6, b, strong, .font-bold {
-    @apply font-black tracking-tight leading-tight;
+  /* Full impact Hebrew Typography - Lead AI Architect Style */
+  h1 { @apply text-3xl font-black tracking-tight leading-tight mb-4; }
+  h2 { @apply text-2xl font-black tracking-tight leading-tight mb-3; }
+  h3 { @apply text-xl font-black tracking-tight leading-tight mb-2; }
+  
+  b, strong, .font-bold {
+    @apply font-black;
   }
 
-  /* Interactive Elements Scaling */
+  /* Interactive Elements Scaling - 60px touch radius target */
   button, 
   [role="button"],
   a {
@@ -81,39 +86,34 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    @apply text-lg;
+    @apply text-lg font-bold;
   }
 
   /* Text Handling & Readability */
   p, span, div {
     @apply break-words whitespace-pre-wrap;
-    @apply text-lg;
+    @apply text-lg leading-relaxed;
   }
 
   input, textarea {
-    @apply text-xl; /* Prevent zoom and ensure high visibility */
+    @apply text-xl font-bold; /* Prevent zoom and ensure high visibility */
   }
 
+  /* Solid Primary Buttons - SabanOS 6.0 Protocol */
   .btn-primary {
-    @apply bg-navy text-white border-2 border-dark-navy rounded-2xl shadow-xl shadow-navy/20 font-black h-14 px-8 active:scale-95 transition-all;
+    @apply bg-blue-900 text-white border-2 border-blue-800 rounded-2xl shadow-xl shadow-blue-900/10 font-black h-[56px] px-8 active:scale-95 transition-all;
   }
 
   .btn-gold {
-    @apply bg-gold text-navy border-2 border-gold/50 rounded-2xl shadow-xl shadow-gold/20 font-black h-14 px-8 active:scale-95 transition-all;
+    @apply bg-gold text-[#1e293b] border-2 border-gold/50 rounded-2xl shadow-xl shadow-gold/20 font-black h-[56px] px-8 active:scale-95 transition-all;
   }
 
-  /* Scroll Areas */
-  .scroll-v {
-    overflow-y: auto;
-    overflow-x: hidden;
-    -webkit-overflow-scrolling: touch;
-    overscroll-behavior: contain;
-  }
-
-  .responsive-container {
-    @apply w-full overflow-x-auto;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: thin;
+  /* Massive Action Buttons with Grid Stability */
+  .action-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 1rem;
+    width: 100%;
   }
 
   /* Animation Core */

@@ -205,35 +205,35 @@ export const NoaChat = ({
       {/* Message List - Massive Text Scaling & Leading */}
       <div 
         ref={chatScrollRef}
-        className="flex-1 overflow-y-auto px-6 py-10 space-y-12 w-full scroll-smooth custom-scrollbar bg-white"
+        className="flex-1 overflow-y-auto px-4 md:px-10 py-12 space-y-16 w-full scroll-smooth custom-scrollbar bg-white"
         style={{ height: 'calc(var(--chat-height) - 180px)' }}
       >
         {chatHistory.length === 0 && (
-          <div className="text-center py-20 px-6">
-            <div className="w-32 h-32 rounded-[3rem] flex items-center justify-center mx-auto mb-10 shadow-3xl border-4 border-slate-50 bg-white p-1 overflow-hidden">
+          <div className="text-center py-20 px-8">
+            <div className="w-40 h-40 rounded-[3.5rem] flex items-center justify-center mx-auto mb-10 shadow-3xl border-4 border-slate-50 bg-white p-1 overflow-hidden animate-pulse-soft">
                <img 
                  src="https://i.postimg.cc/qqWtk5qr/Gemini-Generated-Image-6z6qts6z6qts6z6q.png" 
                  alt="Noa" 
-                 className="w-full h-full object-cover rounded-[2.5rem]"
+                 className="w-full h-full object-cover rounded-[3rem]"
                  referrerPolicy="no-referrer"
                />
             </div>
-            <h2 className="text-4xl font-black mb-4 italic text-navy tracking-tight">ראמי אהובי, שלום ❤️</h2>
-            <p className="text-xl font-bold text-slate-400 mb-12 max-w-sm mx-auto italic leading-relaxed">
+            <h2 className="text-5xl font-black mb-6 italic text-blue-950 tracking-tight">ראמי אהובי, שלום ❤️</h2>
+            <p className="text-2xl font-bold text-slate-400 mb-16 max-w-lg mx-auto italic leading-relaxed">
                מערכת בינה מלאכותית לניהול לוגיסטי חכם <br/>
-               <span className="text-gold font-black">SabanOS 7.0 Precision</span>
+               <span className="text-gold font-black opacity-80">SabanOS 7.0 Precision Analytics</span>
             </p>
             
-            <div className="flex flex-col gap-5 max-w-2xl mx-auto">
-               {dynamicSuggestions.slice(0, 4).map(suggestion => (
+            <div className="action-grid max-w-4xl mx-auto">
+               {dynamicSuggestions.slice(0, 6).map(suggestion => (
                  <button 
                    key={suggestion.label}
                    onClick={() => onAction(suggestion.action)}
-                   className="p-8 bg-slate-50 rounded-[2.5rem] border-2 border-slate-100 text-xl font-black text-navy hover:border-navy hover:bg-white transition-all text-right shadow-sm flex items-center justify-between group active:scale-95"
+                   className="p-8 bg-slate-50 rounded-[2.5rem] border-2 border-slate-100 text-xl font-black text-blue-900 hover:border-blue-900 hover:bg-white transition-all text-right shadow-sm flex items-center justify-between group active:scale-95 min-h-[90px]"
                  >
                    <span className="flex-1 ml-6">{suggestion.label}</span>
-                   <div className="w-14 h-14 rounded-2xl bg-white border-2 border-slate-100 flex items-center justify-center group-hover:bg-navy group-hover:text-white group-hover:border-navy transition-all shrink-0 shadow-sm">
-                     <ChevronRight size={24} />
+                   <div className="w-[60px] h-[60px] rounded-2xl bg-white border-2 border-slate-100 flex items-center justify-center group-hover:bg-blue-900 group-hover:text-white group-hover:border-blue-900 transition-all shrink-0 shadow-sm">
+                     <ChevronRight size={28} />
                    </div>
                  </button>
                ))}
@@ -244,27 +244,27 @@ export const NoaChat = ({
         {chatHistory.map((chat, idx) => (
           <motion.div 
             key={idx} 
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className={`flex w-full gap-6 ${chat.role === 'user' ? 'justify-start' : 'justify-end flex-row-reverse'}`}
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            className={`flex w-full gap-8 ${chat.role === 'user' ? 'justify-start' : 'justify-end flex-row-reverse'}`}
           >
             {chat.role !== 'user' && (
-              <div className="shrink-0 mt-2">
+              <div className="shrink-0 mt-4 h-full flex flex-col items-center">
                 <img 
                   src="https://i.postimg.cc/qqWtk5qr/Gemini-Generated-Image-6z6qts6z6qts6z6q.png" 
                   alt="Noa" 
-                  className="w-12 h-12 rounded-2xl object-cover shadow-xl border-2 border-white"
+                  className="w-16 h-16 rounded-2xl object-cover shadow-2xl border-2 border-white"
                 />
               </div>
             )}
-            <div className={`w-full max-w-[95%] p-10 rounded-[3rem] text-xl md:text-2xl font-bold leading-relaxed shadow-xl transition-all border-2 ${
+            <div className={`w-full max-w-[98%] p-10 md:p-14 rounded-[3.5rem] text-2xl md:text-3xl font-black leading-[1.4] shadow-2xl transition-all border-2 ${
               chat.role === 'user' 
-                ? 'bg-slate-50 text-navy border-slate-200 rounded-tr-none' 
-                : 'bg-white text-slate-900 rounded-tl-none border-navy/10 shadow-navy/5'
+                ? 'bg-slate-50 text-blue-900 border-slate-200 rounded-tr-none' 
+                : 'bg-white text-slate-900 rounded-tl-none border-blue-900/10 shadow-blue-900/5'
             }`}>
               {(chat.parts[0]?.text || "").includes('<table') || (chat.parts[0]?.text || "").includes('<div') ? (
                 <div 
-                  className={`prose prose-xl max-w-none text-right ${chat.role === 'user' ? 'prose-slate' : 'prose-navy'}`}
+                  className={`w-full overflow-x-auto custom-scrollbar prose prose-2xl max-w-none text-right ${chat.role === 'user' ? 'prose-slate' : 'prose-blue'}`}
                   dangerouslySetInnerHTML={{ __html: chat.parts[0]?.text || "" }}
                 />
               ) : (
@@ -277,7 +277,7 @@ export const NoaChat = ({
                     const orderIds = [...new Set(matches.map(m => m[1]))];
                     
                     return orderIds.length > 0 && (
-                      <div className="mt-10 grid grid-cols-1 gap-6">
+                      <div className="mt-12 grid grid-cols-1 md:grid-cols-2 gap-8">
                         {orderIds.map(id => (
                           <MiniOrderCard 
                             key={id} 
@@ -292,26 +292,28 @@ export const NoaChat = ({
               )}
               
               {chat.role !== 'user' && (
-                <div className={`flex items-center gap-5 mt-10 pt-10 border-t-2 border-slate-50`}>
+                <div className={`flex items-center gap-6 mt-12 pt-12 border-t-2 border-slate-50`}>
                   <button 
                     onClick={() => speak(chat.parts[0].text, idx)}
-                    className={`w-14 h-14 flex items-center justify-center rounded-2xl transition-all shadow-sm ${currentlySpeaking === idx ? 'bg-navy text-white' : 'bg-slate-50 text-slate-400 hover:text-navy hover:bg-white border-2 border-transparent hover:border-navy'}`}
+                    className={`w-[60px] h-[60px] flex items-center justify-center rounded-2xl transition-all shadow-md ${currentlySpeaking === idx ? 'bg-blue-900 text-white' : 'bg-slate-50 text-slate-400 hover:text-blue-900 hover:bg-white border-2 border-transparent hover:border-blue-900'}`}
                   >
-                    {currentlySpeaking === idx ? <VolumeX size={24} /> : <Volume2 size={24} />}
+                    {currentlySpeaking === idx ? <VolumeX size={32} /> : <Volume2 size={32} />}
                   </button>
                   
                   {currentlySpeaking === idx && (
-                    <div className="flex items-center gap-2 h-6 px-4">
+                    <div className="flex items-center gap-3 h-8 px-6">
                       {[1, 2.5, 4, 3.5, 4.5, 2, 3].map((h, i) => (
                         <motion.div 
                           key={i}
-                          animate={{ height: [6, h * 6, 6] }}
+                          animate={{ height: [8, h * 8, 8] }}
                           transition={{ duration: 0.6, repeat: Infinity, delay: i * 0.1, ease: "easeInOut" }}
-                          className="w-1.5 bg-navy/30 rounded-full"
+                          className="w-2 bg-blue-900/30 rounded-full"
                         />
                       ))}
                     </div>
                   )}
+                  <div className="flex-1" />
+                  <span className="text-sm font-black text-slate-300 uppercase italic">Noa Intelligence Protocol v7.0</span>
                 </div>
               )}
             </div>
@@ -320,18 +322,18 @@ export const NoaChat = ({
       </div>
 
       {/* Massive Input Area - Mobile Focused */}
-      <div className="bg-white border-t-2 border-slate-100 px-6 py-8 z-30 shrink-0 shadow-[0_-20px_50px_rgba(30,58,138,0.06)]">
-        <div className="max-w-5xl mx-auto space-y-8">
+      <div className="bg-white border-t-4 border-slate-100 px-6 py-10 z-30 shrink-0 shadow-[0_-25px_60px_rgba(30,58,138,0.08)]">
+        <div className="max-w-6xl mx-auto space-y-10">
           {/* Quick Actions - Large Horizontal Scroll */}
           <div className="flex gap-4 overflow-x-auto no-scrollbar py-2">
             {dynamicSuggestions.map((btn, i) => (
               <button 
                 key={i}
                 onClick={() => onAction(btn.action)}
-                className={`whitespace-nowrap bg-white hover:bg-navy hover:text-white text-navy text-sm font-black uppercase px-8 py-4 rounded-[1.5rem] transition-all border-2 border-slate-100 shadow-sm active:scale-95 flex items-center gap-3 shrink-0`}
+                className={`whitespace-nowrap btn-primary min-w-fit px-10 rounded-[1.8rem] flex items-center gap-4 shrink-0 transition-all hover:bg-blue-800 hover:scale-105 active:scale-95`}
               >
-                {btn.icon ? React.cloneElement(btn.icon as React.ReactElement, { size: 18 }) : <Waves size={18} />}
-                {btn.label}
+                {btn.icon ? React.cloneElement(btn.icon as React.ReactElement, { size: 24 }) : <Waves size={24} />}
+                <span className="text-lg">{btn.label}</span>
               </button>
             ))}
           </div>
@@ -346,7 +348,7 @@ export const NoaChat = ({
               onAction(val);
               input.value = '';
             }}
-            className="flex gap-5 items-center"
+            className="flex gap-6 items-center"
           >
             <input 
               type="file"
@@ -368,23 +370,23 @@ export const NoaChat = ({
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={isUploading}
-              className={`w-16 h-16 rounded-3xl transition-all shadow-md active:scale-90 flex items-center justify-center shrink-0 border-2 ${
-                isUploading ? 'bg-slate-50 text-slate-200 border-slate-100' : 'bg-white text-navy border-slate-100 hover:border-navy hover:shadow-xl'
+              className={`w-[68px] h-[68px] rounded-3xl transition-all shadow-xl active:scale-90 flex items-center justify-center shrink-0 border-2 ${
+                isUploading ? 'bg-slate-50 text-slate-200 border-slate-100' : 'bg-white text-blue-900 border-slate-100 hover:border-blue-900 hover:shadow-2xl'
               }`}
             >
-              <Paperclip size={28} className={isUploading ? 'animate-pulse' : ''} />
+              <Paperclip size={32} className={isUploading ? 'animate-pulse' : ''} />
             </button>
             <input 
               name="message"
               autoComplete="off"
               placeholder="הקלד פקודה לוגיסטית..."
-              className={`flex-1 bg-slate-50 border-2 border-slate-100 text-navy rounded-3xl px-10 h-16 text-xl md:text-2xl focus:border-navy focus:bg-white transition-all outline-none font-bold placeholder:text-slate-300 shadow-inner`}
+              className={`flex-1 bg-slate-50 border-2 border-slate-100 text-blue-950 rounded-[2rem] px-12 h-[68px] text-2xl focus:border-blue-900 focus:bg-white transition-all outline-none font-black placeholder:text-slate-300 shadow-inner`}
             />
             <button 
               type="submit"
-              className={`bg-navy text-white h-16 w-16 rounded-3xl hover:bg-gold hover:text-navy transition-all shadow-2xl active:scale-95 flex items-center justify-center shrink-0 border-2 border-navy`}
+              className={`bg-blue-900 text-white h-[68px] w-[68px] rounded-[2rem] hover:bg-gold hover:text-blue-950 transition-all shadow-3xl active:scale-95 flex items-center justify-center shrink-0 border-2 border-blue-800`}
             >
-              <Send size={32} strokeWidth={4} />
+              <Send size={40} strokeWidth={4} />
             </button>
           </form>
         </div>
