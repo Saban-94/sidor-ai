@@ -35,38 +35,34 @@
     height: 100%;
     overscroll-behavior: none;
     direction: rtl;
-    font-size: 16px; /* Base size */
+    font-size: 18px; /* High legibility base */
   }
 
   @media (max-width: 768px) {
     html {
-      font-size: 17px;
+      font-size: 18px;
     }
   }
 
   body {
-    @apply font-sans bg-[#F8FAFC] text-[#1E293B] antialiased;
-    background-image: 
-      radial-gradient(at 0% 0%, rgba(30, 58, 138, 0.03) 0px, transparent 50%),
-      radial-gradient(at 100% 100%, rgba(197, 160, 89, 0.03) 0px, transparent 50%);
-    background-attachment: fixed;
+    @apply font-sans bg-white text-[#1E293B] antialiased;
+    background-image: none;
     -webkit-tap-highlight-color: transparent;
     overflow-x: hidden;
-    width: 100%;
-    position: relative;
-    min-height: 100vh;
-    min-height: 100dvh;
-    padding-bottom: var(--safe-area-inset-bottom);
-    padding-top: var(--safe-area-inset-top);
+    width: 100vw;
+    height: 100vh;
+    position: fixed;
+    inset: 0;
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-top: env(safe-area-inset-top);
     touch-action: manipulation;
-    @apply px-4 md:px-0; /* 16px gutter on mobile */
   }
 
   /* Support for smooth scrolling on iOS */
   * {
     -webkit-overflow-scrolling: touch;
     box-sizing: border-box;
-    pointer-events: auto; /* Ensure interactivity */
+    pointer-events: auto;
   }
 
   /* Full impact Hebrew Typography */
@@ -74,32 +70,36 @@
     @apply font-black tracking-tight leading-tight;
   }
 
-  /* Mobile UI Stabilization */
+  /* Interactive Elements Scaling */
   button, 
   [role="button"],
   a {
-    @apply transition-all active:scale-[0.98] touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-navy/50;
-    min-height: 48px;
-    min-width: 48px;
+    @apply transition-all active:scale-[0.96] touch-manipulation focus-visible:outline-none;
+    min-height: 56px;
+    min-width: 56px;
     cursor: pointer;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    @apply text-base md:text-sm;
+    @apply text-lg;
   }
 
   /* Text Handling & Readability */
   p, span, div {
     @apply break-words whitespace-pre-wrap;
-    @apply text-[17px] md:text-base;
+    @apply text-lg;
   }
 
   input, textarea {
-    @apply text-[18px] md:text-base; /* Prevent zoom on mobile */
+    @apply text-xl; /* Prevent zoom and ensure high visibility */
   }
 
-  .btn-native {
-    @apply min-h-[54px] px-6 rounded-2xl flex items-center justify-center gap-3 font-black text-sm shadow-lg shadow-navy/10;
+  .btn-primary {
+    @apply bg-navy text-white border-2 border-dark-navy rounded-2xl shadow-xl shadow-navy/20 font-black h-14 px-8 active:scale-95 transition-all;
+  }
+
+  .btn-gold {
+    @apply bg-gold text-navy border-2 border-gold/50 rounded-2xl shadow-xl shadow-gold/20 font-black h-14 px-8 active:scale-95 transition-all;
   }
 
   /* Scroll Areas */
