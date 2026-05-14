@@ -892,7 +892,7 @@ ${warningNote}
                 ) : (
                   <Share2 size={18} />
                 )}
-                <span className="hidden lg:inline text-[10px] font-black uppercase tracking-widest">Smart Share</span>
+                <span className="hidden lg:inline text-[10px] font-black uppercase tracking-widest">שיתוף חכם</span>
               </button>
 
               <button 

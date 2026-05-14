@@ -54,7 +54,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
-import { collection, onSnapshot, query, where, orderBy, deleteDoc, doc, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, onSnapshot, query, where, orderBy, deleteDoc, doc, getDocs, addDoc, serverTimestamp, writeBatch, setDoc } from 'firebase/firestore';
 import { 
   format, 
   addDays, 
@@ -111,7 +111,7 @@ import { SabanOrderEngine } from './components/SabanOrderEngine';
 import { PackageCheck, PackageX, PackageOpen, Brain } from 'lucide-react';
 import { NoaFloatingChat } from './components/NoaFloatingChat';
 import { SmartCalendarDrawer } from './components/SmartCalendarDrawer';
-import { NoaLogisticsBrain } from './components/NoaLogisticsBrain';
+import { NoaChatHub } from './components/NoaChatHub';
 import { 
   createOrder, 
   getOrderByTrackingId,
@@ -351,11 +351,11 @@ const Drawer = ({
               </div>
             </div>
             {[
-              { id: 'live_pulse', label: 'Executive Dashboard', icon: Activity },
-              { id: 'brain', label: 'Noa Logistics Brain', icon: Brain },
+              { id: 'live_pulse', label: 'לוח דופק מבצעי', icon: Activity },
+              { id: 'brain', label: 'נועה AI - מוח לוגיסטי', icon: Brain },
               { id: 'calendar', label: 'יומן משלוחים', icon: CalendarDays },
               { id: 'list', label: 'דוח בוקר (סידור)', icon: LayoutList },
-              { id: 'kanban', label: 'ניהול קנבן', icon: Trello },
+              { id: 'kanban', label: 'לוח קנבן', icon: Trello },
               { id: 'table', label: 'סטטוס מלאי', icon: Table },
               { id: 'import', label: 'יבוא אקסל (XLS)', icon: FileSpreadsheet },
               { id: 'desktop_dashboard', label: 'ניהול לקוחות', icon: Users },
@@ -459,11 +459,11 @@ const BottomNavigation = ({
   onOpenBrain: () => void
 }) => {
   const items = [
-    { id: 'live_pulse', icon: Activity, label: 'בית' },
+    { id: 'live_pulse', icon: Activity, label: 'דופק' },
     { id: 'table', icon: Package, label: 'מלאי' },
-    { id: 'noa', icon: Brain, label: 'Noa' },
-    { id: 'kanban', icon: Trello, label: 'הזמנות' },
-    { id: 'desktop_dashboard', icon: Database, label: 'ניהול' },
+    { id: 'noa', icon: Brain, label: 'נועה' },
+    { id: 'kanban', icon: Trello, label: 'סידור' },
+    { id: 'desktop_dashboard', icon: Database, label: 'לקוחות' },
   ];
 
   return (
@@ -1283,15 +1283,15 @@ function AppContent() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   const NavigationItems = [
-    { id: 'live_pulse', icon: Activity, label: 'דופק הזמנות' },
-    { id: 'chat', label: 'Noa AI (לוגיסטיקה)', icon: Brain, highlight: true },
-    { id: 'noa_bridge', icon: Sparkles, label: 'Noa Bridge' },
+    { id: 'live_pulse', icon: Activity, label: 'דופק מבצעי' },
+    { id: 'chat', label: 'נועה AI - עוזרת אישית', icon: Brain, highlight: true },
+    { id: 'noa_bridge', icon: Sparkles, label: 'גשר לוגיסטי' },
     { id: 'order_engine', icon: PackageCheck, label: 'מנוע הזמנות' },
-    { id: 'desktop_dashboard', icon: Database, label: 'תיק לקוח' },
-    { id: 'kanban', icon: Trello, label: 'קנבן' },
-    { id: 'table', icon: Table, label: 'ניהול מלאי' },
-    { id: 'calendar', icon: CalendarDays, label: 'לוח שנתי' },
-    { id: 'reports', icon: FileText, label: 'ארכיון' },
+    { id: 'desktop_dashboard', icon: Database, label: 'ניהול לקוחות' },
+    { id: 'kanban', icon: Trello, label: 'לוח סידור' },
+    { id: 'table', icon: Table, label: 'מחסן ומלאי' },
+    { id: 'calendar', icon: CalendarDays, label: 'יומן שנתי' },
+    { id: 'reports', icon: FileText, label: 'ארכיון דוחות' },
   ];
 
   if (loading || (isInitialDataLoading && user)) return (
@@ -1342,6 +1342,22 @@ function AppContent() {
   );
 
   // --- Noa AI Handlers ---
+  const clearChatHistory = async () => {
+    if (!user) return;
+    try {
+      const q = query(collection(db, `users/${user.uid}/messages`));
+      const snap = await getDocs(q);
+      const batch = writeBatch(db);
+      snap.docs.forEach(d => batch.delete(d.ref));
+      await batch.commit();
+      setChatHistory([]);
+      addToast('היסטוריה נוקתה', 'כל השיחות עם נועה נמחקו בהצלחה ✅', 'success');
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `users/${user.uid}/messages`);
+      addToast('שגיאה', 'נכשל בניקוי ההיסטוריה', 'warning');
+    }
+  };
+
   const handleNoaAction = async (msg: string, file?: File | string) => {
     if (!user) return;
     
@@ -1351,13 +1367,18 @@ function AppContent() {
     
     // Save user message to Firestore
     try {
-      await addDoc(collection(db, `users/${user.uid}/messages`), {
+      const msgRef = doc(collection(db, `users/${user.uid}/messages`));
+      await setDoc(msgRef, {
         role: 'user',
         content: msg,
         timestamp: serverTimestamp()
       });
-    } catch (saveError) {
-      console.error("Noa Save Error (User):", saveError);
+    } catch (saveError: any) {
+      if (saveError.code === 'already-exists' || saveError.message?.includes('already exists')) {
+        console.warn("User message already saved, ignoring redundant write.");
+      } else {
+        handleFirestoreError(saveError, OperationType.WRITE, `users/${user.uid}/messages`);
+      }
     }
     
     try {
@@ -1412,13 +1433,18 @@ function AppContent() {
 
       // Save AI response to Firestore
       try {
-        await addDoc(collection(db, `users/${user.uid}/messages`), {
+        const respRef = doc(collection(db, `users/${user.uid}/messages`));
+        await setDoc(respRef, {
           role: 'model',
           content: result.text,
           timestamp: serverTimestamp()
         });
-      } catch (saveError) {
-        console.error("Noa Save Error (Model):", saveError);
+      } catch (saveError: any) {
+        if (saveError.code === 'already-exists' || saveError.message?.includes('already exists')) {
+          console.warn("AI response already saved, ignoring redundant write.");
+        } else {
+          handleFirestoreError(saveError, OperationType.WRITE, `users/${user.uid}/messages`);
+        }
       }
     } catch (error: any) {
       console.error(error);
@@ -1684,23 +1710,6 @@ function AppContent() {
                           setViewMode('kanban');
                         }}
                         currentContext={viewMode}
-                      />
-                    </div>
-                  ) : viewMode === 'chat_full' ? (
-                    <div className="fixed inset-0 z-[1000] bg-white">
-                      <TeamMessengerContainer 
-                        currentUserProfile={{ 
-                          id: user.uid.slice(0,4), 
-                          name: user.displayName || 'משתמש', 
-                          avatarUrl: user.photoURL,
-                          role: 'צוות SabanOS',
-                          phone: '',
-                          email: user.email || '',
-                          lastSeen: serverTimestamp()
-                        }} 
-                        fullScreen={true} 
-                        onClose={() => setViewMode('list')} 
-                        onOrderView={(order) => setEditingOrder(order)}
                       />
                     </div>
                   ) : (
@@ -2218,12 +2227,17 @@ function AppContent() {
       )}
 
       {user && (
-        <NoaLogisticsBrain 
+        <NoaChatHub 
           isOpen={isNoaBrainOpen}
           onClose={() => setIsNoaBrainOpen(false)}
           chatHistory={chatHistory}
           onAction={handleNoaAction}
+          onClearHistory={clearChatHistory}
           orders={orders}
+          onOrderView={(order) => {
+             setEditingOrder(order);
+             setIsNoaBrainOpen(false);
+          }}
         />
       )}
 

@@ -207,7 +207,7 @@ export const LiveOrderPulse: React.FC<LiveOrderPulseProps> = ({
                 <h2 className="text-xl font-black tracking-tight text-slate-900 italic">דופק הזמנות חי</h2>
                 <div className="flex items-center gap-2 mt-0.5">
                   <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">מעקב בזמן אמת • v3.5 Enterprise</span>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">מעקב בזמן אמת • SabanOS Enterprise</span>
                 </div>
               </div>
             </div>
@@ -324,14 +324,14 @@ export const LiveOrderPulse: React.FC<LiveOrderPulseProps> = ({
           <div className="flex items-center gap-6">
             <div className="h-8 w-px bg-slate-200" />
             <div className="flex flex-col">
-              <h1 className="text-lg font-black text-slate-900 uppercase tracking-tight italic leading-none">v3.5 Enterprise Edition</h1>
+              <h1 className="text-lg font-black text-slate-900 uppercase tracking-tight italic leading-none">SabanOS 6.1 - מהדורת ניהול</h1>
               <button 
                 onClick={() => setIsSidebarOpen(!isSidebarOpen)}
                 className="mt-1 flex items-center gap-2 group transition-all"
               >
                 <div className="p-1 px-2 bg-slate-100 rounded-md flex items-center gap-2 border border-slate-200 group-hover:bg-indigo-50 group-hover:border-indigo-200">
                   <Maximize2 size={10} className={cn("text-slate-500 group-hover:text-indigo-600 transition-transform", !isSidebarOpen && "rotate-180")} />
-                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 group-hover:text-indigo-600">הצג/הסתר תפריט</span>
+                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 group-hover:text-indigo-600">הצג/הסתר רשימה</span>
                 </div>
               </button>
             </div>
