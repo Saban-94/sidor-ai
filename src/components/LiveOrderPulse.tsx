@@ -465,7 +465,7 @@ export const LiveOrderPulse: React.FC<LiveOrderPulseProps> = ({
                    </h3>
                    <div className="space-y-4">
                      {parseItems(selectedOrder.items).map((item, idx) => {
-                       const invItem = inventory.find(i => i.sku === item.sku || i.name.includes(item.name));
+                       const invItem = inventory.find(i => (item.sku && i.sku === item.sku) || (i.name && item.name && i.name.includes(item.name)));
                        return (
                          <motion.div 
                            key={idx}

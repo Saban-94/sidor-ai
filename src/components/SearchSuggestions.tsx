@@ -43,10 +43,10 @@ export const SearchSuggestions = ({ orders, inventoryItems = [], searchQuery, is
       ...orders
         .filter(o => {
           const skus = (o.items || "").match(/\b\d{5}\b/g);
-          return skus?.some(s => s.includes(query));
+          return skus?.some(s => s && s.includes(query));
         })
         .flatMap(o => (o.items || "").match(/\b\d{5}\b/g) || [])
-        .filter(s => s.includes(query)),
+        .filter(s => s && s.includes(query)),
       ...inventoryItems
         .filter(i => (i.sku || "").toLowerCase().includes(query))
         .map(i => i.sku)
@@ -66,7 +66,7 @@ export const SearchSuggestions = ({ orders, inventoryItems = [], searchQuery, is
     .filter(i => {
       // Simple logic: if query is a prefix or contains parts of the name
       const parts = query.split(' ');
-      return parts.some(p => p.length >= 3 && i.name.toLowerCase().includes(p));
+      return parts.some(p => p.length >= 3 && (i.name || "").toLowerCase().includes(p));
     })
     .slice(0, 2) : [];
 

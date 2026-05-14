@@ -14,6 +14,7 @@ export class GasService {
 
       const payload = {
         action,
+        method: 'PUSH',
         timestamp: new Date().toISOString(),
         user: user.email || 'anonymous',
         uid: user.uid,
@@ -62,6 +63,35 @@ export class GasService {
       // Trigger global event or return status for UI alert
       window.dispatchEvent(new CustomEvent('gas-sync-failed', { detail: { action } }));
       return { status: 'failed', error: error.message };
+    }
+  }
+
+  static async pull(action: string, criteria: any = {}): Promise<any> {
+    try {
+      const user = auth.currentUser;
+      if (!user) throw new Error('User not authenticated');
+      
+      const idToken = await user.getIdToken(true);
+
+      const payload = {
+        action,
+        method: 'PULL',
+        timestamp: new Date().toISOString(),
+        idToken,
+        ...criteria
+      };
+
+      const response = await fetch('/api/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      
+      if (!response.ok) throw new Error('Pull failed');
+      return await response.json();
+    } catch (err) {
+      console.error(`❌ GAS Pull Failure [${action}]:`, err);
+      return null;
     }
   }
 

@@ -110,6 +110,8 @@ import { MobileApp } from './MobileApp';
 import { SabanOrderEngine } from './components/SabanOrderEngine';
 import { PackageCheck, PackageX, PackageOpen, Brain } from 'lucide-react';
 import { NoaFloatingChat } from './components/NoaFloatingChat';
+import { SmartCalendarDrawer } from './components/SmartCalendarDrawer';
+import { NoaLogisticsBrain } from './components/NoaLogisticsBrain';
 import { 
   createOrder, 
   getOrderByTrackingId,
@@ -151,6 +153,7 @@ const Header = ({
   onInstallApp,
   onFileUpload,
   onLogout,
+  onOpenCalendar,
   isUploading,
   onOpenReminders,
   onAddReminder,
@@ -164,6 +167,7 @@ const Header = ({
   onInstallApp: () => void | null,
   onFileUpload: (file: File) => void,
   onLogout: () => void,
+  onOpenCalendar: () => void,
   isUploading?: boolean,
   onOpenReminders: () => void,
   onAddReminder: () => void,
@@ -202,6 +206,15 @@ const Header = ({
       <div className="hidden lg:block">
         <ConnectionOrbit />
       </div>
+      <button 
+        onClick={onOpenCalendar}
+        className="p-2.5 rounded-xl bg-white text-navy border border-slate-100 hover:bg-slate-50 relative group"
+        title="יומן משלוחים"
+      >
+        <CalendarDays size={20} />
+        <span className="absolute -top-1 -right-1 w-2 h-2 bg-gold rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
+      </button>
+
       <button 
         onClick={onOpenReminders}
         className="p-2.5 rounded-xl bg-white text-sky-600 border border-sky-100 hover:bg-sky-50 relative"
@@ -284,6 +297,8 @@ const Drawer = ({
   setViewMode,
   installPrompt,
   onOpenReminders,
+  onOpenCalendar,
+  onOpenBrain,
   onLogout
 }: { 
   isOpen: boolean, 
@@ -293,6 +308,8 @@ const Drawer = ({
   setViewMode: (v: any) => void,
   installPrompt: any,
   onOpenReminders: () => void,
+  onOpenCalendar: () => void,
+  onOpenBrain: () => void,
   onLogout: () => void
 }) => (
   <AnimatePresence>
@@ -334,43 +351,43 @@ const Drawer = ({
               </div>
             </div>
             {[
-                  { id: 'live_pulse', label: 'Live Order Pulse (חדש!)', icon: Activity },
-                  { id: 'noa_bridge', label: 'Noa Bridge (מהיר)', icon: Sparkles },
-                  { id: 'chat_full', label: "חדר צ'אט חברתי (חדש!)", icon: Sparkles },
-              { id: 'chat', label: 'דברו עם נועה (AI)', icon: MessageSquare },
-              { id: 'list', label: 'לוח הזמנות', icon: LayoutList },
-              { id: 'kanban', label: 'לוח קנבן', icon: Trello },
-              { id: 'desktop_dashboard', label: 'ניהול לקוחות (SabanOS)', icon: Users },
-              { id: 'calendar', label: 'סידור עבודה שבועי', icon: CalendarDays },
-              { id: 'import', label: 'יבוא אקסל (Export.xls)', icon: FileSpreadsheet },
-              { id: 'reports', label: 'דוח בוקר (ארכיון)', icon: FileText },
+              { id: 'live_pulse', label: 'Executive Dashboard', icon: Activity },
+              { id: 'brain', label: 'Noa Logistics Brain', icon: Brain },
+              { id: 'calendar', label: 'יומן משלוחים', icon: CalendarDays },
+              { id: 'list', label: 'דוח בוקר (סידור)', icon: LayoutList },
+              { id: 'kanban', label: 'ניהול קנבן', icon: Trello },
               { id: 'table', label: 'סטטוס מלאי', icon: Table },
-              { id: 'admin_users', label: 'ניהול משתמשי VIP', icon: Users },
+              { id: 'import', label: 'יבוא אקסל (XLS)', icon: FileSpreadsheet },
+              { id: 'desktop_dashboard', label: 'ניהול לקוחות', icon: Users },
+              { id: 'chat_full', label: "חדר צ'אט (Live)", icon: MessageSquare },
             ].map((item) => {
               const Icon = item.icon;
               const isActive = viewMode === item.id;
+              
               return (
                 <button
                   key={item.id}
                   onClick={() => {
-                    if (item.id === 'admin_users') {
-                      window.location.href = '/admin/users';
+                    if (item.id === 'calendar') {
+                      onOpenCalendar();
+                    } else if (item.id === 'brain') {
+                      onOpenBrain();
                     } else {
-                      setViewMode(item.id);
+                      setViewMode(item.id as any);
                     }
                     onClose();
                   }}
                   className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all ${
                     isActive 
-                      ? 'bg-sky-600 text-white shadow-lg shadow-sky-600/20 transform scale-[1.02]' 
-                      : 'text-gray-600 hover:bg-gray-50'
+                      ? 'bg-navy text-white shadow-lg shadow-navy/20 transform scale-[1.02]' 
+                      : 'text-slate-600 hover:bg-slate-50'
                   }`}
                 >
-                  <Icon size={20} strokeWidth={isActive ? 3 : 2} className={item.id === 'chat_full' ? 'text-amber-500' : ''} />
+                  <Icon size={20} strokeWidth={isActive ? 3 : 2} className={item.id === 'brain' ? 'text-gold' : ''} />
                   <div className="flex-1 flex items-center justify-between">
                     <span className="font-bold">{item.label}</span>
-                    {item.id === 'chat_full' && !isActive && (
-                      <span className="bg-amber-100 text-amber-600 text-[8px] px-1.5 py-0.5 rounded-full font-black animate-pulse">NEW</span>
+                    {item.id === 'brain' && (
+                      <span className="bg-gold/10 text-gold text-[8px] px-1.5 py-0.5 rounded-full font-black animate-pulse border border-gold/20">AI</span>
                     )}
                   </div>
                 </button>
@@ -432,10 +449,19 @@ const EmptyState = () => (
 
 // --- Main App ---
 
-const BottomNavigation = ({ viewMode, setViewMode }: { viewMode: string, setViewMode: (v: any) => void }) => {
+const BottomNavigation = ({ 
+  viewMode, 
+  setViewMode, 
+  onOpenBrain 
+}: { 
+  viewMode: string, 
+  setViewMode: (v: any) => void,
+  onOpenBrain: () => void
+}) => {
   const items = [
     { id: 'live_pulse', icon: Activity, label: 'בית' },
     { id: 'table', icon: Package, label: 'מלאי' },
+    { id: 'noa', icon: Brain, label: 'Noa' },
     { id: 'kanban', icon: Trello, label: 'הזמנות' },
     { id: 'desktop_dashboard', icon: Database, label: 'ניהול' },
   ];
@@ -445,6 +471,22 @@ const BottomNavigation = ({ viewMode, setViewMode }: { viewMode: string, setView
       {items.map((item) => {
         const isActive = viewMode === item.id;
         const Icon = item.icon;
+        
+        if (item.id === 'noa') {
+          return (
+            <button
+              key={item.id}
+              onClick={onOpenBrain}
+              className="flex flex-col items-center justify-center w-14 h-14 rounded-2xl transition-all duration-300 relative group active:scale-95 bg-gold text-navy shadow-lg shadow-gold/20"
+            >
+              <Brain size={24} strokeWidth={3} />
+              <span className="text-[8px] font-black uppercase tracking-widest mt-1">
+                {item.label}
+              </span>
+            </button>
+          );
+        }
+
         return (
           <button
             key={item.id}
@@ -489,6 +531,8 @@ function AppContent() {
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [isRemindersOpen, setIsRemindersOpen] = useState(false);
   const [isAddingReminder, setIsAddingReminder] = useState(false);
+  const [isCalendarDrawerOpen, setIsCalendarDrawerOpen] = useState(false);
+  const [isNoaBrainOpen, setIsNoaBrainOpen] = useState(false);
   const [lastSeenRemindersAt, setLastSeenRemindersAt] = useState<number>(() => {
     const saved = localStorage.getItem('lastSeenRemindersAt');
     return saved ? parseInt(saved, 10) : Date.now();
@@ -1674,6 +1718,7 @@ function AppContent() {
               onInstallApp={installPrompt ? handleInstallClick : null}
               onFileUpload={handleDriveFileUpload}
               onLogout={() => setIsLogoutConfirmOpen(true)}
+              onOpenCalendar={() => setIsCalendarDrawerOpen(true)}
               isUploading={isUploadingDoc}
               uploadProgress={uploadProgress}
               onOpenReminders={() => {
@@ -1711,6 +1756,8 @@ function AppContent() {
                 setLastSeenRemindersAt(now);
                 localStorage.setItem('lastSeenRemindersAt', now.toString());
               }}
+              onOpenCalendar={() => setIsCalendarDrawerOpen(true)}
+              onOpenBrain={() => setIsNoaBrainOpen(true)}
               onLogout={() => setIsLogoutConfirmOpen(true)}
             />
 
@@ -1820,33 +1867,6 @@ function AppContent() {
 
             <div className="flex-1 max-w-5xl w-full mx-auto p-4 md:p-8">
               <div className="pb-[env(safe-area-inset-bottom)]">
-                {/* Horizontal Week Strip for Mobile Calendar */}
-                {viewMode === 'calendar' && (
-                  <div className="md:hidden mb-6 overflow-x-auto pb-2 scrollbar-none flex gap-3 px-1 no-scrollbar">
-                    {eachDayOfInterval({
-                      start: startOfWeek(new Date(), { weekStartsOn: 0 }),
-                      end: endOfWeek(addDays(new Date(), 14), { weekStartsOn: 0 }),
-                    }).map((day) => {
-                      const isActive = isSameDay(day, startDate);
-                      const isTd = isToday(day);
-                      return (
-                        <button
-                          key={day.toString()}
-                          onClick={() => setStartDate(day)}
-                          className={`flex-shrink-0 w-14 h-20 rounded-2xl flex flex-col items-center justify-center transition-all ${
-                            isActive ? 'bg-sky-600 text-white shadow-lg scale-105' : 'bg-white text-gray-500 border border-gray-100'
-                          }`}
-                        >
-                          <span className="text-[10px] font-black uppercase opacity-60 mb-1">
-                            {format(day, 'EEE', { locale: he })}
-                          </span>
-                          <span className="text-lg font-black">{format(day, 'd')}</span>
-                          {isTd && !isActive && <div className="w-1 h-1 bg-sky-600 rounded-full mt-1" />}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
               {viewMode === 'list' ? (
                 <div className="bg-white/80 backdrop-blur-md p-4 rounded-3xl shadow-sm border border-sky-100 mb-8">
             <div className="flex items-center justify-between mb-4">
@@ -1903,131 +1923,18 @@ function AppContent() {
             )}
           </div>
         ) : (
-          <div className="bg-white/80 backdrop-blur-md p-6 rounded-3xl shadow-sm border border-sky-100 mb-8 flex-1 flex flex-col">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-2">
-                <button onClick={() => setCalendarMonth(subMonths(calendarMonth, 1))} className="p-2 hover:bg-sky-50 rounded-xl transition-colors text-sky-600">
-                  <ChevronRight size={24} />
-                </button>
-                <h3 className="text-xl font-black text-gray-900 capitalize min-w-[150px] text-center">
-                  {format(calendarMonth, 'MMMM yyyy', { locale: he })}
-                </h3>
-                <button onClick={() => setCalendarMonth(addMonths(calendarMonth, 1))} className="p-2 hover:bg-sky-50 rounded-xl transition-colors text-sky-600">
-                  <ChevronLeft size={24} />
-                </button>
-              </div>
-
-              <div className="flex items-center gap-2 bg-gray-50/50 p-1.5 rounded-2xl">
-                <button 
-                  onClick={() => {
-                    setIsRangeMode(false);
-                    setStartDate(new Date());
-                    setEndDate(new Date());
-                  }}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${!isRangeMode ? 'bg-white shadow-sm text-sky-600' : 'text-gray-400 hover:text-gray-600'}`}
-                >
-                  יום בודד
-                </button>
-                <button 
-                  onClick={() => setIsRangeMode(true)}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${isRangeMode ? 'bg-white shadow-sm text-sky-600' : 'text-gray-400 hover:text-gray-600'}`}
-                >
-                  בחירת טווח
-                </button>
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-7 gap-1 mb-2">
-              {['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש'].map(day => (
-                <div key={day} className="text-center text-[10px] font-black text-gray-400 uppercase py-2">{day}</div>
-              ))}
-            </div>
-
-            <div className="grid grid-cols-7 gap-1 flex-1">
-              {(() => {
-                const monthStart = startOfMonth(calendarMonth);
-                const monthEnd = endOfMonth(monthStart);
-                const startDateRange = startOfWeek(monthStart);
-                const endDateRange = endOfWeek(monthEnd);
-                
-                return eachDayOfInterval({
-                  start: startDateRange,
-                  end: endDateRange,
-                }).map((day, i) => {
-                  const dayStr = format(day, 'yyyy-MM-dd');
-                  const dayOrders = orders.filter(o => o.date === dayStr);
-                  const isCurrentMonth = isSameMonth(day, monthStart);
-                  const isToday = isSameDay(day, new Date());
-                  const isSelected = isSameDay(day, startDate);
-                  const isEndSelected = isRangeMode && isSameDay(day, endDate);
-                  const isInRange = isRangeMode && day >= startDate && day <= endDate;
-
-                  const deliveredCount = dayOrders.filter(o => o.status === 'delivered').length;
-                  const readyCount = dayOrders.filter(o => o.status === 'ready').length;
-                  const pendingCount = dayOrders.length - deliveredCount - readyCount;
-                  const harashCount = dayOrders.filter(o => o.warehouse === 'החרש').length;
-                  const talmidCount = dayOrders.filter(o => o.warehouse === 'התלמיד').length;
-
-                  return (
-                    <button 
-                      key={day.toString()}
-                      onClick={() => {
-                        if (isRangeMode) {
-                          if (isSameDay(startDate, endDate) && day > startDate) {
-                            setEndDate(day);
-                          } else {
-                            setStartDate(day);
-                            setEndDate(day);
-                          }
-                        } else {
-                          setStartDate(day);
-                          setEndDate(day);
-                          setIsRangeMode(false);
-                          setViewMode('list');
-                        }
-                      }}
-                      className={`
-                        min-h-[80px] md:min-h-[110px] p-2 rounded-2xl border transition-all flex flex-col items-start relative overflow-hidden flex-1
-                        ${!isCurrentMonth ? 'bg-gray-50/50 border-transparent opacity-30 cursor-default' : 
-                          isSelected || isEndSelected ? 'bg-sky-50 border-sky-200 shadow-inner z-10' : 
-                          isInRange ? 'bg-sky-50/40 border-sky-100 shadow-sm' :
-                          'bg-white border-gray-100 hover:border-sky-100 hover:shadow-sm'}
-                      `}
-                    >
-                      <div className="flex justify-between items-center w-full mb-1">
-                        <span className={`text-[10px] font-bold ${isToday ? 'bg-sky-600 text-white w-5 h-5 flex items-center justify-center rounded-full' : 'text-gray-900'}`}>
-                          {format(day, 'd')}
-                        </span>
-                        {dayOrders.length > 0 && (
-                          <span className="text-[9px] font-black text-gray-400">#{dayOrders.length}</span>
-                        )}
-                      </div>
-                      
-                      {dayOrders.length > 0 && isCurrentMonth && (
-                        <div className="mt-auto space-y-1.5 w-full">
-                          <div className="flex flex-wrap gap-1">
-                            {harashCount > 0 && <span className="text-[7px] font-black bg-blue-50 text-blue-500 px-1 rounded-sm">H:{harashCount}</span>}
-                            {talmidCount > 0 && <span className="text-[7px] font-black bg-sky-50 text-sky-500 px-1 rounded-sm">T:{talmidCount}</span>}
-                          </div>
-                          <div className="flex w-full h-1 rounded-full overflow-hidden bg-gray-100/50">
-                            {deliveredCount > 0 && <div style={{width: `${(deliveredCount/dayOrders.length)*100}%`}} className="bg-green-500" />}
-                            {readyCount > 0 && <div style={{width: `${(readyCount/dayOrders.length)*100}%`}} className="bg-blue-500" />}
-                            {pendingCount > 0 && <div style={{width: `${(pendingCount/dayOrders.length)*100}%`}} className="bg-sky-400" />}
-                          </div>
-                        </div>
-                      )}
-                      
-                      {isRangeMode && isSameDay(day, startDate) && !isSameDay(startDate, endDate) && (
-                        <div className="absolute top-0 right-0 w-1 h-full bg-sky-200" />
-                      )}
-                      {isRangeMode && isSameDay(day, endDate) && !isSameDay(startDate, endDate) && (
-                        <div className="absolute top-0 left-0 w-1 h-full bg-sky-200" />
-                      )}
-                    </button>
-                  );
-                });
-              })()}
-            </div>
+          <div className="bg-white/80 backdrop-blur-md p-6 rounded-3xl shadow-sm border border-sky-100 mb-8 flex-1 flex flex-col items-center justify-center py-20">
+             <div className="w-16 h-16 bg-gold/10 rounded-full flex items-center justify-center text-gold mb-4">
+                <CalendarDays size={32} />
+             </div>
+             <h3 className="text-xl font-bold text-gray-900 mb-2">יומן המשלוחים מוסתר</h3>
+             <p className="text-gray-500 text-sm mb-6">לחץ על כפתור היומן בתפריט או בראש הדף כדי לצפות בלוח הזמנים.</p>
+             <button 
+               onClick={() => setIsCalendarDrawerOpen(true)}
+               className="bg-navy text-white px-6 py-2.5 rounded-xl font-bold hover:scale-105 transition-all shadow-lg"
+             >
+               פתח יומן
+             </button>
           </div>
         )}
 
@@ -2271,15 +2178,54 @@ function AppContent() {
 )} />
     </Routes>
       {/* MOBILE BOTTOM NAV */}
+      {/* DESKTOP NOA BRAIN FLOATING TRIGGER */}
       {user && (
-        <NoaFloatingChat 
+        <button
+          onClick={() => setIsNoaBrainOpen(true)}
+          className="hidden lg:flex fixed bottom-8 left-8 z-[200] w-16 h-16 bg-navy border border-gold/30 rounded-3xl items-center justify-center text-gold shadow-2xl shadow-navy/40 hover:scale-110 active:scale-95 transition-all group"
+        >
+          <div className="absolute inset-0 bg-gold/10 rounded-3xl blur-xl group-hover:blur-2xl transition-all" />
+          <Brain size={32} className="relative z-10" />
+          <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-navy animate-pulse" />
+        </button>
+      )}
+
+      {user && <BottomNavigation viewMode={viewMode} setViewMode={setViewMode} onOpenBrain={() => setIsNoaBrainOpen(true)} />}
+      
+      {user && (
+        <SmartCalendarDrawer 
+          isOpen={isCalendarDrawerOpen}
+          onClose={() => setIsCalendarDrawerOpen(false)}
+          orders={orders}
+          selectedDate={selectedDate}
+          onDateSelect={(d) => {
+            setStartDate(d);
+            setEndDate(d);
+            setIsRangeMode(false);
+            setViewMode('list');
+          }}
+          calendarMonth={calendarMonth}
+          onMonthChange={setCalendarMonth}
+          isRangeMode={isRangeMode}
+          onToggleRangeMode={setIsRangeMode}
+          startDate={startDate}
+          endDate={endDate}
+          onRangeSelect={(start, end) => {
+            setStartDate(start);
+            setEndDate(end);
+          }}
+        />
+      )}
+
+      {user && (
+        <NoaLogisticsBrain 
+          isOpen={isNoaBrainOpen}
+          onClose={() => setIsNoaBrainOpen(false)}
           chatHistory={chatHistory}
           onAction={handleNoaAction}
           orders={orders}
-          currentContext={viewMode}
         />
       )}
-      {user && <BottomNavigation viewMode={viewMode} setViewMode={setViewMode} />}
 
       <UIModal 
         isOpen={modalConfig.isOpen}

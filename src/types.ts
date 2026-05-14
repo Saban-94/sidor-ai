@@ -124,7 +124,8 @@ export interface SaleRecord {
   quantity: number;
   date: string;
   priceAtSale?: number;
-  originWarehouse?: string; // Added field
+  originWarehouse?: string; 
+  isSpecialOrder?: boolean; // New field
   createdAt?: Timestamp;
 }
 

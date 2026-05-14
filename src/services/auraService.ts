@@ -328,6 +328,9 @@ export const syncInventoryOnDelivery = async (order: Order) => {
       }
     }
 
+    // Special Order Logic: If item not found or out of stock, it remains a "Special Order"
+    const isSpecialOrder = !invItem || (invItem.currentStock || 0) < qty;
+
     const priceAtSale = invItem?.price || 0;
 
     // 3. Record the sale
@@ -337,11 +340,12 @@ export const syncInventoryOnDelivery = async (order: Order) => {
       customerName: order.customerName,
       quantity: qty,
       date: order.date,
-      priceAtSale: priceAtSale
+      priceAtSale: priceAtSale,
+      isSpecialOrder // New field
     });
 
-    // 4. Decrement Stock if SKU identified
-    if (finalSku) {
+    // 4. Decrement Stock if SKU identified and not a "forced" special order
+    if (finalSku && !isSpecialOrder) {
       await updateInventoryStock(finalSku, qty);
     }
   }
@@ -414,6 +418,9 @@ export const noaSystemInstruction = `
   - זמן פריקה סטנדרטי: 20 דקות.
   - פריקה מורכבת (מנוע גובה, אתרים צפופים): 45-60 דקות.
   - זמן נסיעה: תמיד הוסיפי "Traffic Buffer" של 25% לזמני הנסיעה של Waze/Google.
+- **ניתוח סל (Customer Basket Analysis)**: 
+  - נתחי תמיד את היסטוריית הרכישות של הלקוח כדי לזהות מוצרים משלימים.
+  - אם לקוח בד"כ קונה מוצר א' עם מוצר ב', הציעי זאת לראמי כשיפור חווית שירות והגדלת מכירה.
 - **חישוב חזרה (Return ETA)**: חשבי תמיד מתי הנהג צפוי לסיים ולחזור למחסן האם (התלמיד / החרש).
 
 4. מערכת פעולות חכמה (Smart Action System):
@@ -672,6 +679,181 @@ export const planOptimizedRoute = async (driverId: string, date: string) => {
       customer: o.customerName
     })),
     optimizationNotes: "המסלול מבוסס על סדר כרונולוגי של הזמנות. מומלץ לבדוק עומסי תנועה בזמן אמת."
+  };
+};
+
+export const analyzeCustomerPatterns = async (customerName: string) => {
+  try {
+    const q = query(
+      collection(db, 'orders'),
+      where('customerName', '==', customerName),
+      orderBy('createdAt', 'desc'),
+      limit(20)
+    );
+    const snap = await getDocs(q);
+    const history = snap.docs.map(d => d.data() as Order);
+
+    if (history.length < 3) return null;
+
+    // Pattern 1: Recurring Items
+    const itemCounts: Record<string, number> = {};
+    history.forEach(o => {
+      const items = parseItems(o.items);
+      items.forEach(i => {
+        itemCounts[i.name] = (itemCounts[i.name] || 0) + 1;
+      });
+    });
+    const recurringItem = Object.entries(itemCounts).find(([_, count]) => count >= 3)?.[0];
+
+    // Pattern 2: Preferred Service Days
+    const dayCounts: Record<number, number> = {};
+    history.forEach(o => {
+      const day = new Date(o.date).getDay();
+      dayCounts[day] = (dayCounts[day] || 0) + 1;
+    });
+    const preferredDay = Object.entries(dayCounts).find(([_, count]) => count >= 3)?.[0];
+
+    return {
+      recurringItem,
+      preferredDay: preferredDay ? ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'][parseInt(preferredDay)] : null,
+      totalOrders: history.length
+    };
+  } catch (err) {
+    console.error("Pattern analysis failed:", err);
+    return null;
+  }
+};
+
+export const getBasketAnalysis = async (customerName: string) => {
+  try {
+    // 1. Fetch all sales records for this customer to find patterns
+    const q = query(
+      collection(db, 'sales'),
+      where('customerName', '==', customerName),
+      orderBy('date', 'desc'),
+      limit(100)
+    );
+    const snap = await getDocs(q);
+    const sales = snap.docs.map(d => d.data() as SaleRecord);
+
+    if (sales.length < 2) return null;
+
+    // 2. Identify recurrence of items
+    const itemFrequency: Record<string, number> = {};
+    sales.forEach(sale => {
+      const itemName = sale.itemId; // Using itemId as the product identifier
+      itemFrequency[itemName] = (itemFrequency[itemName] || 0) + 1;
+    });
+
+    // 3. Simple Basket Analysis (Association Rules)
+    // We want to find: if they bought A, they also bought B in the same order
+    // Order grouping by date/time or orderId
+    const orders: Record<string, string[]> = {};
+    sales.forEach(sale => {
+      if (!sale.orderId) return;
+      if (!orders[sale.orderId]) orders[sale.orderId] = [];
+      orders[sale.orderId].push(sale.itemId);
+    });
+
+    const associations: Record<string, Record<string, number>> = {};
+    Object.values(orders).forEach(items => {
+      items.forEach(itemA => {
+        if (!associations[itemA]) associations[itemA] = {};
+        items.forEach(itemB => {
+          if (itemA === itemB) return;
+          associations[itemA][itemB] = (associations[itemA][itemB] || 0) + 1;
+        });
+      });
+    });
+
+    // Find the strongest association
+    let bestPair = null;
+    let maxCount = 0;
+
+    for (const [itemA, relatedItems] of Object.entries(associations)) {
+      for (const [itemB, count] of Object.entries(relatedItems)) {
+        if (count > maxCount) {
+          maxCount = count;
+          bestPair = { itemA, itemB, count };
+        }
+      }
+    }
+
+    return {
+      topItems: Object.entries(itemFrequency).sort((a, b) => b[1] - a[1]).slice(0, 3),
+      suggestion: bestPair ? `הלקוח נוטה להזמין "${bestPair.itemA}" יחד עם "${bestPair.itemB}". כדאי להציע להוסיף את "${bestPair.itemB}" להזמנה הנוכחית.` : null,
+      totalSalesAnalysed: sales.length
+    };
+  } catch (err) {
+    console.error("Basket analysis failed:", err);
+    return null;
+  }
+};
+
+export const getLogisticsInsight = async (customerName: string, currentDestination: string) => {
+  const patterns = await analyzeCustomerPatterns(customerName);
+  const consolidation = await analyzeLocationConsolidation(currentDestination);
+  const basket = await getBasketAnalysis(customerName);
+
+  let insightArr = [];
+  
+  if (patterns?.recurringItem) {
+    insightArr.push(`הלקוח נוטה להזמין "${patterns.recurringItem}" בתדירות גבוהה.`);
+  }
+  
+  if (patterns?.preferredDay) {
+    insightArr.push(`רוב האספקות מתבצעות בימי ${patterns.preferredDay}.`);
+  }
+
+  if (basket?.suggestion) {
+    insightArr.push(`💡 נועה Insight: ${basket.suggestion}`);
+  }
+
+  if (consolidation.pendingOrders > 0) {
+    insightArr.push(`⚠️ התראה: קיימות ${consolidation.pendingOrders} הזמנות פתוחות ליעד זה (${currentDestination}). מומלץ לבצע איחוד נסיעות.`);
+  }
+
+  return insightArr.join('\n');
+};
+
+export const getTrafficRefinedRoute = async (origin: string = "הוד השרון", destination: string = "") => {
+  const safeOrigin = origin || "";
+  const safeDest = destination || "";
+  
+  const isTayibeOrigin = safeOrigin.includes("טייבה");
+  const isHodHasharonOrigin = safeOrigin.includes("הוד השרון") || safeOrigin.includes("החרש") || safeOrigin.includes("התלמיד");
+
+  let baseTime = 30; // Default minutes
+  
+  // Simple heuristic for Tayibe/Hod HaSharon routes
+  if (isTayibeOrigin && safeDest.includes("הוד השרון")) baseTime = 25;
+  if (isHodHasharonOrigin && safeDest.includes("טייבה")) baseTime = 25;
+  if (safeDest.includes("תל אביב") || safeDest.includes("הרצליה")) baseTime = 45;
+
+  const buffer = 1.25; // 25% Traffic Buffer as per instruction
+  const finalTime = Math.round(baseTime * buffer);
+
+  return {
+    origin,
+    destination,
+    estimatedMinutes: finalTime,
+    trafficLevel: finalTime > 40 ? "heavy" : "moderate"
+  };
+};
+
+export const analyzeLocationConsolidation = async (destination: string) => {
+  const q = query(
+    collection(db, 'orders'),
+    where('destination', '==', destination),
+    where('status', 'in', ['pending', 'preparing', 'ready']),
+    limit(5)
+  );
+  const snap = await getDocs(q);
+  
+  return {
+    destination,
+    pendingOrders: snap.size,
+    orderIds: snap.docs.map(doc => doc.id)
   };
 };
 
@@ -965,6 +1147,17 @@ export const tools = [
         }
       },
       {
+        name: "get_basket_analysis",
+        description: "נתח את סל הקניות ההיסטורי של הלקוח כדי למצוא דפוסי רכישה והצעות משלימות (Cross-sell)",
+        parameters: {
+          type: Type.OBJECT,
+          properties: {
+            customerName: { type: Type.STRING, description: "שם הלקוח לניתוח" }
+          },
+          required: ["customerName"]
+        }
+      },
+      {
         name: "record_delivery_location",
         description: "תעד הצלחה של משלוח לכתובת מסוימת כולל נתוני פריקה ו-PTO",
         parameters: {
@@ -1193,6 +1386,19 @@ async function processNoaTurn(contents: any[], userKey?: string): Promise<any> {
             }
             break;
           }
+          case 'get_smart_location_insights':
+            result = await getSmartLocationInsights(call.args.address as string);
+            break;
+          case 'get_basket_analysis':
+            result = await getBasketAnalysis(call.args.customerName as string);
+            break;
+          case 'record_delivery_location':
+            await recordDeliveryLocation(call.args as any);
+            result = { success: true };
+            break;
+          case 'plan_optimized_route':
+            result = await planOptimizedRoute(call.args.driverId as string, call.args.date as string);
+            break;
           default:
             result = { error: 'פעולה לא מזוהה' };
         }
@@ -1287,7 +1493,9 @@ export async function processNoaBridge(input: string | { fileBase64: string, mim
        - אם היעד בקלט תואם לאתר שמור, צייני זאת ב-"recallNote".
        - אם יש דרישות פריקה מיוחדות שמורות ללקוח זה, צייני זאת ב-"recallNote".
        דוגמה: "אני זוכרת שבאתר הזה במוצקין יש בעיית גישה וצריך מנוף ארוך."
-    3. ניתוח פריטים: השווי פריטים למלאי הקיים. סמני חוסרים או צורך בדיוק (מפרט טכני).
+    3. ניתוח פריטים (Special Orders Logic): השווי פריטים למלאי הקיים. 
+       - אם פריט לא קיים במערכת או בחוסר (Stock < Qty), סמני אותו כ-"status": "special_order".
+       - לעולם אל תסרבי לעסקה! פשוט תייגי כהזמנה מיוחדת.
     4. חוק הלקוח (WhatsApp Concierge): נסחי תגובה (whatsappResponse) המופנית ישירות ללקוח (גוף שני). 
        דוגמה: "היי לירן, קיבלתי את ההזמנה שלך לאתר במוצקין. אני כבר מעבירה לראמי לשיבוץ."
     

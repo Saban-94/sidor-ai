@@ -69,8 +69,9 @@ export const SabanOrderEngine: React.FC<SabanOrderEngineProps> = ({
 
   // Advanced Matching Algorithm
   const calculateConfidence = (str1: string, str2: string) => {
-    const s1 = str1.toLowerCase();
-    const s2 = str2.toLowerCase();
+    const s1 = (str1 || "").toLowerCase();
+    const s2 = (str2 || "").toLowerCase();
+    if (!s1 || !s2) return 0;
     if (s1 === s2) return 100;
     if (s1.includes(s2) || s2.includes(s1)) {
       const ratio = Math.min(s1.length, s2.length) / Math.max(s1.length, s2.length);

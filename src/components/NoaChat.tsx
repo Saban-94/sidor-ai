@@ -209,7 +209,7 @@ const dynamicSuggestions = [
       )}
 
       {/* Main Chat Area */}
-      <div className={`flex-1 flex flex-col h-full ${isPopup ? 'bg-white' : 'bg-[#F8FAFC]'} relative overflow-hidden`}>
+      <div className={`flex-1 flex flex-col h-full bg-white relative overflow-hidden`}>
         {/* Professional Styled Header */}
         {!isPopup && (
           <header className="p-4 bg-white border-b border-[#E2E8F0] shadow-sm text-slate-900 flex items-center justify-between z-30 shrink-0">
@@ -305,18 +305,19 @@ const dynamicSuggestions = [
                   ? 'bg-slate-100 text-slate-800 border-slate-200 rounded-tr-none' 
                   : 'bg-white text-slate-900 rounded-tl-none border-slate-200'
               }`}>
-                {chat.parts[0].text.includes('<table') || chat.parts[0].text.includes('<div') ? (
+                {(chat.parts[0]?.text || "").includes('<table') || (chat.parts[0]?.text || "").includes('<div') ? (
                   <div 
                     className={`prose prose-sm max-w-none text-right ${chat.role === 'user' ? 'prose-slate' : 'prose-invert'}`}
-                    dangerouslySetInnerHTML={{ __html: chat.parts[0].text }}
+                    dangerouslySetInnerHTML={{ __html: chat.parts[0]?.text || "" }}
                   />
                 ) : (
                   <div className="whitespace-pre-wrap">
-                    {chat.parts[0].text}
+                    {chat.parts[0]?.text || ""}
                     {/* detection logic remains */}
                     {(() => {
+                      const textToScan = chat.parts[0]?.text || "";
                       const orderIdRegex = /#?(\d{4,8})/g;
-                      const matches = [...chat.parts[0].text.matchAll(orderIdRegex)];
+                      const matches = [...textToScan.matchAll(orderIdRegex)];
                       const orderIds = [...new Set(matches.map(m => m[1]))];
                       
                       return orderIds.length > 0 && (
@@ -335,10 +336,10 @@ const dynamicSuggestions = [
                 )}
                 
                 {chat.role !== 'user' && (
-                  <div className="flex items-center gap-2 mt-4 pt-4 border-t border-white/10">
+                  <div className={`flex items-center gap-2 mt-4 pt-4 border-t border-slate-100`}>
                     <button 
                       onClick={() => speak(chat.parts[0].text, idx)}
-                      className={`p-2 rounded-lg transition-all ${currentlySpeaking === idx ? 'bg-white/10 text-white' : 'hover:bg-white/5 text-white/50'}`}
+                      className={`p-2 rounded-lg transition-all ${currentlySpeaking === idx ? 'bg-navy text-white' : 'hover:bg-slate-50 text-slate-400'}`}
                     >
                       {currentlySpeaking === idx ? <VolumeX size={14} /> : <Volume2 size={14} />}
                     </button>
@@ -350,7 +351,7 @@ const dynamicSuggestions = [
                             key={i}
                             animate={{ height: [3, h * 3, 3] }}
                             transition={{ duration: 0.5, repeat: Infinity, delay: i * 0.1 }}
-                            className="w-0.5 bg-white/40 rounded-full"
+                            className="w-0.5 bg-navy/20 rounded-full"
                           />
                         ))}
                       </div>
@@ -374,7 +375,7 @@ const dynamicSuggestions = [
                     e.stopPropagation();
                     onAction(btn.action);
                   }}
-                  className="whitespace-nowrap bg-slate-50 hover:bg-slate-900 hover:text-white text-slate-500 text-[9px] font-black uppercase px-3.5 py-2 rounded-xl transition-all border border-slate-100 shadow-sm active:scale-95 flex items-center gap-2"
+                  className={`whitespace-nowrap bg-slate-50 hover:bg-navy hover:text-white text-slate-500 text-[9px] font-black uppercase px-3.5 py-2 rounded-xl transition-all border border-slate-100 shadow-sm active:scale-95 flex items-center gap-2`}
                 >
                   {btn.label}
                 </button>
@@ -414,7 +415,7 @@ const dynamicSuggestions = [
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isUploading}
                 className={`p-3 rounded-xl transition-all shadow-sm active:scale-95 flex items-center justify-center shrink-0 border ${
-                  isUploading ? 'bg-slate-50 text-slate-300' : 'bg-white text-slate-400 border-slate-200 hover:text-slate-900 hover:border-slate-300'
+                  isUploading ? 'bg-slate-50 text-slate-300' : 'bg-white text-slate-400 border-slate-200 hover:text-navy hover:border-navy'
                 }`}
                 title="צירוף מסמך (הזמנה / תעודת משלוח)"
               >
@@ -424,11 +425,11 @@ const dynamicSuggestions = [
                 name="message"
                 autoComplete="off"
                 placeholder="הקלד פקודה לוגיסטית..."
-                className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-5 py-3 text-sm md:text-base focus:border-slate-400 transition-all outline-none font-bold text-slate-900"
+                className={`flex-1 bg-slate-50 border border-slate-200 text-slate-900 border rounded-xl px-5 py-3 text-sm md:text-base focus:border-gold/50 transition-all outline-none font-bold`}
               />
               <button 
                 type="submit"
-                className="bg-slate-900 text-white p-3 rounded-xl hover:bg-slate-800 transition-all shadow-sm active:scale-95 flex items-center justify-center shrink-0"
+                className={`bg-navy text-white p-3 rounded-xl hover:bg-gold hover:text-navy transition-all shadow-sm active:scale-95 flex items-center justify-center shrink-0`}
               >
                 <Send size={18} strokeWidth={2.5} />
               </button>
