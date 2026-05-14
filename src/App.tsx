@@ -1637,8 +1637,11 @@ function AppContent() {
               </div>
             </aside>
 
-            <main className={`flex-1 min-w-0 flex flex-col h-screen overflow-y-auto bg-[#F8FAFC] hide-scrollbar scroll-smooth transition-all duration-500 ease-in-out`}>
-              <div className={`flex-1 flex flex-col relative w-full ${isSidebarCollapsed ? 'max-w-full px-12' : 'max-w-[1400px] mx-auto px-8'} py-8 gap-6 pb-32 lg:pb-12 transition-all duration-500`}>
+          <main className={`flex-1 min-w-0 flex flex-col h-screen overflow-y-auto bg-[#F8FAFC] hide-scrollbar scroll-smooth`}>
+            <div 
+              style={{ width: '1411.45px' }}
+              className="mx-auto flex-1 flex flex-col relative w-full px-4 md:px-12 py-8 gap-6 pb-32 lg:pb-12 transition-all duration-500"
+            >
                 <header className="flex lg:hidden justify-between items-center mb-6 bg-white/70 backdrop-blur-2xl p-4 rounded-[2rem] border border-white/50 shadow-xl shadow-gray-200/50 sticky top-4 z-[90]" dir="rtl">
                   <div className="flex items-center gap-4">
                     <img 
@@ -1699,7 +1702,7 @@ function AppContent() {
                        inventory={inventoryItems}
                      />
                   ) : viewMode === 'chat' ? (
-                    <div className="flex-1 max-w-5xl mx-auto w-full h-[calc(100vh-64px)] md:h-[calc(100vh-120px)] flex flex-col bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm mt-4">
+                    <div className="flex-1 w-full h-full flex flex-col bg-white overflow-hidden shadow-none mt-0">
                       <NoaChat 
                         chatHistory={chatHistory}
                         onBack={() => setViewMode('live_pulse')}
@@ -1874,7 +1877,7 @@ function AppContent() {
               )}
             </AnimatePresence>
 
-            <div className="flex-1 max-w-5xl w-full mx-auto p-4 md:p-8">
+            <div className="flex-1 w-full p-4 md:p-8">
               <div className="pb-[env(safe-area-inset-bottom)]">
               {viewMode === 'list' ? (
                 <div className="bg-white/80 backdrop-blur-md p-4 rounded-3xl shadow-sm border border-sky-100 mb-8">

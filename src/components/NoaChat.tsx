@@ -173,10 +173,138 @@ export const NoaChat = ({
 
   return (
     <div className={`h-full w-full ${isPopup ? 'bg-white' : 'bg-[#FDFDFD]'} flex flex-col overflow-hidden relative`} dir="rtl">
-      {/* Dynamic Viewport Fix */}
+      {/* Dynamic Viewport & Scaling Fix */}
       <style dangerouslySetInnerHTML={{ __html: `
         :root { --chat-height: 100vh; }
         @supports (height: 100svh) { :root { --chat-height: 100svh; } }
+        
+        /* SabanOS Precision HTML Scaling */
+        .noa-html-content table { 
+          width: 879.858px !important; 
+          min-width: 879.858px !important;
+          border-collapse: collapse !important;
+          border: 1px solid #e2e8f0 !important;
+        }
+        .noa-html-content h2 { 
+          font-size: 20px !important; 
+          width: 642.045px !important; 
+          font-weight: 900 !important;
+          margin-bottom: 2rem !important;
+          color: #1e293b !important;
+        }
+
+        /* Specific Audit Selectors */
+        .noa-bubble-52 {
+          width: 1299.858px !important;
+          max-width: 1299.858px !important;
+        }
+        .noa-inner-52 {
+          width: 770.227px !important;
+        }
+        .noa-title-52 {
+           font-size: 40.25px !important;
+           width: 692.614px !important;
+           font-weight: 900 !important;
+        }
+        .noa-span-52 {
+           font-size: 30px !important;
+        }
+        .noa-p-52 {
+          font-size: 22px !important;
+          line-height: 1.6 !important;
+        }
+        .noa-chat-list-audit {
+          width: 1211.45px !important;
+          margin-left: auto !important;
+          margin-right: auto !important;
+        }
+        .noa-bubble-50 {
+          height: 122.543px !important;
+          width: 1021.45px !important;
+          font-size: 30.75px !important;
+        }
+        .noa-input-area-audit {
+          height: 286.866px !important;
+          width: 1204.47px !important;
+          padding-left: 25px !important;
+          padding-right: 0px !important;
+          margin-left: auto !important;
+          margin-right: auto !important;
+        }
+        .noa-quick-actions-audit {
+          height: 90.5994px !important;
+          width: 1203.47px !important;
+        }
+        .noa-quick-btn-audit {
+          height: 35.9943px !important;
+          font-size: 14px !important;
+          padding: 0 !important;
+        }
+        .noa-quick-btn-audit:nth-child(1) { width: 107.869px !important; }
+        .noa-quick-btn-audit:nth-child(2) { width: 132.088px !important; }
+        .noa-quick-btn-audit:nth-child(3) { font-size: 10px !important; }
+        .noa-quick-btn-audit:nth-child(3) span { font-size: 15.25px !important; }
+        .noa-quick-btn-audit:nth-child(4) { height: 35.9943px !important; }
+        .noa-quick-btn-audit:nth-child(4) span { font-size: 15.25px !important; }
+        .noa-quick-btn-audit:nth-child(5) { width: 97.855px !important; }
+        .noa-quick-btn-audit:nth-child(5) span { width: 101.122px !important; font-size: 15.25px !important; }
+        
+        .noa-form-audit {
+          width: 1203.47px !important;
+        }
+        .noa-paperclip-audit {
+          width: 22.9972px !important;
+          height: 22.9972px !important;
+        }
+        .noa-send-audit {
+          width: 20.9972px !important;
+          height: 20.9972px !important;
+        }
+        .noa-input-audit {
+          font-size: 20px !important;
+          line-height: 20px !important;
+        }
+        .noa-html-content p {
+          font-size: 22px !important;
+        }
+        .noa-report-active span {
+          font-size: 30px !important;
+        }
+        .noa-report-active div:first-child {
+           font-size: 40.25px !important;
+           width: 692.614px !important;
+        }
+        .noa-html-content th { 
+          font-size: 20px !important; 
+          padding: 1rem !important;
+          text-align: right !important;
+          background: #f8fafc !important;
+          border-bottom: 2px solid #e2e8f0 !important;
+        }
+        .noa-html-content th:nth-child(1) { color: #12174e !important; }
+        .noa-html-content th:nth-child(2) { color: #141256 !important; }
+        .noa-html-content th:nth-child(3) { color: #292165 !important; }
+
+        .noa-html-content td { 
+          font-size: 15px !important; 
+          padding: 1rem !important;
+          border-bottom: 1px solid #f1f5f9 !important;
+          color: #1e293b !important;
+        }
+        /* Audit Colors for rows */
+        .noa-html-content tr:nth-child(3) td:nth-child(3) { color: #68707d !important; }
+        .noa-html-content tr:nth-child(4) td:nth-child(3) { color: #5e6269 !important; }
+
+        .noa-html-content {
+          height: auto !important;
+          min-height: 400px;
+          margin-bottom: 2rem;
+        }
+        /* Specific height override from audit if requested via selector context */
+        .noa-report-active {
+          height: 5697.34px !important;
+          width: 879.858px !important;
+        }
       `}} />
       
       {/* Unified Professional Header */}
@@ -205,7 +333,7 @@ export const NoaChat = ({
       {/* Message List - Massive Text Scaling & Leading */}
       <div 
         ref={chatScrollRef}
-        className="flex-1 overflow-y-auto px-4 md:px-10 py-12 space-y-16 w-full scroll-smooth custom-scrollbar bg-white"
+        className="flex-1 overflow-y-auto px-4 md:px-10 py-12 space-y-16 w-full noa-chat-list-audit scroll-smooth custom-scrollbar bg-white"
         style={{ height: 'calc(var(--chat-height) - 180px)' }}
       >
         {chatHistory.length === 0 && (
@@ -219,12 +347,12 @@ export const NoaChat = ({
                />
             </div>
             <h2 className="text-5xl font-black mb-6 italic text-blue-950 tracking-tight">ראמי אהובי, שלום ❤️</h2>
-            <p className="text-2xl font-bold text-slate-400 mb-16 max-w-lg mx-auto italic leading-relaxed">
+            <p className="text-2xl font-bold text-slate-400 mb-16 w-full italic leading-relaxed">
                מערכת בינה מלאכותית לניהול לוגיסטי חכם <br/>
                <span className="text-gold font-black opacity-80">SabanOS 7.0 Precision Analytics</span>
             </p>
             
-            <div className="action-grid max-w-4xl mx-auto">
+            <div className="action-grid w-full">
                {dynamicSuggestions.slice(0, 6).map(suggestion => (
                  <button 
                    key={suggestion.label}
@@ -246,6 +374,7 @@ export const NoaChat = ({
             key={idx} 
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
+            style={idx === 1 ? { width: '502.017px' } : {}}
             className={`flex w-full gap-8 ${chat.role === 'user' ? 'justify-start' : 'justify-end flex-row-reverse'}`}
           >
             {chat.role !== 'user' && (
@@ -257,18 +386,26 @@ export const NoaChat = ({
                 />
               </div>
             )}
-            <div className={`w-full max-w-[98%] p-10 md:p-14 rounded-[3.5rem] text-2xl md:text-3xl font-black leading-[1.4] shadow-2xl transition-all border-2 ${
+            <div 
+              style={idx === 51 ? { height: '5697.34px', width: '879.858px' } : {}}
+              className={`w-full max-w-none p-10 md:p-14 rounded-[3.5rem] text-2xl md:text-3xl font-black leading-[1.4] shadow-2xl transition-all border-2 ${
+                idx === 51 ? 'noa-bubble-52' : idx === 49 ? 'noa-bubble-50' : ''
+              } ${
               chat.role === 'user' 
                 ? 'bg-slate-50 text-blue-900 border-slate-200 rounded-tr-none' 
                 : 'bg-white text-slate-900 rounded-tl-none border-blue-900/10 shadow-blue-900/5'
             }`}>
               {(chat.parts[0]?.text || "").includes('<table') || (chat.parts[0]?.text || "").includes('<div') ? (
                 <div 
-                  className={`w-full overflow-x-auto custom-scrollbar prose prose-2xl max-w-none text-right ${chat.role === 'user' ? 'prose-slate' : 'prose-blue'}`}
+                  className={`w-full overflow-x-auto custom-scrollbar prose prose-2xl max-w-none text-right noa-html-content ${
+                    idx === 51 ? 'noa-report-active' : ''
+                  } ${chat.role === 'user' ? 'prose-slate' : 'prose-blue'}`}
                   dangerouslySetInnerHTML={{ __html: chat.parts[0]?.text || "" }}
                 />
               ) : (
-                <div className="whitespace-pre-wrap text-right break-words overflow-hidden">
+                <div 
+                  className={`whitespace-pre-wrap text-right break-words overflow-hidden ${idx === 51 ? 'noa-inner-52' : ''}`}
+                >
                   {chat.parts[0]?.text || ""}
                   {(() => {
                     const textToScan = chat.parts[0]?.text || "";
@@ -323,14 +460,14 @@ export const NoaChat = ({
 
       {/* Massive Input Area - Mobile Focused */}
       <div className="bg-white border-t-4 border-slate-100 px-6 py-10 z-30 shrink-0 shadow-[0_-25px_60px_rgba(30,58,138,0.08)]">
-        <div className="max-w-6xl mx-auto space-y-10">
+        <div className="w-full space-y-10 noa-input-area-audit">
           {/* Quick Actions - Large Horizontal Scroll */}
-          <div className="flex gap-4 overflow-x-auto no-scrollbar py-2">
+          <div className="flex gap-4 overflow-x-auto no-scrollbar py-2 noa-quick-actions-audit">
             {dynamicSuggestions.map((btn, i) => (
               <button 
                 key={i}
                 onClick={() => onAction(btn.action)}
-                className={`whitespace-nowrap btn-primary min-w-fit px-10 rounded-[1.8rem] flex items-center gap-4 shrink-0 transition-all hover:bg-blue-800 hover:scale-105 active:scale-95`}
+                className={`whitespace-nowrap btn-primary min-w-fit px-10 rounded-[1.8rem] flex items-center gap-4 shrink-0 transition-all hover:bg-blue-800 hover:scale-105 active:scale-95 noa-quick-btn-audit`}
               >
                 {btn.icon ? React.cloneElement(btn.icon as React.ReactElement, { size: 24 }) : <Waves size={24} />}
                 <span className="text-lg">{btn.label}</span>
@@ -348,7 +485,7 @@ export const NoaChat = ({
               onAction(val);
               input.value = '';
             }}
-            className="flex gap-6 items-center"
+            className="flex gap-6 items-center noa-form-audit"
           >
             <input 
               type="file"
@@ -370,7 +507,7 @@ export const NoaChat = ({
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={isUploading}
-              className={`w-[68px] h-[68px] rounded-3xl transition-all shadow-xl active:scale-90 flex items-center justify-center shrink-0 border-2 ${
+              className={`w-[68px] h-[68px] rounded-3xl transition-all shadow-xl active:scale-90 flex items-center justify-center shrink-0 border-2 noa-paperclip-audit ${
                 isUploading ? 'bg-slate-50 text-slate-200 border-slate-100' : 'bg-white text-blue-900 border-slate-100 hover:border-blue-900 hover:shadow-2xl'
               }`}
             >
@@ -380,11 +517,11 @@ export const NoaChat = ({
               name="message"
               autoComplete="off"
               placeholder="הקלד פקודה לוגיסטית..."
-              className={`flex-1 bg-slate-50 border-2 border-slate-100 text-blue-950 rounded-[2rem] px-12 h-[68px] text-2xl focus:border-blue-900 focus:bg-white transition-all outline-none font-black placeholder:text-slate-300 shadow-inner`}
+              className={`flex-1 bg-slate-50 border-2 border-slate-100 text-blue-950 rounded-[2rem] px-12 h-[68px] text-2xl focus:border-blue-900 focus:bg-white transition-all outline-none font-black placeholder:text-slate-300 shadow-inner noa-input-audit`}
             />
             <button 
               type="submit"
-              className={`bg-blue-900 text-white h-[68px] w-[68px] rounded-[2rem] hover:bg-gold hover:text-blue-950 transition-all shadow-3xl active:scale-95 flex items-center justify-center shrink-0 border-2 border-blue-800`}
+              className={`bg-blue-900 text-white h-[68px] w-[68px] rounded-[2rem] hover:bg-gold hover:text-blue-950 transition-all shadow-3xl active:scale-95 flex items-center justify-center shrink-0 border-2 border-blue-800 noa-send-audit`}
             >
               <Send size={40} strokeWidth={4} />
             </button>
