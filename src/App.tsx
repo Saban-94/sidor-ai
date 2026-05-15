@@ -1294,53 +1294,28 @@ function AppContent() {
     { id: 'reports', icon: FileText, label: 'ארכיון דוחות' },
   ];
 
-  if (loading || (isInitialDataLoading && user)) return (
+  // SabanOS Precision Scaling & Density Fix
+  // Prevent white screen: If we have a user (even cached), we can start rendering the layout
+  // while data syncs in the background.
+  if (loading && !user) return (
     <div className="h-screen w-full flex flex-col items-center justify-center bg-gray-50 relative overflow-hidden">
-      {/* Background Orbs */}
       <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-sky-100/30 rounded-full blur-3xl animate-pulse" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-100/20 rounded-full blur-3xl animate-pulse" />
-
-      <div className="relative z-10 flex flex-col items-center">
+      <div className="flex flex-col items-center relative z-10">
         <motion.div 
-          animate={{ 
-            scale: [1, 1.1, 1],
-            rotate: [0, 5, -5, 0]
-          }} 
+          animate={{ scale: [1, 1.1, 1] }} 
           transition={{ repeat: Infinity, duration: 2 }}
-          className="bg-sky-600 text-white p-6 rounded-[2.5rem] shadow-2xl shadow-sky-200 mb-8"
+          className="bg-sky-600 text-white p-6 rounded-[2rem] shadow-2xl mb-8"
         >
-          <Truck size={48} strokeWidth={2.5} />
+          <Loader2 className="animate-spin" size={40} />
         </motion.div>
-        
-        <div className="space-y-4 text-center">
-          <h2 className="text-2xl font-black text-gray-900 tracking-tight">SabanOS מתחבר...</h2>
-          <div className="flex gap-1 justify-center">
-            {[0, 1, 2].map((i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0.3 }}
-                animate={{ opacity: 1 }}
-                transition={{ repeat: Infinity, duration: 0.6, delay: i * 0.2 }}
-                className="w-2 h-2 bg-sky-600 rounded-full"
-              />
-            ))}
-          </div>
-          
-          <div className="mt-8 flex flex-col gap-2">
-             <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest text-gray-400">
-               <div className={`w-2 h-2 rounded-full ${dataLoadingStatus.orders ? 'bg-gray-200 animate-pulse' : 'bg-green-500'}`} />
-               טוען הזמנות
-             </div>
-             <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest text-gray-400">
-               <div className={`w-2 h-2 rounded-full ${dataLoadingStatus.drivers ? 'bg-gray-200 animate-pulse' : 'bg-green-500'}`} />
-               טוען נהגים
-             </div>
-          </div>
-        </div>
+        <h2 className="text-xl font-black text-slate-900 tracking-tight">SabanOS מסנכרנת זהות...</h2>
       </div>
     </div>
   );
 
+  // If sync items are still loading but we have a user, we can optionaly show a non-blocking overlay 
+  // or just let the app render with empty states. We choose to let the app render.
+  
   // --- Noa AI Handlers ---
   const clearChatHistory = async () => {
     if (!user) return;
@@ -1615,7 +1590,7 @@ function AppContent() {
 
               <div className="mt-auto p-6 border-t border-slate-100">
                 <div className="flex items-center gap-3 mb-6">
-                  <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-500 font-black overflow-hidden border border-slate-200">
+                  <div className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-500 font-black overflow-hidden border border-slate-200">
                    {user?.photoURL && user.photoURL.trim() !== "" ? (
                      <img src={user.photoURL} alt="" className="w-full h-full object-cover" />
                    ) : (
@@ -1639,29 +1614,28 @@ function AppContent() {
 
           <main className={`flex-1 min-w-0 flex flex-col h-screen overflow-y-auto bg-[#F8FAFC] hide-scrollbar scroll-smooth`}>
             <div 
-              style={{ width: '1411.45px' }}
               className="mx-auto flex-1 flex flex-col relative w-full px-4 md:px-12 py-8 gap-6 pb-32 lg:pb-12 transition-all duration-500"
             >
-                <header className="flex lg:hidden justify-between items-center mb-6 bg-white/70 backdrop-blur-2xl p-4 rounded-[2rem] border border-white/50 shadow-xl shadow-gray-200/50 sticky top-4 z-[90]" dir="rtl">
-                  <div className="flex items-center gap-4">
+                <header className="flex lg:hidden justify-between items-center mb-3 bg-white/70 backdrop-blur-2xl p-2 rounded-2xl border border-white/50 shadow-xl shadow-gray-200/50 sticky top-4 z-[90]" dir="rtl">
+                  <div className="flex items-center gap-3">
                     <img 
                       src="https://i.postimg.cc/qqWtk5qr/Gemini-Generated-Image-6z6qts6z6qts6z6q.png" 
                       alt="Logo" 
-                      className="w-10 h-10 rounded-xl object-cover"
+                      className="w-8 h-8 rounded-full object-cover"
                     />
                     <div className="flex flex-col">
-                      <h1 className="text-xl font-black text-gray-900 tracking-tighter leading-none">סידור</h1>
-                      <div className="flex items-center gap-1.5 mt-0.5">
+                      <h1 className="text-lg font-black text-gray-900 tracking-tighter leading-none">סידור</h1>
+                      <div className="flex items-center gap-1 mt-0.5">
                         <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                        <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Live Noa ✅</span>
+                        <span className="text-[7px] font-black text-gray-400 uppercase tracking-widest">Live Noa ✅</span>
                       </div>
                     </div>
                   </div>
                   <button 
                     onClick={() => setIsDrawerOpen(true)}
-                    className="p-3 bg-gray-50 rounded-2xl text-gray-900 shadow-sm active:scale-90 transition-all touch-manipulation"
+                    className="p-2 bg-gray-50 rounded-xl text-gray-900 shadow-sm active:scale-90 transition-all touch-manipulation"
                   >
-                    <Menu size={24} />
+                    <Menu size={20} />
                   </button>
                 </header>
 

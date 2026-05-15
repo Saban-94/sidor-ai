@@ -1,23 +1,57 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged } from 'firebase/auth';
-import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
+import { 
+  initializeFirestore, 
+  doc, 
+  getDocFromServer,
+  persistentLocalCache,
+  persistentMultipleTabManager
+} from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 
 const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId); // Use the DB ID from config
+
+// CRITICAL FIX: Force long polling to bypass network proxies/CSP that block QUIC/WebSockets
+// Also enable persistence for offline-first stability
+export const db = initializeFirestore(app, {
+  localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
+  experimentalForceLongPolling: true
+}, firebaseConfig.firestoreDatabaseId);
+
 export const auth = getAuth();
 export const googleProvider = new GoogleAuthProvider();
 
-// Test connection on boot
+// Identity Cache for fallbacks during auth/quota-exceeded
+const AUTH_CACHE_KEY = 'saban_auth_cache';
+export const getCachedIdentity = () => {
+  try {
+    const cached = localStorage.getItem(AUTH_CACHE_KEY);
+    return cached ? JSON.parse(cached) : null;
+  } catch { return null; }
+};
+
+onAuthStateChanged(auth, (user) => {
+  if (user) {
+    localStorage.setItem(AUTH_CACHE_KEY, JSON.stringify({
+      uid: user.uid,
+      email: user.email,
+      displayName: user.displayName,
+      photoURL: user.photoURL,
+      lastSeen: new Date().toISOString()
+    }));
+  }
+});
+
+// Test connection on boot with Quota Awareness
 async function testConnection() {
   try {
     await getDocFromServer(doc(db, 'test', 'connection'));
-  } catch (error) {
-    if (error instanceof Error && error.message.includes('permission-denied')) {
-      // Permission denied is actually a good sign of connection if rules are non-public
-      console.log("Firebase connection verified (permission denied as expected).");
-    } else if (error instanceof Error && error.message.includes('the client is offline')) {
-      console.error("Please check your Firebase configuration or internet connection.");
+  } catch (error: any) {
+    if (error.message?.includes('quota-exceeded') || error.code === 'resource-exhausted') {
+      console.warn("🚒 Firebase Quota Exceeded. Entering local-only mode.");
+      window.dispatchEvent(new CustomEvent('firebase-quota-exceeded'));
+    } else if (error.message?.includes('permission-denied')) {
+      console.log("Firebase connection verified.");
     }
   }
 }

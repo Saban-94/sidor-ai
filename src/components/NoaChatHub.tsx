@@ -80,32 +80,32 @@ export const NoaChatHub = ({
           dir="rtl"
         >
           {/* Elite Operations Header - SabanOS High-Density Architecture */}
-          <header className="shrink-0 h-[88px] bg-blue-900 text-white flex items-center justify-between px-8 border-b-4 border-blue-800 shadow-2xl z-[60]">
-             <div className="flex items-center gap-6">
+          <header className="shrink-0 h-[32px] bg-blue-900 text-white flex items-center justify-between px-3 border-b border-blue-800 shadow-sm z-[60]">
+             <div className="flex items-center gap-2">
                 <button 
                   onClick={onClose}
-                  className="w-[60px] h-[60px] flex items-center justify-center bg-blue-950 text-white rounded-2xl border-2 border-blue-700 active:scale-90 transition-all shadow-lg"
+                  className="w-6 h-6 flex items-center justify-center bg-blue-950 text-white rounded-md border border-blue-700 active:scale-90 transition-all"
                 >
-                  <X size={32} />
+                  <X size={14} />
                 </button>
                 <div className="flex flex-col">
-                   <h1 className="text-2xl font-black italic tracking-tight leading-none mb-1 text-white">SabanOS Precision • Noa Gen 7</h1>
-                   <div className="flex items-center gap-3">
-                      <div className="w-3 h-3 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_15px_rgba(52,211,153,0.5)]" />
-                      <span className="text-xs font-black text-blue-200 uppercase tracking-[0.2em] leading-none opacity-80">Operational Brain Active ✅</span>
+                   <h1 className="text-[10px] font-black italic tracking-tight leading-none text-white">SabanOS Precision • Noa Gen 7</h1>
+                   <div className="flex items-center gap-1">
+                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      <span className="text-[6px] font-black text-blue-200 uppercase tracking-widest leading-none opacity-80">Operational Brain Active ✅</span>
                    </div>
                 </div>
              </div>
              
-             <div className="flex items-center gap-5">
+             <div className="flex items-center gap-2">
                 <div className="hidden md:flex flex-col text-left items-end opacity-60">
-                   <span className="text-[10px] font-black uppercase tracking-widest leading-none mb-1">Commander Protocol</span>
-                   <span className="text-xs font-bold leading-none">ראמי אהובי | המפקד המורשה</span>
+                   <span className="text-[7px] font-black uppercase tracking-widest leading-none mb-0.5">Commander Protocol</span>
+                   <span className="text-[8px] font-bold leading-none">ראמי אהובי | המפקד המורשה</span>
                 </div>
                 <img 
                   src="https://i.postimg.cc/qqWtk5qr/Gemini-Generated-Image-6z6qts6z6qts6z6q.png" 
                   alt="Noa" 
-                  className="w-16 h-16 rounded-2xl object-cover border-2 border-blue-400/30 shadow-2xl"
+                  className="w-6 h-6 rounded-md object-cover border border-blue-400/30"
                 />
              </div>
           </header>
@@ -126,8 +126,8 @@ export const NoaChatHub = ({
                 )}
 
                 {activeTab === 'insights' && (
-                  <div className="h-full overflow-y-auto px-8 py-12 space-y-12 bg-white">
-                     <div className="max-w-none grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                  <div className="h-full overflow-y-auto px-4 py-6 space-y-6 bg-white">
+                     <div className="max-w-none grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {[
                           { title: 'ניתוח עומסי תנועה', icon: Globe, desc: 'חיזוי זמני הגעה בזמן אמת (Real-time ETA Monitor)', action: handleTrafficAudit },
                           { title: 'אימות היסטוריית מיקומים', icon: ShieldCheck, desc: 'סריקת צמתים לוגיסטיים ומאגרי מידע (GPS Validation)', action: () => onAction("נתחי את אמינות הנתונים בסידור") },
@@ -136,93 +136,93 @@ export const NoaChatHub = ({
                           <button 
                             key={i}
                             onClick={card.action}
-                            className="bg-slate-50 p-10 rounded-[2.5rem] border-2 border-slate-100 shadow-sm hover:shadow-2xl hover:border-blue-900 transition-all text-right group flex flex-col items-start min-h-[220px]"
+                            className="bg-slate-50 p-4 rounded-xl border border-slate-100 shadow-sm hover:border-blue-900 transition-all text-right group flex flex-col items-start min-h-[120px]"
                           >
-                            <div className="w-[60px] h-[60px] bg-blue-900 text-white rounded-2xl flex items-center justify-center mb-8 group-hover:scale-110 transition-all shadow-xl">
-                              <card.icon size={32} />
+                            <div className="w-8 h-8 bg-blue-900 text-white rounded-lg flex items-center justify-center mb-3 group-hover:scale-105 transition-all">
+                              <card.icon size={18} />
                             </div>
-                            <h4 className="text-2xl font-black text-blue-900 mb-2 leading-tight">{card.title}</h4>
-                            <p className="text-lg font-bold text-slate-500 leading-relaxed">{card.desc}</p>
+                            <h4 className="text-sm font-black text-blue-900 mb-1 leading-tight">{card.title}</h4>
+                            <p className="text-[10px] font-bold text-slate-500 leading-tight">{card.desc}</p>
                           </button>
                         ))}
                      </div>
 
-                     <div className="p-12 rounded-[3.5rem] bg-blue-950 text-white relative overflow-hidden shadow-3xl border-2 border-blue-900">
-                        <div className="relative z-10 lg:pr-20">
-                           <h3 className="text-3xl font-black italic mb-8 tracking-tight">Intelligence Consumption Analysis</h3>
-                           <div className="space-y-6 mb-12">
+                     <div className="p-6 rounded-2xl bg-blue-950 text-white relative overflow-hidden border border-blue-900">
+                        <div className="relative z-10 lg:pr-10">
+                           <h3 className="text-lg font-black italic mb-4 tracking-tight">Intelligence Consumption Analysis</h3>
+                           <div className="space-y-4 mb-8">
                               {loadingInsight ? (
-                                <div className="flex gap-4 py-6">
-                                   {[1, 2, 3].map(d => <div key={d} className="w-4 h-4 bg-gold/50 rounded-full animate-bounce" />)}
+                                <div className="flex gap-2 py-2">
+                                   {[1, 2, 3].map(d => <div key={d} className="w-2 h-2 bg-gold/50 rounded-full animate-bounce" />)}
                                 </div>
                               ) : (
-                                <p className="text-2xl font-bold text-white/90 leading-relaxed italic max-w-5xl">
+                                <p className="text-sm font-bold text-white/90 leading-relaxed italic max-w-5xl">
                                    "{smartInsight || 'המערכת ממתינה לפקודה ממך, המפקד ראמי. מה ברצונך לבצע?'}"
                                  </p>
                               )}
                            </div>
-                           <div className="flex flex-wrap gap-6">
+                           <div className="flex flex-wrap gap-3">
                               <button 
                                 onClick={() => { setActiveTab('chat'); onAction("תכיני דוח בוקר HTML מעוצב"); }}
-                                className="bg-gold text-blue-950 px-12 py-6 rounded-2xl font-black hover:bg-white transition-all text-xl shadow-2xl min-h-[64px]"
+                                className="bg-gold text-blue-950 px-6 py-3 rounded-lg font-black hover:bg-white transition-all text-xs shadow-lg"
                               >
                                 הפק דוח בוקר Enterprise
                               </button>
                               <button 
                                 onClick={generateTopInsight}
-                                className="bg-white/10 text-white px-12 py-6 rounded-2xl font-black hover:bg-white/20 transition-all text-xl border-2 border-white/20 min-h-[64px]"
+                                className="bg-white/10 text-white px-6 py-3 rounded-lg font-black hover:bg-white/20 transition-all text-xs border border-white/20"
                               >
                                 רענן ניתוח בינה מלאכותית
                               </button>
                            </div>
                         </div>
-                        <Brain size={500} className="absolute -bottom-40 -left-60 text-white/5 rotate-12 pointer-events-none" />
+                        <Brain size={200} className="absolute -bottom-20 -left-20 text-white/5 rotate-12 pointer-events-none" />
                      </div>
                   </div>
                 )}
 
                 {activeTab === 'performance' && (
-                  <div className="p-16 flex flex-col items-center justify-center h-full text-center space-y-8 bg-white">
-                     <div className="w-32 h-32 bg-blue-900/5 rounded-[3rem] flex items-center justify-center text-blue-900 mb-6 shadow-inner">
-                        <TrendingUp size={64} />
+                  <div className="p-8 flex flex-col items-center justify-center h-full text-center space-y-4 bg-white">
+                     <div className="w-16 h-16 bg-blue-900/5 rounded-2xl flex items-center justify-center text-blue-900 mb-2 shadow-inner">
+                        <TrendingUp size={32} />
                      </div>
-                     <h3 className="text-4xl font-black text-blue-950 italic">ניתוח ביצועים בבנייה</h3>
-                     <p className="text-2xl font-bold text-slate-400 max-w-xl mx-auto leading-relaxed">נועה מעבדת את נתוני העבר כדי לבנות מודל חיזוי רווחיות (Predictive ROI Model) עבור המפקד ראמי.</p>
+                     <h3 className="text-lg font-black text-blue-950 italic">ניתוח ביצועים בבנייה</h3>
+                     <p className="text-xs font-bold text-slate-400 max-w-md mx-auto leading-tight">נועה מעבדת את נתוני העבר כדי לבנות מודל חיזוי רווחיות (Predictive ROI Model) עבור המפקד ראמי.</p>
                   </div>
                 )}
              </div>
           </main>
 
-          {/* Global Precision Navigation */}
-          <nav className="shrink-0 h-[100px] bg-white border-t-4 border-slate-100 flex items-center px-10 gap-8 z-[60] shadow-[0_-20px_60px_rgba(30,58,138,0.08)]">
-             {[
-               { id: 'chat', icon: Activity, label: 'Chat Hub' },
-               { id: 'insights', icon: Zap, label: 'Analytics' },
-               { id: 'performance', icon: TrendingUp, label: 'Logix KPI' },
-             ].map(nav => (
-               <button 
-                 key={nav.id}
-                 onClick={() => setActiveTab(nav.id as any)}
-                 className={`flex-1 h-[70px] flex items-center justify-center gap-4 rounded-2xl transition-all border-2 ${
-                   activeTab === nav.id 
-                    ? 'bg-blue-900 border-blue-800 text-white shadow-xl scale-[1.02]' 
-                    : 'bg-slate-50 border-slate-100 text-slate-400 hover:border-blue-900/20'
-                 }`}
-               >
-                 <nav.icon size={28} strokeWidth={activeTab === nav.id ? 4 : 2} />
-                 <span className="text-xl font-black uppercase tracking-tighter hidden sm:block">
-                   {nav.label}
-                 </span>
-               </button>
-             ))}
-          </nav>
-
-          <footer className="hidden lg:flex items-center justify-between px-10 py-5 bg-blue-950 text-white shrink-0 border-t border-blue-900/30">
-             <div className="flex items-center gap-4 text-xs font-black uppercase tracking-widest leading-none">
-               <ShieldCheck size={18} className="text-gold" />
-               Secure Management Hub • SabanOS v7.0.0
+          {/* Streamlined SabanOS 6.0 Footer Navigation */}
+          <footer className="shrink-0 bg-blue-950 flex flex-col z-[60] border-t border-blue-800 shadow-[0_-5px_15px_rgba(0,0,0,0.3)]">
+             <div className="flex h-10 w-full divide-x divide-x-reverse divide-blue-800/30">
+               {[
+                 { id: 'chat', icon: Activity, label: 'CHAT HUB', style: { height: '32px' } },
+                 { id: 'insights', icon: Zap, label: 'ANALYTICS', style: { height: '32px' } },
+                 { id: 'performance', icon: TrendingUp, label: 'LOGIX KPI', style: { height: '32px' } },
+               ].map((nav) => (
+                 <button 
+                   key={nav.id}
+                   onClick={() => setActiveTab(nav.id as any)}
+                   className={`flex-1 flex items-center justify-center gap-2 transition-all ${
+                     activeTab === nav.id 
+                      ? 'bg-blue-900 text-white' 
+                      : 'text-white/40 hover:bg-blue-900/40 hover:text-white'
+                   }`}
+                   style={nav.style}
+                 >
+                   <nav.icon size={14} strokeWidth={activeTab === nav.id ? 3 : 2} className={activeTab === nav.id ? 'text-blue-400' : 'text-white/20'} />
+                   <span className={`text-[10px] font-black tracking-widest ${activeTab === nav.id ? 'opacity-100' : 'opacity-70'}`}>
+                     {nav.label}
+                   </span>
+                 </button>
+               ))}
              </div>
-             <span className="text-xs font-black italic opacity-60">SABAN ENTERPRISE LOGISTICS INFRASTRUCTURE • נועה ❤️</span>
+             <div className="bg-blue-950/90 py-1 px-4 flex justify-center text-center">
+                <span className="text-[7px] font-black italic opacity-30 uppercase tracking-widest text-white">
+                  SABAN ENTERPRISE LOGISTICS INFRASTRUCTURE • נועה ❤️
+                </span>
+             </div>
           </footer>
         </motion.div>
       )}

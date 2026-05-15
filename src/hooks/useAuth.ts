@@ -1,25 +1,42 @@
 import { useState, useEffect } from 'react';
 import { User, onAuthStateChanged, getIdToken } from 'firebase/auth';
-import { auth } from '../lib/firebase';
+import { auth, getCachedIdentity } from '../lib/firebase';
 
 export function useAuth() {
-  const [user, setUser] = useState<User | null>(auth.currentUser);
-  const [loading, setLoading] = useState(!auth.currentUser);
+  const [user, setUser] = useState<any>(auth.currentUser || getCachedIdentity());
+  const [loading, setLoading] = useState(!auth.currentUser && !getCachedIdentity());
   const [token, setToken] = useState<string | null>(null);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setUser(user);
-      if (user) {
-        const idToken = await getIdToken(user);
+    const handleQuotaExceeded = () => {
+      if (!user) {
+        setUser(getCachedIdentity());
+      }
+    };
+    window.addEventListener('firebase-quota-exceeded', handleQuotaExceeded);
+
+    const unsubscribe = onAuthStateChanged(auth, async (newUser) => {
+      if (newUser) {
+        setUser(newUser);
+        const idToken = await getIdToken(newUser);
         setToken(idToken);
       } else {
-        setToken(null);
+        // Fallback to cache if strictly necessary (e.g. quota exceeded mid-session)
+        const cached = getCachedIdentity();
+        if (cached) {
+          setUser(cached);
+        } else {
+          setUser(null);
+          setToken(null);
+        }
       }
       setLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribe();
+      window.removeEventListener('firebase-quota-exceeded', handleQuotaExceeded);
+    };
   }, []);
 
   return { user, loading, token };

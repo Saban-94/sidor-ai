@@ -57,7 +57,7 @@ export const Avatar: React.FC<AvatarProps> = ({
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.8 }}
-            className={`w-full h-full rounded-2xl ${error ? 'bg-gray-100' : bgColor} text-white font-black flex items-center justify-center shadow-sm border-2 border-white overflow-hidden`}
+            className={`w-full h-full rounded-full ${error ? 'bg-gray-100' : bgColor} text-white font-black flex items-center justify-center shadow-sm border-2 border-white overflow-hidden`}
           >
             {error ? (
               <img src={SABAN_PLACEHOLDER} alt="Placeholder" className="w-full h-full object-cover opacity-50" />
@@ -72,7 +72,7 @@ export const Avatar: React.FC<AvatarProps> = ({
             src={cleanedSrc}
             alt={name}
             onError={() => setError(true)}
-            className="w-full h-full rounded-2xl object-cover border-2 border-white shadow-sm"
+            className="w-full h-full rounded-full object-cover border-2 border-white shadow-sm"
           />
         )}
       </AnimatePresence>
