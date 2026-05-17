@@ -49,15 +49,17 @@ async function startServer() {
         body: JSON.stringify(req.body)
       });
 
-      // GAS usually returns a 302 redirect for web apps, but native fetch should follow it.
-      // If it doesn't return JSON, it might be a text response.
+      console.log(`📡 [PROXY] GAS Response Status: ${response.status}`);
       const responseText = await response.text();
+      
+      if (!response.ok) {
+        console.error(`❌ [PROXY] GAS Error Body: ${responseText.substring(0, 500)}`);
+      }
       
       try {
         const json = JSON.parse(responseText);
         res.status(response.status).json(json);
       } catch (e) {
-        // If not JSON, return as is (GAS sometimes returns HTML or plain text on error)
         res.status(response.status).send(responseText);
       }
     } catch (error: any) {

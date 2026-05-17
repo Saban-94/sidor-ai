@@ -114,7 +114,7 @@ const TrackingPage: React.FC = () => {
         >
           <Loader2 size={48} className="text-sky-600" />
         </motion.div>
-        <p className="text-gray-500 font-bold animate-pulse">מתחבר למערכת SabanOS...</p>
+        <p className="text-gray-500 font-bold animate-pulse uppercase tracking-widest text-[10px]">נועה כבר מוצאת לך את ההזמנה, המפקד... ❤️</p>
       </div>
     );
   }
@@ -126,7 +126,9 @@ const TrackingPage: React.FC = () => {
           <AlertCircle className="text-red-500" size={48} />
         </div>
         <h1 className="text-2xl font-black text-gray-900 mb-2">אופס! משהו לא תקין</h1>
-        <p className="text-gray-500 font-bold max-w-xs mx-auto mb-8">{error || "הזמנה זו אינה קיימת במערכת"}</p>
+        <p className="text-gray-500 font-bold max-w-sm mx-auto mb-8 leading-relaxed">
+          אהובי ראמי לא הגיע לנקודה זו עדיין... מסכן שלי כמה הוא יכול להספיק!! רחמנות. אבל אשמח לשלוח לו מייל או משימה עם השאלה ששאלת ❤️
+        </p>
         <a 
           href="/" 
           className="px-8 py-4 bg-sky-600 text-white rounded-[2rem] font-black shadow-xl shadow-sky-600/20 hover:scale-105 transition-transform"

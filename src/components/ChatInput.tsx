@@ -15,6 +15,7 @@ interface ChatInputProps {
   uploadProgress: number;
   recipientId?: string;
   variant?: 'standard' | 'glass';
+  autoFocus?: boolean;
 }
 
 export const ChatInput: React.FC<ChatInputProps> = ({
@@ -25,7 +26,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   isUploading,
   uploadProgress,
   recipientId,
-  variant = 'standard'
+  variant = 'standard',
+  autoFocus = false
 }) => {
   const isGlass = variant === 'glass';
   const [newMessage, setNewMessage] = useState('');
@@ -33,6 +35,13 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const [isPriorityUrgent, setIsPriorityUrgent] = useState(false);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastWriteTimeRef = useRef<number>(0);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (autoFocus && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [autoFocus]);
 
   const updateTypingStatus = async (isTyping: boolean) => {
     if (!currentUserProfile?.id) return;
@@ -94,6 +103,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       <div className="flex items-center gap-2">
         <div className="relative flex-1">
           <input 
+            ref={inputRef}
             value={newMessage}
             onChange={handleInputChange}
             placeholder={isGlass ? "כתוב הודעה מאובטחת..." : "כתוב הודעה לצוות..."}

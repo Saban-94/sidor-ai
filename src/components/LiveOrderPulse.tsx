@@ -391,6 +391,39 @@ export const LiveOrderPulse: React.FC<LiveOrderPulseProps> = ({
              <p className="text-[13px] font-black text-slate-900 italic">באדיבות נועה ❤️</p>
              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">SabanOS AI Operations</p>
            </div>
+          {/* Tactical Summary - Precision UI Update */}
+          <div className="mt-12 flex justify-center">
+            <div 
+              id="tactical-summary-hub"
+              style={{ width: '560.242px', backgroundColor: '#d2dcf3' }}
+              className="p-8 rounded-[2.5rem] shadow-2xl border border-blue-200/50 flex flex-col items-center text-center"
+            >
+               <span className="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em] mb-4">Tactical Operations Summary</span>
+               <div style={{ display: 'flex', gap: '31px', justifyContent: 'center' }} className="w-full">
+                  <div className="flex flex-col">
+                    <p style={{ fontSize: '18px', fontWeight: 'bold' }} className="text-blue-900 leading-none mb-1">
+                      {orders.length}
+                    </p>
+                    <span className="text-[8px] font-black text-blue-400 uppercase">משימות</span>
+                  </div>
+                  <div className="w-px h-8 bg-blue-300/30" />
+                  <div className="flex flex-col">
+                    <p style={{ fontSize: '18px', fontWeight: 'bold' }} className="text-blue-900 leading-none mb-1">
+                      {orders.filter(o => o.status === 'delivered').length}
+                    </p>
+                    <span className="text-[8px] font-black text-blue-400 uppercase">בוצעו</span>
+                  </div>
+                  <div className="w-px h-8 bg-blue-300/30" />
+                  <div className="flex flex-col">
+                    <p style={{ fontSize: '18px', fontWeight: 'bold' }} className="text-blue-900 leading-none mb-1">
+                      {orders.filter(o => o.status === 'on_the_way').length}
+                    </p>
+                    <span className="text-[8px] font-black text-blue-400 uppercase">בדרך</span>
+                  </div>
+               </div>
+               <p className="mt-4 text-[10px] font-bold text-blue-700 italic">"כל הגלגלים מסתובבים לפי התוכנית של ראמי" ❤️</p>
+            </div>
+          </div>
         </div>
       </div>
 

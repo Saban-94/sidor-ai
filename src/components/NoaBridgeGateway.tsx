@@ -403,7 +403,10 @@ export const NoaBridgeGateway: React.FC<NoaBridgeGatewayProps> = ({ onBack }) =>
               </div>
             </div>
 
-            <div className="flex-1 flex flex-col gap-6 overflow-hidden">
+            <div 
+              style={{ marginRight: '77.5625px', marginLeft: '77.5px' }}
+              className="flex-1 flex flex-col gap-6 overflow-hidden"
+            >
               <div className="relative group">
                 <textarea 
                   value={inputText}
@@ -553,7 +556,10 @@ export const NoaBridgeGateway: React.FC<NoaBridgeGatewayProps> = ({ onBack }) =>
         </main>
 
         {/* Right Pane: Client Brain & Real-time Tracking (Desktop Only) */}
-        <aside className="hidden xl:flex flex-col w-[380px] gap-4 overflow-hidden">
+        <aside 
+          style={{ width: '80px' }}
+          className="hidden xl:flex flex-col gap-4 overflow-hidden"
+        >
           {/* Customer Brain Profile */}
           <div className="bg-white rounded-[2.5rem] p-6 border border-gray-100 shadow-xl shadow-gray-900/5">
             <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2 mb-6">
@@ -609,7 +615,10 @@ export const NoaBridgeGateway: React.FC<NoaBridgeGatewayProps> = ({ onBack }) =>
           </div>
 
           {/* Real-time Order Tracking (Mini-Log) */}
-          <div className="flex-1 bg-gray-900 rounded-[2.5rem] p-6 shadow-2xl relative overflow-hidden group">
+          <div 
+            style={{ marginRight: '99px', width: '281.009px' }}
+            className="flex-1 bg-gray-900 rounded-[2.5rem] p-6 shadow-2xl relative overflow-hidden group"
+          >
             <div className="absolute top-0 right-0 w-64 h-64 bg-sky-500/10 rounded-full blur-3xl -mr-32 -mt-32 group-hover:scale-110 transition-transform duration-1000" />
             <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2 mb-6 relative">
               <Layers size={14} className="text-sky-400" />

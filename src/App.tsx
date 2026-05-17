@@ -112,6 +112,7 @@ import { PackageCheck, PackageX, PackageOpen, Brain } from 'lucide-react';
 import { NoaFloatingChat } from './components/NoaFloatingChat';
 import { SmartCalendarDrawer } from './components/SmartCalendarDrawer';
 import { NoaChatHub } from './components/NoaChatHub';
+import { NoaChatHistory } from './components/NoaChatHistory';
 import { 
   createOrder, 
   getOrderByTrackingId,
@@ -121,6 +122,11 @@ import {
   askNoa, 
   predictOrderEta,
   getPrivateChatHistory,
+  getChatSessions,
+  getChatSessionMessages,
+  createChatSession,
+  deleteChatSession,
+  updateChatSession,
   createDriver,
   createCustomer,
   updateCustomer,
@@ -130,7 +136,7 @@ import {
   deleteReminder,
   syncInventoryOnDelivery
 } from './services/auraService';
-import { Order, Driver, Customer, Reminder, InventoryItem, UserProfile, TeamChatMessage } from './types';
+import { Order, Driver, Customer, Reminder, InventoryItem, UserProfile, TeamChatMessage, ChatSession, ChatMessage } from './types';
 import { useUserMemory } from './hooks/useUserMemory';
 import { uploadFileToDrive, createCustomerFolderHierarchy } from './services/driveService';
 
@@ -711,6 +717,9 @@ function AppContent() {
   };
 
   const [chatHistory, setChatHistory] = useState<any[]>([]);
+  const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+  const [isChatHistoryOpen, setIsChatHistoryOpen] = useState(false);
   const [isAddingOrder, setIsAddingOrder] = useState(false);
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const [isUploadingDoc, setIsUploadingDoc] = useState(false);
@@ -772,14 +781,28 @@ function AppContent() {
   const viewMode = settings.viewMode;
   const setViewMode = (v: any) => setSettings({ viewMode: v });
 
-  // Load chat history from Firestore on login
+  // Load chat sessions from Firestore on login
   useEffect(() => {
-    if (user && viewMode === 'chat' && chatHistory.length === 0) {
-      getPrivateChatHistory(user.uid).then(history => {
-        if (history.length > 0) setChatHistory(history);
+    if (user && viewMode === 'chat') {
+      getChatSessions(user.uid).then(sessions => {
+        setChatSessions(sessions);
+        if (sessions.length > 0 && !currentSessionId) {
+          // Load most recent session
+          const mostRecent = sessions[0];
+          setCurrentSessionId(mostRecent.id);
+        }
       });
     }
   }, [user, viewMode]);
+
+  // Load specific session messages
+  useEffect(() => {
+    if (user && currentSessionId) {
+      getChatSessionMessages(user.uid, currentSessionId).then(msgs => {
+        setChatHistory(msgs.map(m => ({ role: m.role, parts: m.parts })));
+      });
+    }
+  }, [user, currentSessionId]);
   const statusFilter = settings.statusFilter;
   const setStatusFilter = (v: any) => setSettings({ statusFilter: v });
   const driverFilter = settings.driverFilter;
@@ -1330,17 +1353,17 @@ function AppContent() {
   
   // --- Noa AI Handlers ---
   const clearChatHistory = async () => {
-    if (!user) return;
+    if (!user || !currentSessionId) return;
     try {
-      const q = query(collection(db, `users/${user.uid}/messages`));
-      const snap = await getDocs(q);
-      const batch = writeBatch(db);
-      snap.docs.forEach(d => batch.delete(d.ref));
-      await batch.commit();
-      setChatHistory([]);
-      addToast('היסטוריה נוקתה', 'כל השיחות עם נועה נמחקו בהצלחה ✅', 'success');
+      if (confirm('האם אתה בטוח שברצונך למחוק את כל השיחה הנוכחית?')) {
+        await deleteChatSession(user.uid, currentSessionId);
+        setChatSessions(prev => prev.filter(s => s.id !== currentSessionId));
+        setCurrentSessionId(null);
+        setChatHistory([]);
+        addToast('היסטוריה נוקתה', 'הסשן הנוכחי נמחק בהצלחה ✅', 'success');
+      }
     } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `users/${user.uid}/messages`);
+      console.error("Failed to clear chat history:", error);
       addToast('שגיאה', 'נכשל בניקוי ההיסטוריה', 'warning');
     }
   };
@@ -1348,30 +1371,44 @@ function AppContent() {
   const handleNoaAction = async (msg: string, file?: File | string) => {
     if (!user) return;
     
+    let sessionId = currentSessionId;
+    
+    // Create session if none exists
+    if (!sessionId) {
+      try {
+        sessionId = await createChatSession(user.uid, msg.slice(0, 40) + (msg.length > 40 ? '...' : ''));
+        setCurrentSessionId(sessionId);
+        getChatSessions(user.uid).then(setChatSessions);
+      } catch (err) {
+        console.error("Failed to create session", err);
+        addToast('שגיאה', 'לא הצלחתי ליצור סשן שיחה חדש', 'warning');
+        return;
+      }
+    }
+
     const actualFile = file instanceof File ? file : undefined;
     const userMsg = { role: 'user', parts: [{ text: msg }] };
     setChatHistory(prev => [...prev, userMsg]);
     
-    // Save user message to Firestore
+    // Save user message to Firestore session
     try {
-      const msgRef = doc(collection(db, `users/${user.uid}/messages`));
+      const msgRef = doc(collection(db, `users/${user.uid}/chat_sessions/${sessionId}/messages`));
       await setDoc(msgRef, {
         role: 'user',
-        content: msg,
+        parts: [{ text: msg }],
         timestamp: serverTimestamp()
       });
+      // Update session last updated
+      await updateChatSession(user.uid, sessionId!, {});
     } catch (saveError: any) {
-      if (saveError.code === 'already-exists' || saveError.message?.includes('already exists')) {
-        console.warn("User message already saved, ignoring redundant write.");
-      } else {
-        handleFirestoreError(saveError, OperationType.WRITE, `users/${user.uid}/messages`);
-      }
+      console.error("Error saving user message:", saveError);
     }
     
     try {
       const result = await askNoa(msg, chatHistory, user?.displayName || user?.email || 'אורח', actualFile);
       
       const functionCalls = result.functionCalls;
+      // ... same logic for function calls ...
 
       if (functionCalls) {
         for (const call of functionCalls) {
@@ -1418,20 +1455,16 @@ function AppContent() {
         parts: [{ text: result.text }] 
       }]);
 
-      // Save AI response to Firestore
+      // Save AI response to Firestore session
       try {
-        const respRef = doc(collection(db, `users/${user.uid}/messages`));
+        const respRef = doc(collection(db, `users/${user.uid}/chat_sessions/${sessionId}/messages`));
         await setDoc(respRef, {
           role: 'model',
-          content: result.text,
+          parts: [{ text: result.text }],
           timestamp: serverTimestamp()
         });
       } catch (saveError: any) {
-        if (saveError.code === 'already-exists' || saveError.message?.includes('already exists')) {
-          console.warn("AI response already saved, ignoring redundant write.");
-        } else {
-          handleFirestoreError(saveError, OperationType.WRITE, `users/${user.uid}/messages`);
-        }
+        console.error("Error saving AI response:", saveError);
       }
     } catch (error: any) {
       console.error(error);
@@ -1626,16 +1659,20 @@ function AppContent() {
 
           <main className={`flex-1 min-w-0 flex flex-col h-screen overflow-y-auto bg-[#F8FAFC] hide-scrollbar scroll-smooth`}>
             <div 
+              style={{ width: '1045.12px', backgroundColor: '#f7f9fd' }}
               className="mx-auto flex-1 flex flex-col relative w-full px-4 md:px-12 py-8 gap-6 pb-32 lg:pb-12 transition-all duration-500"
             >
-                <header className="flex lg:hidden justify-between items-center mb-3 bg-white/70 backdrop-blur-2xl p-2 rounded-2xl border border-white/50 shadow-xl shadow-gray-200/50 sticky top-4 z-[90]" dir="rtl">
+                <header 
+                  style={{ paddingTop: '10px', marginBottom: '27px' }}
+                  className="flex lg:hidden justify-between items-center mb-3 bg-white/70 backdrop-blur-2xl p-2 rounded-2xl border border-white/50 shadow-xl shadow-gray-200/50 sticky top-4 z-[90]" dir="rtl"
+                >
                   <div className="flex items-center gap-3">
                     <img 
                       src="https://i.postimg.cc/qqWtk5qr/Gemini-Generated-Image-6z6qts6z6qts6z6q.png" 
                       alt="Logo" 
                       className="w-8 h-8 rounded-full object-cover"
                     />
-                    <div className="flex flex-col">
+                    <div style={{ marginLeft: '20px', marginRight: '20px' }} className="flex flex-col">
                       <h1 className="text-lg font-black text-gray-900 tracking-tighter leading-none">סידור</h1>
                       <div className="flex items-center gap-1 mt-0.5">
                         <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
@@ -1863,7 +1900,10 @@ function AppContent() {
               )}
             </AnimatePresence>
 
-            <div style={{ paddingBottom: '36px', paddingRight: '0px', paddingLeft: '0px', marginRight: '0px', marginLeft: '0px', marginBottom: '0px' }} className="flex-1 w-full p-4 md:p-8">
+            <div 
+          style={{ paddingBottom: '36px', paddingRight: '0px', paddingLeft: '0px', marginRight: '0px', marginLeft: '0px', marginBottom: '0px', width: '870.938px' }}
+          className="flex-1 w-full p-4 md:p-8"
+        >
               <div className="pb-[env(safe-area-inset-bottom)]">
               {viewMode === 'list' ? (
                 <div className="bg-white/80 backdrop-blur-md p-4 rounded-3xl shadow-sm border border-sky-100 mb-8">
@@ -2127,7 +2167,7 @@ function AppContent() {
               highlightedOrderId={highlightedOrderId}
             />
           ) : (
-            <div style={{ width: '1340.18px' }} className="grid gap-4">
+            <div style={{ width: '560.242px', backgroundColor: '#d2dcf3' }} className="grid gap-4">
               {filteredOrders.map((order) => (
                 <OrderCard 
                   key={order.id} 

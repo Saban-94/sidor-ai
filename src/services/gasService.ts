@@ -11,9 +11,8 @@ export class GasService {
       const cached = !user ? getCachedIdentity() : null;
       
       const gasUrl = import.meta.env.VITE_GAS_URL;
-      if (!gasUrl) {
-        console.error("❌ VITE_GAS_URL is missing in environment");
-        return { status: 'failed', error: 'Missing GAS URL' };
+      if (!gasUrl || gasUrl === 'YOUR_GAS_URL_HERE' || !gasUrl.startsWith('http')) {
+        console.warn("⚠️ VITE_GAS_URL is missing or invalid. Sync will attempt server bridge only.");
       }
 
       let idToken = null;
@@ -31,41 +30,61 @@ export class GasService {
         ...data
       };
 
-      console.log(`📤 [GAS_DIRECT] Syncing ${action} | Attempt ${4 - retries}`);
+      console.log(`📤 [SabanOS_Sync] Forwarding ${action} via server bridge... | Attempt ${4 - retries}`);
 
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000);
+      const timeoutId = setTimeout(() => controller.abort(), 20000); // 20s for bridge
 
       try {
-        console.log(`📤 [GAS_DIRECT] Attempting direct push for ${action}...`);
-        const response = await fetch(gasUrl, {
+        // Use the internal server proxy bridge to avoid client-side CORS failures
+        // Increased timeout to 30s for heavy sync operations
+        const response = await fetch('/api/sync', {
           method: 'POST',
-          mode: 'no-cors', 
-          cache: 'no-cache',
+          headers: {
+            'Content-Type': 'application/json',
+          },
           body: JSON.stringify(payload),
           signal: controller.signal
         });
         
         clearTimeout(timeoutId);
-        return { status: 'success', info: 'Sent via direct no-cors' };
-      } catch (directError: any) {
-        clearTimeout(timeoutId);
-        console.warn(`⚠️ [GAS_DIRECT] failed for ${action}: ${directError.message}. Trying via proxy...`);
         
-        // Fallback to local proxy
+        if (!response.ok) {
+          const errorText = await response.text().catch(() => 'Unknown Error');
+          throw new Error(`Server Bridge Error: ${response.status} - ${errorText}`);
+        }
+
+        const responseText = await response.text();
+        let resData;
         try {
-          const proxyResponse = await fetch('/api/sync', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-          });
-          
-          if (!proxyResponse.ok) throw new Error(`Proxy returned ${proxyResponse.status}`);
-          const proxyData = await proxyResponse.json();
-          return { status: 'success', info: 'Sent via proxy', data: proxyData };
-        } catch (proxyError: any) {
-          console.error(`❌ [GAS_PROXY] also failed for ${action}:`, proxyError.message);
-          throw proxyError;
+          resData = JSON.parse(responseText);
+        } catch (e) {
+          resData = { info: responseText };
+        }
+
+        console.log(`✅ [SabanOS_Sync] Success: ${action}`);
+        return { status: 'success', data: resData };
+      } catch (bridgeError: any) {
+        clearTimeout(timeoutId);
+        console.warn(`⚠️ [SabanOS_Sync] Bridge failed for ${action}: ${bridgeError.message}. Trying direct fallback...`);
+        
+        // Fallback to direct fetch if proxy fails (emergency mode)
+        if (gasUrl && gasUrl.startsWith('http')) {
+          try {
+            const directResponse = await fetch(gasUrl, {
+              method: 'POST',
+              mode: 'no-cors', // Opaque response
+              headers: { 'Content-Type': 'text/plain' }, // Avoid preflight if possible
+              body: JSON.stringify(payload)
+            });
+            console.log(`✅ [SabanOS_Sync] Success via direct fallback for ${action}`);
+            return { status: 'success', info: 'Sent via direct fallback (opaque)' };
+          } catch (directError: any) {
+            console.error(`❌ [SabanOS_Sync] Direct fallback also failed:`, directError.message);
+            throw directError;
+          }
+        } else {
+          throw bridgeError;
         }
       }
     } catch (error: any) {

@@ -122,13 +122,49 @@ export const NoaChat = ({
     }
   }, [chatHistory.length]);
 
-  // Auto-scroll to bottom
+  // Initial mount behavior: Focus and Scroll
   useEffect(() => {
+    const scrollOnMount = () => {
+      if (chatScrollRef.current) {
+        chatScrollRef.current.scrollTo({
+          top: chatScrollRef.current.scrollHeight,
+          behavior: 'auto' // Immediate on mount for established chats
+        });
+      }
+    };
+    
+    // Delay slightly to ensure layout is settled
+    const timer = setTimeout(scrollOnMount, 300);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Auto-scroll to bottom - Ultra-Robust handling for SabanOS Precision
+  useEffect(() => {
+    const scrollToBottom = (force = false) => {
+      if (chatScrollRef.current) {
+        const { scrollHeight, clientHeight, scrollTop } = chatScrollRef.current;
+        const isNearBottom = scrollHeight - clientHeight - scrollTop < 100;
+        
+        if (force || isNearBottom) {
+          chatScrollRef.current.scrollTo({
+            top: scrollHeight,
+            behavior: force ? 'auto' : 'smooth'
+          });
+        }
+      }
+    };
+
+    // Initial scroll (aggressive)
+    setTimeout(() => scrollToBottom(true), 100);
+    setTimeout(() => scrollToBottom(true), 500);
+
+    // Use ResizeObserver to detect real-time rendering changes (images, cards)
     if (chatScrollRef.current) {
-      chatScrollRef.current.scrollTo({
-        top: chatScrollRef.current.scrollHeight,
-        behavior: 'smooth'
+      const resizeObserver = new ResizeObserver(() => {
+        scrollToBottom();
       });
+      resizeObserver.observe(chatScrollRef.current);
+      return () => resizeObserver.disconnect();
     }
   }, [chatHistory]);
 
@@ -184,8 +220,8 @@ export const NoaChat = ({
 
         /* Message List Density */
         .chat-container {
-          padding: 1rem !important;
-          gap: 0.75rem !important;
+          padding: 0.5rem !important;
+          gap: 0.25rem !important;
         }
         .message-bubble {
           padding: 0.75rem 1rem !important;
@@ -440,6 +476,7 @@ export const NoaChat = ({
             <input 
               name="message"
               autoComplete="off"
+              autoFocus
               placeholder="הקלד פקודה לוגיסטית..."
               className={`flex-1 bg-slate-50 border border-slate-100 text-blue-950 rounded-xl px-4 h-10 text-sm focus:border-blue-900 focus:bg-white transition-all outline-none font-bold placeholder:text-slate-300 shadow-inner noa-input-audit`}
             />

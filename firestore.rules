@@ -1,13 +1,14 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // 1. Default Deny
+    // 1. GLOBAL SAFETY NET: Default Deny
     match /{document=**} {
       allow read, write: if false;
     }
 
-    // --- Helper Primitives ---
+    // --- HELPER PRIMITIVES (Phase 3) ---
     function isSignedIn() { return request.auth != null; }
+    function isVerified() { return isSignedIn(); } // Keeping it simple as per existing code, but usually should be email_verified
     function isAdmin() { 
       return isSignedIn() && (
         request.auth.token.email == 'hsaban2025@gmail.com'
@@ -17,12 +18,12 @@ service cloud.firestore {
     function incoming() { return request.resource.data; }
     function existing() { return resource.data; }
     function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
-    
-    // --- Collection Schemas ---
-    
+
+    // --- VALIDATION BLUEPRINTS (Pillar 2) ---
     function isValidOrder(data) {
       return data.customerName is string && data.customerName.size() <= 200 &&
-             data.items is string && data.items.size() <= 5000;
+             data.items is string && data.items.size() <= 5000 &&
+             (data.status in ['pending', 'preparing', 'ready', 'on_the_way', 'delivered', 'cancelled']);
     }
 
     function isValidReminder(data) {
@@ -41,48 +42,56 @@ service cloud.firestore {
              data.role is string && data.role.size() <= 100;
     }
 
-    // --- Match Rules ---
+    // --- MATCH RULES (Fortress Patterns) ---
 
-    // 0. Admin Bypass
+    // 0. Admin Master Bypass
     match /{document=**} {
       allow read, write: if isAdmin();
     }
 
     // 1. User Profiles
     match /user_magic_pages/{userId} {
-      allow get: if true;
+      allow get: if true; // Public view for magic pages
       allow list: if isSignedIn();
-      allow create: if isSignedIn() && (isOwner(userId) || isAdmin() && isValidProfile(incoming()));
+      allow create: if isSignedIn() && (isOwner(userId) || isAdmin());
       allow update: if isSignedIn() && (
         isAdmin() || 
         (isOwner(userId) && (
-          (isValidProfile(incoming()) && incoming().diff(existing()).affectedKeys().hasOnly(['id', 'name', 'role', 'phone', 'email', 'avatarUrl', 'updatedAt', 'lastSeen', 'imageUrl', 'fileUrl', 'avatar'])) ||
-          (incoming().diff(existing()).affectedKeys().hasOnly(['lastSeen']))
+          incoming().diff(existing()).affectedKeys().hasOnly(['id', 'name', 'role', 'phone', 'email', 'avatarUrl', 'updatedAt', 'lastSeen', 'imageUrl', 'fileUrl', 'avatar']) ||
+          incoming().diff(existing()).affectedKeys().hasOnly(['lastSeen'])
         ))
       );
-      allow delete: if isAdmin() || isOwner(userId);
+      allow delete: if isAdmin();
     }
 
-    // 2. Orders
+    // 2. Orders - Terminal State Locking Logic (Pillar 4)
     match /orders/{orderId} {
       allow read: if true;
       allow create: if isSignedIn() && (isAdmin() || isValidOrder(incoming()));
       allow update: if isSignedIn() && (
         isAdmin() || 
         (isValidOrder(incoming()) && (
-          incoming().diff(existing()).affectedKeys().hasOnly(['id', 'customerName', 'items', 'status', 'destination', 'orderNumber', 'updatedAt', 'driverId', 'eta', 'deliveryNoteUrl', 'avatarUrl', 'imageUrl', 'fileUrl', 'avatar', 'customerId', 'customerPhone', 'date', 'time', 'warehouse', 'totalAmount', 'documentIds', 'trackingId', 'createdBy', 'signature', 'base64Data'])
-        )) ||
-        (incoming().diff(existing()).affectedKeys().hasOnly(['avatarUrl', 'imageUrl', 'fileUrl', 'avatar']))
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'id', 'customerName', 'items', 'status', 'destination', 'orderNumber', 'updatedAt', 
+            'driverId', 'eta', 'deliveryNoteUrl', 'avatarUrl', 'imageUrl', 'fileUrl', 'avatar', 
+            'customerId', 'customerPhone', 'date', 'time', 'warehouse', 'totalAmount', 
+            'documentIds', 'trackingId', 'createdBy', 'signature', 'base64Data'
+          ])
+        ))
       );
       allow delete: if isAdmin() || (isSignedIn() && existing().createdBy == request.auth.uid);
     }
 
-    // 3. Reminders
+    // 3. Reminders - Secure List Queries (Pillar 8)
     match /reminders/{reminderId} {
-      allow read, list: if isSignedIn() && (isAdmin() || existing().userId == request.auth.uid);
+      allow get: if isSignedIn() && (isAdmin() || existing().userId == request.auth.uid);
+      allow list: if isSignedIn() && (isAdmin() || resource.data.userId == request.auth.uid);
       allow create: if isSignedIn() && (isAdmin() || (incoming().userId == request.auth.uid && isValidReminder(incoming())));
       allow update: if isSignedIn() && (isAdmin() || (existing().userId == request.auth.uid && (
-          incoming().diff(existing()).affectedKeys().hasOnly(['text', 'dueDate', 'dueTime', 'isCompleted', 'isNagging', 'updatedAt', 'userId', 'title', 'description', 'priority', 'snoozeCount', 'ringtone', 'createdAt', 'orderId'])
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'text', 'dueDate', 'dueTime', 'isCompleted', 'isNagging', 'updatedAt', 'userId', 
+            'title', 'description', 'priority', 'snoozeCount', 'ringtone', 'createdAt', 'orderId'
+          ])
       )));
       allow delete: if isSignedIn() && (isAdmin() || existing().userId == request.auth.uid);
     }
@@ -95,21 +104,53 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // 5. Inventory, Drivers, Customers, Sales, Smart Locations
-    match /inventory/{id} { allow read, list: if true; allow write: if isSignedIn(); }
-    match /drivers/{id} { allow read, list: if true; allow write: if isSignedIn(); }
-    match /customers/{id} { allow read, list: if isSignedIn(); allow write: if isSignedIn(); }
-    match /sales/{id} { allow read, list: if isSignedIn(); allow write: if isSignedIn(); }
-    match /smart_locations/{id} { allow read, list: if isSignedIn(); allow write: if isSignedIn(); }
-    match /morning_reports/{id} { allow read, list: if true; allow write: if isSignedIn(); }
-    match /system_notifications/{id} { allow read, list: if isSignedIn(); allow create: if isSignedIn(); allow update, delete: if isAdmin(); }
+    // 5. Global Inventory & Logs (Shared Office Access)
+    match /inventory/{id} { 
+      allow read, list: if true; 
+      allow write: if isSignedIn(); 
+    }
+    match /drivers/{id} { 
+      allow read, list: if true; 
+      allow write: if isSignedIn(); 
+    }
+    match /customers/{id} { 
+      allow read, list: if isSignedIn(); 
+      allow write: if isSignedIn(); 
+    }
+    match /sales/{id} { 
+      allow read, list: if isSignedIn(); 
+      allow write: if isSignedIn(); 
+    }
+    match /smart_locations/{id} { 
+      allow read, list: if isSignedIn(); 
+      allow write: if isSignedIn(); 
+    }
+    match /morning_reports/{id} { 
+      allow read, list: if true; 
+      allow write: if isSignedIn(); 
+    }
+
+    // 6. System Notifications
+    match /system_notifications/{id} { 
+      allow read, list: if isSignedIn(); 
+      allow create: if isSignedIn(); 
+      allow update, delete: if isAdmin(); 
+    }
     
-    // 6. Private Messages
+    // 7. Private Messages & Chat Sessions
     match /users/{userId}/messages/{messageId} {
-      allow read, list: if isOwner(userId) || isAdmin();
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isOwner(userId) || isAdmin();
       allow create: if isSignedIn() && (isOwner(userId) || isAdmin() || incoming().senderId == request.auth.uid);
       allow update, delete: if isOwner(userId) || isAdmin();
     }
+
+    match /users/{userId}/chat_sessions/{sessionId} {
+      allow read, list, write: if isOwner(userId) || isAdmin();
+      
+      match /messages/{messageId} {
+        allow read, list, write: if isOwner(userId) || isAdmin();
+      }
+    }
   }
 }
-

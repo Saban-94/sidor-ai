@@ -189,3 +189,20 @@ export interface SmartLocation {
   customerNotes?: string[];
   lastDeliveryAt?: any;
 }
+
+export interface ChatSession {
+  id: string;
+  title: string;
+  lastMessage?: string;
+  createdAt: any;
+  updatedAt: any;
+  userId: string;
+}
+
+export interface ChatMessage {
+  id?: string;
+  role: 'user' | 'model' | 'assistant';
+  parts: { text: string }[];
+  timestamp: any;
+  sessionId?: string;
+}

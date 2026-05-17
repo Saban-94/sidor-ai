@@ -12,10 +12,13 @@ import {
   Cpu,
   Globe,
   Trash2,
-  Settings as SettingsIcon
+  History,
+  Settings as SettingsIcon,
+  Plus
 } from 'lucide-react';
 import { NoaChat } from './NoaChat';
-import { Order } from '../types';
+import { NoaChatHistory } from './NoaChatHistory';
+import { Order, ChatSession } from '../types';
 import { getLogisticsInsight, getTrafficRefinedRoute } from '../services/auraService';
 
 interface NoaChatHubProps {
@@ -26,6 +29,11 @@ interface NoaChatHubProps {
   onClearHistory?: () => void;
   orders: Order[];
   onOrderView?: (order: Order) => void;
+  sessions?: ChatSession[];
+  currentSessionId?: string | null;
+  onSelectSession?: (id: string) => void;
+  onNewChat?: () => void;
+  onDeleteSession?: (id: string) => void;
 }
 
 export const NoaChatHub = ({
@@ -35,9 +43,15 @@ export const NoaChatHub = ({
   onAction,
   onClearHistory,
   orders,
-  onOrderView
+  onOrderView,
+  sessions = [],
+  currentSessionId = null,
+  onSelectSession = () => {},
+  onNewChat = () => {},
+  onDeleteSession = () => {}
 }: NoaChatHubProps) => {
   const [activeTab, setActiveTab] = useState<'chat' | 'insights' | 'performance'>('chat');
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [smartInsight, setSmartInsight] = useState<string>('');
   const [loadingInsight, setLoadingInsight] = useState(false);
 
@@ -96,6 +110,26 @@ export const NoaChatHub = ({
                    </div>
                 </div>
              </div>
+
+             <div className="flex items-center gap-1">
+                <button 
+                  onClick={() => setIsHistoryOpen(true)}
+                  className="flex items-center gap-1.5 bg-blue-800/50 hover:bg-blue-700/50 px-2 py-0.5 rounded-md border border-blue-600/30 transition-all active:scale-95 group"
+                  title="היסטוריית שיחות"
+                >
+                  <History size={10} className="text-blue-200 group-hover:text-white transition-colors" />
+                  <span className="text-[8px] font-black text-blue-100 uppercase tracking-widest">History</span>
+                </button>
+                
+                <button 
+                  onClick={onNewChat}
+                  className="hidden md:flex items-center gap-1.5 bg-gold/10 hover:bg-gold/20 px-2 py-0.5 rounded-md border border-gold/30 transition-all active:scale-95 group"
+                  title="שיחה חדשה"
+                >
+                  <Plus size={10} className="text-gold group-hover:text-white transition-colors" />
+                  <span className="text-[8px] font-black text-gold group-hover:text-white uppercase tracking-widest">New</span>
+                </button>
+             </div>
              
              <div className="flex items-center gap-2">
                 <div className="hidden md:flex flex-col text-left items-end opacity-60">
@@ -112,6 +146,20 @@ export const NoaChatHub = ({
 
           {/* Full-Width AI Canvas */}
           <main className="flex-1 overflow-hidden relative bg-[#F8FAFC]">
+             <AnimatePresence>
+               {isHistoryOpen && (
+                 <NoaChatHistory 
+                   sessions={sessions}
+                   currentSessionId={currentSessionId || undefined}
+                   onSelectSession={(id) => {
+                     onSelectSession(id);
+                     setIsHistoryOpen(false);
+                   }}
+                   onDeleteSession={onDeleteSession}
+                   onClose={() => setIsHistoryOpen(false)}
+                 />
+               )}
+             </AnimatePresence>
              <div className="absolute inset-0">
                 {activeTab === 'chat' && (
                   <NoaChat 

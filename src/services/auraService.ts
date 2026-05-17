@@ -9,11 +9,13 @@ import {
   getDocs, 
   serverTimestamp,
   orderBy,
-  limit
+  limit,
+  writeBatch,
+  setDoc
 } from 'firebase/firestore';
 import { db, auth } from '../lib/firebase';
 import { handleFirestoreError, OperationType } from '../lib/firebaseUtils';
-import { Order, Driver, Customer, Reminder, InventoryItem, SaleRecord, SmartLocation } from '../types';
+import { Order, Driver, Customer, Reminder, InventoryItem, SaleRecord, SmartLocation, ChatSession, ChatMessage } from '../types';
 import { parseItems } from '../lib/utils';
 
 import { listDriveFiles, getFileBase64, createCustomerFolderHierarchy } from './driveService';
@@ -730,6 +732,11 @@ export const analyzeCustomerPatterns = async (customerName: string) => {
 };
 
 export const getBasketAnalysis = async (customerName: string) => {
+  if (!auth.currentUser) {
+    console.warn("⚠️ getBasketAnalysis skipped: User not authenticated");
+    return null;
+  }
+
   try {
     // 1. Fetch all sales records for this customer to find patterns
     const q = query(
@@ -862,7 +869,75 @@ export const analyzeLocationConsolidation = async (destination: string) => {
   };
 };
 
-// --- Private Chat History ---
+// --- Chat Session Management ---
+export const getChatSessions = async (userId: string): Promise<ChatSession[]> => {
+  try {
+    const q = query(
+      collection(db, `users/${userId}/chat_sessions`),
+      orderBy("updatedAt", "desc")
+    );
+    const snap = await getDocs(q);
+    return snap.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    })) as ChatSession[];
+  } catch (error) {
+    console.error("Error fetching chat sessions:", error);
+    return [];
+  }
+};
+
+export const getChatSessionMessages = async (userId: string, sessionId: string): Promise<ChatMessage[]> => {
+  try {
+    const q = query(
+      collection(db, `users/${userId}/chat_sessions/${sessionId}/messages`),
+      orderBy("timestamp", "asc")
+    );
+    const snap = await getDocs(q);
+    return snap.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    })) as ChatMessage[];
+  } catch (error) {
+    console.error("Error fetching session messages:", error);
+    return [];
+  }
+};
+
+export const createChatSession = async (userId: string, title: string): Promise<string> => {
+  const sessionRef = doc(collection(db, `users/${userId}/chat_sessions`));
+  const now = serverTimestamp();
+  await setDoc(sessionRef, {
+    title,
+    userId,
+    createdAt: now,
+    updatedAt: now
+  });
+  return sessionRef.id;
+};
+
+export const deleteChatSession = async (userId: string, sessionId: string) => {
+  const batch = writeBatch(db);
+  
+  // Delete messages first (or at least prepare to)
+  const messagesSnap = await getDocs(collection(db, `users/${userId}/chat_sessions/${sessionId}/messages`));
+  messagesSnap.forEach(doc => batch.delete(doc.ref));
+  
+  // Delete session
+  batch.delete(doc(db, `users/${userId}/chat_sessions/${sessionId}`));
+  
+  await batch.commit();
+};
+
+export const updateChatSession = async (userId: string, sessionId: string, updates: Partial<ChatSession>) => {
+  const sessionRef = doc(db, `users/${userId}/chat_sessions/${sessionId}`);
+  await updateDoc(sessionRef, {
+    ...updates,
+    updatedAt: serverTimestamp()
+  });
+};
+
+// --- Private Chat History (Legacy support or fallback) ---
 export const getPrivateChatHistory = async (userKey: string) => {
   const q = query(
     collection(db, `users/${userKey}/messages`),
