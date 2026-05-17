@@ -102,7 +102,7 @@ const ItemsModal = ({
       >
         <div className="flex items-center justify-between p-6 bg-gray-900 text-white">
           <div className="flex items-center gap-3">
-             <div className="p-3 bg-sky-500 rounded-2xl shadow-lg ring-4 ring-sky-500/20">
+             <div style={{ marginLeft: '0px', paddingTop: '0px', paddingBottom: '27px' }} className="p-3 bg-sky-500 rounded-2xl shadow-lg ring-4 ring-sky-500/20">
                <Package size={20} />
              </div>
              <div>
@@ -120,14 +120,14 @@ const ItemsModal = ({
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6">
-          <table className="w-full text-right border-collapse">
+        <div style={{ paddingTop: '0px', paddingRight: '350px' }} className="flex-1 overflow-y-auto pl-6 pr-6 pt-0 pb-[27px] ml-0">
+          <table style={{ width: '1415.639px', height: '2325.21px' }} className="w-full text-right border-collapse">
             <thead>
-              <tr className="border-b border-gray-100">
-                <th className="py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest w-12 text-center">תמונה</th>
-                <th className="py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest w-12 text-center">כמות</th>
-                <th className="py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest px-4">תיאור פריט</th>
-                <th className="py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest w-24 text-left">מק"ט</th>
+              <tr className="border-b border-gray-100 italic">
+                <th style={{ color: '#575d65', fontSize: '15px' }} className="py-4 font-black uppercase tracking-widest w-12 text-center">תמונה</th>
+                <th style={{ color: '#4d5156', fontSize: '15px' }} className="py-4 font-black uppercase tracking-widest w-12 text-center">כמות</th>
+                <th style={{ color: '#4f5359', fontSize: '15px' }} className="py-4 font-black uppercase tracking-widest px-4">תיאור פריט</th>
+                <th style={{ color: '#666b72', fontSize: '15px' }} className="py-4 font-black uppercase tracking-widest w-24 text-left">מק"ט</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
@@ -150,12 +150,12 @@ const ItemsModal = ({
                       </div>
                     </td>
                     <td className="py-4 text-center">
-                      <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-gray-900 text-white text-xs font-black shadow-sm group-hover:bg-sky-600 transition-colors">
+                      <span style={{ fontSize: '18.5px', textAlign: 'center', lineHeight: '25.9375px' }} className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-gray-900 text-white font-black shadow-sm group-hover:bg-sky-600 transition-colors">
                         {item.quantity}
                       </span>
                     </td>
                     <td className="py-4 px-4">
-                      <p className={cn(
+                      <p style={{ fontSize: '14px', fontWeight: 'bold', lineHeight: '19.5px' }} className={cn(
                         "text-sm font-black leading-tight",
                         isKnownProduct(item.name) ? "text-sky-600" : "text-gray-900"
                       )}>
@@ -573,6 +573,9 @@ ${warningNote}
         y: 0,
         scale: isHighlighted ? 1.05 : 1,
         boxShadow: isHighlighted ? '0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)' : '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)'
+      }}
+      style={{
+        width: order.id === 'fN8wvDxBVMa4q5NTl3m9' ? '334.83px' : undefined
       }}
       className={cn(
         "bg-white/95 backdrop-blur-sm rounded-[2rem] border transition-all relative group",

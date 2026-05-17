@@ -2,5 +2,5 @@
   "name": "SabanOS 6.0 | נועה",
   "description": "Logistics Brain & Operational Bridge. המפקד ראמי, אני מחוברת ומוכנה לעבודה.",
   "requestFramePermissions": ["geolocation", "camera", "microphone"],
-  "majorCapabilities": []
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

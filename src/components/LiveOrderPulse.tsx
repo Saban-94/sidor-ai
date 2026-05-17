@@ -257,11 +257,11 @@ export const LiveOrderPulse: React.FC<LiveOrderPulseProps> = ({
                 
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center gap-3">
-                    <div className={cn(
-                      "w-11 h-11 rounded-2xl flex items-center justify-center text-white shadow-lg transition-transform group-hover:scale-110",
-                      order.status === 'on_the_way' ? "bg-indigo-500 shadow-indigo-200" : 
-                      order.status === 'delivered' ? "bg-emerald-500 shadow-emerald-200" : "bg-slate-200 text-slate-500"
-                    )}>
+          <div style={{ marginRight: '0px' }} className={cn(
+            "w-11 h-11 rounded-2xl flex items-center justify-center text-white shadow-lg transition-transform group-hover:scale-110",
+            order.status === 'on_the_way' ? "bg-indigo-500 shadow-indigo-200" : 
+            order.status === 'delivered' ? "bg-emerald-500 shadow-emerald-200" : "bg-slate-200 text-slate-500"
+          )}>
                       <currentStatus.icon size={20} />
                     </div>
                     <div>

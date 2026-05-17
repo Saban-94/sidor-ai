@@ -1,109 +1,118 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Default Deny
+    // 1. Default Deny
     match /{document=**} {
       allow read, write: if false;
     }
 
-    // Helper Functions
-    function isSignedIn() {
-      return request.auth != null;
+    // --- Helper Primitives ---
+    function isSignedIn() { return request.auth != null; }
+    function isAdmin() { 
+      return isSignedIn() && (
+        request.auth.token.email == 'hsaban2025@gmail.com'
+      ); 
+    }
+    function isOwner(userId) { return isSignedIn() && request.auth.uid == userId; }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+    
+    // --- Collection Schemas ---
+    
+    function isValidOrder(data) {
+      return data.customerName is string && data.customerName.size() <= 200 &&
+             data.items is string && data.items.size() <= 5000;
     }
 
-    function isValidId(id) {
-      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    function isValidReminder(data) {
+      return data.userId == request.auth.uid &&
+             data.text is string && data.text.size() <= 1000;
     }
 
-    function incoming() {
-      return request.resource.data;
-    }
-
-    function existing() {
-      return resource.data;
-    }
-
-    // --- User Magic Pages ---
-    function isValidUserProfile(data) {
-      return data.id is string && data.id.size() <= 10 &&
-             data.name is string && data.name.size() <= 100 &&
-             data.role is string && data.role.size() <= 100;
-    }
-
-    match /user_magic_pages/{userId} {
-      allow get: if true;
-      allow list: if isSignedIn();
-      
-      allow create: if isSignedIn() && isValidUserProfile(incoming());
-      
-      allow update: if isSignedIn() && (
-        // Action: Update Profile (Requires all fields)
-        (isValidUserProfile(incoming()) && incoming().diff(existing()).affectedKeys().hasOnly(['id', 'name', 'role', 'phone', 'email', 'avatarUrl', 'updatedAt', 'lastSeen'])) ||
-        // Action: Heartbeat (Only lastSeen)
-        (incoming().diff(existing()).affectedKeys().hasOnly(['lastSeen']))
-      );
-      
-      allow delete: if isSignedIn();
-    }
-
-    // --- Internal Team Chats (Office Messages) ---
     function isValidMessage(data) {
       return data.senderId is string && data.senderId.size() <= 128 &&
              data.text is string && data.text.size() <= 2000;
     }
 
+    function isValidProfile(data) {
+      return data.id is string &&
+             data.name is string && data.name.size() <= 100 &&
+             data.role is string && data.role.size() <= 100;
+    }
+
+    // --- Match Rules ---
+
+    // 1. User Profiles
+    match /user_magic_pages/{userId} {
+      allow get: if true;
+      allow list: if isSignedIn(); // Needed for showing team members
+      allow create: if isSignedIn() && (isAdmin() || (isOwner(userId) && isValidProfile(incoming())));
+      allow update: if isSignedIn() && (
+        isAdmin() || 
+        (isOwner(userId) && (
+          // Action: Normal update
+          (isValidProfile(incoming()) && incoming().diff(existing()).affectedKeys().hasOnly(['id', 'name', 'role', 'phone', 'email', 'avatarUrl', 'updatedAt', 'lastSeen', 'imageUrl', 'fileUrl', 'avatar'])) ||
+          // Action: Heartbeat
+          (incoming().diff(existing()).affectedKeys().hasOnly(['lastSeen']))
+        )) ||
+        // Action: Cleanup (Admin/System)
+        (incoming().diff(existing()).affectedKeys().hasOnly(['avatarUrl', 'imageUrl', 'fileUrl', 'avatar']))
+      );
+      allow delete: if isAdmin() || isOwner(userId);
+    }
+
+    // 2. Orders
+    match /orders/{orderId} {
+      allow read: if true;
+      allow create: if isSignedIn() && (isAdmin() || isValidOrder(incoming()));
+      allow update: if isSignedIn() && (
+        isAdmin() || 
+        (isValidOrder(incoming()) && (
+          incoming().diff(existing()).affectedKeys().hasOnly(['customerName', 'items', 'status', 'destination', 'orderNumber', 'updatedAt', 'driverId', 'eta', 'deliveryNoteUrl', 'avatarUrl', 'imageUrl', 'fileUrl', 'avatar'])
+        )) ||
+        (incoming().diff(existing()).affectedKeys().hasOnly(['avatarUrl', 'imageUrl', 'fileUrl', 'avatar']))
+      );
+      allow delete: if isAdmin() || (isSignedIn() && existing().createdBy == request.auth.uid);
+    }
+
+    // 3. Reminders
+    match /reminders/{reminderId} {
+      allow read: if isSignedIn() && (isAdmin() || existing().userId == request.auth.uid);
+      allow create: if isSignedIn() && (isAdmin() || (incoming().userId == request.auth.uid && isValidReminder(incoming())));
+      allow update: if isSignedIn() && (isAdmin() || (existing().userId == request.auth.uid && (
+          incoming().diff(existing()).affectedKeys().hasOnly(['text', 'dueDate', 'dueTime', 'isCompleted', 'isNagging', 'updatedAt', 'userId'])
+      )));
+      allow delete: if isSignedIn() && (isAdmin() || existing().userId == request.auth.uid);
+    }
+
+    // 4. Office Messages
     match /office_messages/{messageId} {
       allow read: if isSignedIn();
-      allow create: if isSignedIn() && isValidMessage(incoming()) && (
-        incoming().timestamp == request.time
-      );
-      allow update, delete: if false; 
+      allow create: if isSignedIn() && isValidMessage(incoming());
+      allow update: if isAdmin() || (isSignedIn() && incoming().diff(existing()).affectedKeys().hasOnly(['avatarUrl', 'imageUrl', 'fileUrl', 'avatar']));
+      allow delete: if isAdmin();
     }
 
-    // --- Orders ---
-    match /orders/{orderId} {
-      allow read: if true; 
-      allow write: if isSignedIn() && (
-        incoming().customerName is string &&
-        incoming().items is string
-      );
-    }
+    // 5. Inventory, Drivers, Customers
+    match /inventory/{id} { allow read: if true; allow write: if isSignedIn(); }
+    match /drivers/{id} { allow read: if true; allow write: if isSignedIn(); }
+    match /customers/{id} { allow read: if isSignedIn(); allow write: if isSignedIn(); }
+    match /morning_reports/{id} { allow read: if true; allow write: if isSignedIn(); }
     
-    // --- Reminders ---
-    match /reminders/{reminderId} {
-      allow read, write: if isSignedIn() && (
-        (resource == null || resource.data.userId == request.auth.uid) &&
-        (incoming().userId == request.auth.uid)
-      );
-    }
-
-    // --- Inventory ---
-    match /inventory/{itemId} {
-      allow read: if true;
-      allow write: if isSignedIn();
-    }
-
-    // --- Drivers ---
-    match /drivers/{driverId} {
-      allow read: if true;
-      allow write: if isSignedIn();
-    }
-
-    // --- Customers ---
-    match /customers/{customerId} {
-      allow read: if isSignedIn();
-      allow write: if isSignedIn();
-    }
-
-    // --- Morning Reports ---
-    match /morning_reports/{reportId} {
-      allow read: if true;
-      allow write: if isSignedIn();
-    }
-
-    // --- Private Chats (Individual) ---
+    // 6. Private Messages
     match /users/{userId}/messages/{messageId} {
-      allow read, write: if isSignedIn() && request.auth.uid == userId;
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isSignedIn() && (isOwner(userId) || isAdmin() || incoming().senderId == request.auth.uid);
+      allow update, delete: if isOwner(userId) || isAdmin();
+    }
+
+    // 7. System
+    match /system_notifications/{id} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update, delete: if isAdmin();
     }
   }
 }
+

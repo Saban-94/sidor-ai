@@ -2,11 +2,7 @@ import "dotenv/config";
 import express from "express";
 import path from "path";
 import cors from "cors";
-import { fileURLToPath } from "url";
 import { createServer as createViteServer } from "vite";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 async function startServer() {
   console.log("🛠️  [STARTUP] Checking Environment Variables...");

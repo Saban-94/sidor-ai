@@ -987,8 +987,17 @@ function AppContent() {
 
   // --- Auth & Init ---
   useEffect(() => {
+    if (loading) return;
+    if (!user) return;
+
+    // Only allow admin to perform cleanup and system-wide initialization
+    const isAdmin = user.email === 'hsaban2025@gmail.com';
+
     initOneSignal();
-    cleanupBadMediaUrls();
+    
+    if (isAdmin) {
+      cleanupBadMediaUrls();
+    }
 
     const handleSyncFailure = () => {
       addToast('⚠️ שגיאת סנכרון', 'סנכרון נכשל - עובד על נתונים מקומיים. המערכת תנסה שוב אוטומטית בהמשך.', 'warning');
@@ -1054,9 +1063,12 @@ function AppContent() {
         const order = change.doc.data() as Order;
         
         if (change.type === 'added') {
-          const title = 'הזמנה חדשה! 🚛';
+          const title = 'New Order!';
           const msg = `${order.customerName} - ${order.items}`;
           addToast(title, msg, 'success');
+          
+          // SabanOS Precision 6.0: Global Alert System
+          sendGlobalNotification(title, msg, 'success');
           
           if (Notification.permission === 'granted') {
             new Notification(title, { body: msg });
@@ -1851,7 +1863,7 @@ function AppContent() {
               )}
             </AnimatePresence>
 
-            <div className="flex-1 w-full p-4 md:p-8">
+            <div style={{ paddingBottom: '36px', paddingRight: '0px', paddingLeft: '0px', marginRight: '0px', marginLeft: '0px', marginBottom: '0px' }} className="flex-1 w-full p-4 md:p-8">
               <div className="pb-[env(safe-area-inset-bottom)]">
               {viewMode === 'list' ? (
                 <div className="bg-white/80 backdrop-blur-md p-4 rounded-3xl shadow-sm border border-sky-100 mb-8">
@@ -2115,7 +2127,7 @@ function AppContent() {
               highlightedOrderId={highlightedOrderId}
             />
           ) : (
-            <div className="grid gap-4">
+            <div style={{ width: '1340.18px' }} className="grid gap-4">
               {filteredOrders.map((order) => (
                 <OrderCard 
                   key={order.id} 
@@ -2143,6 +2155,7 @@ function AppContent() {
       {viewMode === 'list' && (
         <button 
           onClick={() => setIsAddingOrder(true)}
+          style={{ marginRight: '0px', marginBottom: '99px' }}
           className="lg:hidden fixed bottom-32 left-6 z-[180] bg-sky-600 text-white p-5 rounded-[2.5rem] shadow-2xl shadow-sky-600/40 transform hover:scale-110 active:scale-95 transition-all outline-none ring-4 ring-white"
         >
           <Plus size={28} strokeWidth={3} />
@@ -2150,7 +2163,7 @@ function AppContent() {
       )}
 
       {/* FOOTER SIGNATURE */}
-      <div className="fixed bottom-3 right-6 z-[190] lg:hidden pointer-events-none">
+      <div style={{ marginRight: '0px' }} className="fixed bottom-3 right-6 z-[190] lg:hidden pointer-events-none">
         <p className="text-[10px] font-black text-gray-400 bg-white/50 backdrop-blur-sm px-3 py-1 rounded-full">באדיבות נועה ❤️</p>
       </div>
             </div>
