@@ -97,6 +97,12 @@ export const InventorySlideOver: React.FC<InventorySlideOverProps> = ({
         await setDoc(doc(db, 'inventory', sku), itemData);
         addToast('המוצר נוסף', `המוצר ${itemData.name} נוסף בהצלחה! ✅`, 'success');
       }
+
+      // Sync to GAS via Orchestrator
+      window.dispatchEvent(new CustomEvent('sync-trigger', { 
+        detail: { type: 'inventory', data: { ...itemData, id: editingItem?.id || sku } } 
+      }));
+
       onSuccess?.();
       onClose();
     } catch (error: any) {

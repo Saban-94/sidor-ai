@@ -10,9 +10,10 @@ export class GasService {
       const user = auth.currentUser;
       const cached = !user ? getCachedIdentity() : null;
       
-      // Filter logs to save quota
-      if (action === 'handleBlackBoxLog' && (!data.critical && !data.error)) {
-        return { status: 'skipped' }; // Skip non-essential logs
+      const gasUrl = import.meta.env.VITE_GAS_URL;
+      if (!gasUrl) {
+        console.error("❌ VITE_GAS_URL is missing in environment");
+        return { status: 'failed', error: 'Missing GAS URL' };
       }
 
       let idToken = null;
@@ -30,61 +31,61 @@ export class GasService {
         ...data
       };
 
-      // V35 Verified Endpoint with local proxy fallback
-      const primaryProxy = '/api/sync';
-      const secondaryProxy = 'https://sidor-ai-xi.vercel.app/api/sync'; // Vercel verification layer
-      
-      const targetUrl = retries < 2 ? secondaryProxy : primaryProxy;
-
-      console.log(`📤 Syncing to GAS [${action}] via ${targetUrl === primaryProxy ? 'Local' : 'Vercel'} Proxy | Attempt ${4 - retries}`);
+      console.log(`📤 [GAS_DIRECT] Syncing ${action} | Attempt ${4 - retries}`);
 
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 12000); // Tighten timeout
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
 
       try {
-        const response = await fetch(targetUrl, {
+        console.log(`📤 [GAS_DIRECT] Attempting direct push for ${action}...`);
+        const response = await fetch(gasUrl, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          mode: 'no-cors', 
+          cache: 'no-cache',
           body: JSON.stringify(payload),
           signal: controller.signal
         });
         
-        if (response.status === 404) {
-          console.warn(`🛑 End point 404 for [${action}]. Switching proxy.`);
-          if (targetUrl === primaryProxy) {
-            return this.push(action, data, retries - 1, 500); // Immediate retry with secondary
-          }
-          throw new Error('All proxies returned 404');
+        clearTimeout(timeoutId);
+        return { status: 'success', info: 'Sent via direct no-cors' };
+      } catch (directError: any) {
+        clearTimeout(timeoutId);
+        console.warn(`⚠️ [GAS_DIRECT] failed for ${action}: ${directError.message}. Trying via proxy...`);
+        
+        // Fallback to local proxy
+        try {
+          const proxyResponse = await fetch('/api/sync', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          
+          if (!proxyResponse.ok) throw new Error(`Proxy returned ${proxyResponse.status}`);
+          const proxyData = await proxyResponse.json();
+          return { status: 'success', info: 'Sent via proxy', data: proxyData };
+        } catch (proxyError: any) {
+          console.error(`❌ [GAS_PROXY] also failed for ${action}:`, proxyError.message);
+          throw proxyError;
         }
-
-        if (!response.ok) throw new Error(`Proxy returned status ${response.status}`);
-
-        clearTimeout(timeoutId);
-        return await response.json();
-      } catch (fetchError: any) {
-        clearTimeout(timeoutId);
-        throw fetchError;
       }
     } catch (error: any) {
-      // Logic for infinite loop prevention: 
-      // If we've switched proxies and still fail, or hit certain error codes, stop.
-      if (retries > 1 && !error.message?.includes('404')) {
+      if (retries > 1) {
         await new Promise(resolve => setTimeout(resolve, delay));
         return this.push(action, data, retries - 1, delay * 2);
       }
       
-      console.error(`❌ Final Proxy GAS Sync Failure [${action}]:`, error.message);
-      window.dispatchEvent(new CustomEvent('gas-sync-failed', { detail: { action } }));
+      console.error(`❌ GAS Direct Sync Failure [${action}]:`, error.message);
       return { status: 'failed', error: error.message };
     }
   }
 
   static async pull(action: string, criteria: any = {}): Promise<any> {
     try {
+      const gasUrl = import.meta.env.VITE_GAS_URL;
+      if (!gasUrl) throw new Error('Missing GAS URL');
+
       const user = auth.currentUser;
-      if (!user) throw new Error('User not authenticated');
-      
-      const idToken = await user.getIdToken(true);
+      const idToken = user ? await user.getIdToken(true) : null;
 
       const payload = {
         action,
@@ -94,9 +95,11 @@ export class GasService {
         ...criteria
       };
 
-      const response = await fetch('/api/sync', {
+      // Pull requires cors usually, so if GAS isn't configured for CORS this might fail
+      // In this environment, we expect GAS to be set up to handle it or we use a proxy if needed
+      // But user requested DIRECT, so let's try direct first.
+      const response = await fetch(gasUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
       
@@ -113,25 +116,41 @@ export class GasService {
   }
 
   static async syncOrder(orderData: any) {
-    // Also sync to tracking sheet
-    this.syncTracking(orderData);
-
+    // Basic mapping for main Orders sheet
     const payload = { 
       ...orderData,
-      sheetName: 'Orders' // Main storage
+      sheetName: 'Orders' 
     };
     if (orderData.signature && !orderData.base64Data) {
       payload.base64Data = orderData.signature;
     }
+    
+    // Trigger tracking sync in parallel
+    this.syncTracking(orderData);
+    
     return this.push('syncOrder', payload);
   }
 
   static async syncTracking(orderData: any) {
-    return this.push('syncOrderTracking', { 
-      ...orderData, 
-      sheetName: 'Order_Tracking', 
-      updatedAt: new Date().toISOString()
-    });
+    // Semantic Mapping as per V6.0 High-Efficiency Spec
+    const driverMap: Record<string, string> = {
+      'ali': 'עלי 🚛',
+      'hikmat': 'חכמת 🏗️'
+    };
+
+    const mappedDriver = orderData.driverId ? (driverMap[orderData.driverId] || orderData.driverId) : '⏳ ממתין';
+    
+    const trackingPayload = {
+      orderId: orderData.id || orderData.orderNumber,
+      customerName: orderData.customerName || orderData.customer || 'לקוח מזדמן',
+      status: orderData.status || 'pending',
+      items: orderData.items || '',
+      driverId: mappedDriver,
+      updatedAt: new Date().toISOString(),
+      sheetName: 'Order_Tracking'
+    };
+
+    return this.push('syncOrderTracking', trackingPayload);
   }
 
   static async syncInventory(inventoryData: any) {

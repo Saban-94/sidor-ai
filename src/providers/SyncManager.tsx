@@ -5,168 +5,192 @@ import { GasService } from '../services/gasService';
 import { useToast } from './ToastProvider';
 import { Order, InventoryItem } from '../types';
 
+interface QueueItem {
+  id: string;
+  type: 'order' | 'inventory' | 'customer' | 'log';
+  data: any;
+  timestamp: number;
+}
+
 interface SyncContextType {
-  status: 'connected' | 'disconnected' | 'syncing' | 'error';
+  status: 'connected' | 'disconnected' | 'syncing' | 'error' | 'offline-pending';
   lastSync: Date | null;
+  queueSize: number;
   pipelineHealth: {
     firebase: boolean;
     gas: boolean;
   };
+  triggerSync: (type: 'order' | 'inventory' | 'customer' | 'log', data: any) => void;
 }
 
 const SyncContext = createContext<SyncContextType>({
   status: 'disconnected',
   lastSync: null,
-  pipelineHealth: { firebase: false, gas: false }
+  queueSize: 0,
+  pipelineHealth: { firebase: false, gas: false },
+  triggerSync: () => {}
 });
 
 export const useSync = () => useContext(SyncContext);
 
-interface QueueItem {
-  type: 'order' | 'inventory' | 'log';
-  data: any;
-}
+const QUEUE_STORAGE_KEY = 'saban_sync_queue';
 
 export const SyncManager: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { addToast } = useToast();
-  const [status, setStatus] = useState<'connected' | 'disconnected' | 'syncing' | 'error'>('disconnected');
+  const [status, setStatus] = useState<'connected' | 'disconnected' | 'syncing' | 'error' | 'offline-pending'>('disconnected');
   const [lastSync, setLastSync] = useState<Date | null>(null);
   const [pipelineHealth, setPipelineHealth] = useState({ firebase: false, gas: false });
+  const [queueSize, setQueueSize] = useState(0);
   
-  // Throttle Queue
+  // Throttle & Queue
   const syncQueue = useRef<{ [key: string]: QueueItem }>({});
   const throttleTimeout = useRef<NodeJS.Timeout | null>(null);
+  const isSyncing = useRef(false);
 
+  // Load offline queue on mount
   useEffect(() => {
-    let unsubscribeSync: (() => void) | null = null;
+    const savedQueue = localStorage.getItem(QUEUE_STORAGE_KEY);
+    if (savedQueue) {
+      try {
+        syncQueue.current = JSON.parse(savedQueue);
+        setQueueSize(Object.keys(syncQueue.current).length);
+        if (Object.keys(syncQueue.current).length > 0) {
+          setStatus('offline-pending');
+        }
+      } catch (e) {
+        console.error("Failed to parse saved sync queue", e);
+      }
+    }
+
+    const handleOnline = () => {
+      console.log("🌐 Network is back online. Flushing queue...");
+      addToast('החיבור חזר', 'מבצע סנכרון נתונים שהצטברו...', 'success');
+      processBatch();
+    };
+
+    const handleOffline = () => {
+      console.warn("🌐 Network went offline. Staging changes locally.");
+      addToast('מצב אופליין', 'השינויים נשמרים מקומית ויסונכרנו כשהחיבור יחזור.', 'warning');
+      setStatus('offline-pending');
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    const handleSyncRequest = (e: any) => {
+      if (e.detail && e.detail.type && e.detail.data) {
+        triggerSync(e.detail.type, e.detail.data);
+      }
+    };
+
+    window.addEventListener('sync-trigger', handleSyncRequest);
 
     const unsubscribeAuth = auth.onAuthStateChanged((user) => {
       if (user) {
-        setStatus('connected');
+        setStatus(Object.keys(syncQueue.current).length > 0 ? 'offline-pending' : 'connected');
         setPipelineHealth(prev => ({ ...prev, firebase: true }));
-        
-        // Clean up previous sync if it exists
-        if (unsubscribeSync) unsubscribeSync();
-        unsubscribeSync = initRealtimeSync();
+        if (navigator.onLine) processBatch();
       } else {
         setStatus('disconnected');
         setPipelineHealth({ firebase: false, gas: false });
-        if (unsubscribeSync) {
-          unsubscribeSync();
-          unsubscribeSync = null;
-        }
       }
     });
 
-    const handleGasFailure = () => {
-      setStatus('error');
-      addToast('⚠️ סנכרון נכשל', 'עובד על נתונים מקומיים. החיבור לגוגל נכשל.', 'warning');
-    };
-
-    window.addEventListener('gas-sync-failed', handleGasFailure);
-
     return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('sync-trigger', handleSyncRequest);
       unsubscribeAuth();
-      if (unsubscribeSync) unsubscribeSync();
-      window.removeEventListener('gas-sync-failed', handleGasFailure);
     };
   }, []);
 
-  const processQueue = async () => {
-    const items = Object.values(syncQueue.current) as QueueItem[];
-    if (items.length === 0) return;
+  const saveQueueToDisk = () => {
+    localStorage.setItem(QUEUE_STORAGE_KEY, JSON.stringify(syncQueue.current));
+    setQueueSize(Object.keys(syncQueue.current).length);
+  };
 
+  const triggerSync = (type: 'order' | 'inventory' | 'customer' | 'log', data: any) => {
+    const id = data.id || `temp_${Date.now()}`;
+    const key = `${type}_${id}`;
+    
+    syncQueue.current[key] = {
+      id,
+      type,
+      data,
+      timestamp: Date.now()
+    };
+    
+    saveQueueToDisk();
+
+    if (!navigator.onLine) {
+      setStatus('offline-pending');
+      return;
+    }
+
+    // Debounce processing (2500ms for high efficiency)
+    if (throttleTimeout.current) clearTimeout(throttleTimeout.current);
+    throttleTimeout.current = setTimeout(processBatch, 2500);
+  };
+
+  const processBatch = async () => {
+    if (isSyncing.current || Object.keys(syncQueue.current).length === 0) return;
+    if (!navigator.onLine) return;
+
+    isSyncing.current = true;
     setStatus('syncing');
-    console.log(`🧬 SyncManager starting push to GAS URL: ${import.meta.env.VITE_GAS_URL}`);
+    
+    const items = (Object.entries(syncQueue.current) as [string, QueueItem][])
+      .sort(([, a], [, b]) => a.timestamp - b.timestamp);
+
+    let successCount = 0;
+    
     try {
-      // Process batch
-      let allPassed = true;
-      for (const item of items) {
+      for (const [key, item] of items) {
         let res;
-        if (item.type === 'order') res = await GasService.syncOrder(item.data);
-        else if (item.type === 'inventory') res = await GasService.syncInventory(item.data);
-        else if (item.type === 'log') res = await GasService.logBlackBox(item.data);
-        
-        if (res && res.status === 'failed') {
-          console.error(`🧬 SyncManager: Item failed sync [${item.type}]`, res.error);
-          allPassed = false;
+        switch (item.type) {
+          case 'order':
+            res = await GasService.syncOrder(item.data);
+            break;
+          case 'inventory':
+            res = await GasService.syncInventory(item.data);
+            break;
+          case 'customer':
+            res = await GasService.syncCustomer(item.data);
+            break;
+          case 'log':
+            res = await GasService.logBlackBox(item.data);
+            break;
+        }
+
+        if (res && res.status === 'success') {
+          delete syncQueue.current[key];
+          successCount++;
+        } else {
+          console.error(`Sync failed for item ${key}:`, res?.error);
         }
       }
       
-      setSyncResult(allPassed);
+      saveQueueToDisk();
+      
+      if (Object.keys(syncQueue.current).length === 0) {
+        setStatus('connected');
+        setLastSync(new Date());
+        setPipelineHealth(prev => ({ ...prev, gas: true }));
+      } else {
+        setStatus('error');
+        setPipelineHealth(prev => ({ ...prev, gas: false }));
+      }
     } catch (err) {
-      setSyncResult(false);
+      console.error("Batch sync failure:", err);
+      setStatus('error');
     } finally {
-      syncQueue.current = {};
+      isSyncing.current = false;
       throttleTimeout.current = null;
     }
   };
 
-  const setSyncResult = (success: boolean) => {
-    if (success) {
-      setLastSync(new Date());
-      setStatus('connected');
-      setPipelineHealth(prev => ({ ...prev, gas: true }));
-    } else {
-      setStatus('error');
-      setPipelineHealth(prev => ({ ...prev, gas: false }));
-      addToast('שגיאת סינכרון', 'נכשל החיבור לגליונות גוגל. בדוק הרשאות.', 'warning');
-    }
-  };
-
-  const queueSync = (id: string, type: 'order' | 'inventory' | 'log', data: any) => {
-    syncQueue.current[id] = { type, data };
-    if (!throttleTimeout.current) {
-      throttleTimeout.current = setTimeout(processQueue, 1500); // 1.5s throttle
-    }
-  };
-
-  const initRealtimeSync = () => {
-    const currentUID = auth.currentUser?.uid;
-
-    // 1. Orders
-    const unsubOrders = onSnapshot(collection(db, 'orders'), (snapshot) => {
-      snapshot.docChanges().forEach(change => {
-        if (change.type === 'added' || change.type === 'modified') {
-          const order = { id: change.doc.id, ...change.doc.data() };
-          queueSync(`order_${order.id}`, 'order', order);
-        }
-      });
-    }, () => setPipelineHealth(prev => ({ ...prev, firebase: false })));
-
-    // 2. Inventory
-    const unsubInventory = onSnapshot(collection(db, 'inventory'), (snapshot) => {
-      snapshot.docChanges().forEach(change => {
-        if (change.type === 'added' || change.type === 'modified') {
-          const item = { id: change.doc.id, ...change.doc.data() };
-          queueSync(`inv_${item.id}`, 'inventory', item);
-        }
-      });
-    }, () => setPipelineHealth(prev => ({ ...prev, firebase: false })));
-
-    // 3. BlackBox Audit (for deletions and critical state)
-    const unsubAudit = onSnapshot(collection(db, 'orders'), (snapshot) => {
-      snapshot.docChanges().forEach(change => {
-        if (change.type === 'removed') {
-          queueSync(`log_${change.doc.id}`, 'log', {
-            operation: 'DELETE',
-            collection: 'orders',
-            path: `orders/${change.doc.id}`,
-            oldValue: change.doc.data()
-          });
-        }
-      });
-    });
-
-    return () => {
-      unsubOrders();
-      unsubInventory();
-      unsubAudit();
-    };
-  };
-
   return (
-    <SyncContext.Provider value={{ status, lastSync, pipelineHealth }}>
+    <SyncContext.Provider value={{ status, lastSync, queueSize, pipelineHealth, triggerSync }}>
       {children}
     </SyncContext.Provider>
   );

@@ -586,7 +586,16 @@ ${warningNote}
       <div className={cn(
         "absolute bg-gray-900 text-white px-3 py-1 rounded-full text-[10px] font-black z-10 shadow-lg",
         isCompact ? "top-2 left-2" : "top-4 left-4"
-      )}>
+      )}
+      style={{
+        paddingLeft: '2px',
+        paddingRight: '2px',
+        paddingBottom: '2px',
+        paddingTop: '2px',
+        marginBottom: '5.5px',
+        marginRight: '2px',
+        marginLeft: '88px'
+      }}>
         #{order.orderNumber || order.id?.slice(-4).toUpperCase()}
       </div>
 

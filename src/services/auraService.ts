@@ -118,12 +118,10 @@ export const createCustomer = async (customerData: Partial<Customer>) => {
     handleFirestoreError(error, OperationType.CREATE, 'customers');
     throw error;
   } finally {
-    // Sync to GAS
-    try {
-      await GasService.syncCustomer(fullCustomer);
-    } catch (err) {
-      console.warn("GAS Sync failed for new customer:", err);
-    }
+    // Sync to GAS via Orchestrator
+    window.dispatchEvent(new CustomEvent('sync-trigger', { 
+      detail: { type: 'customer', data: fullCustomer } 
+    }));
   }
 };
 
@@ -135,12 +133,10 @@ export const updateCustomer = async (customerId: string, updates: Partial<Custom
       updatedAt: serverTimestamp(),
     });
 
-    // Sync to GAS
-    try {
-      await GasService.syncCustomer({ id: customerId, ...updates });
-    } catch (err) {
-      console.warn("GAS Sync failed during customer update:", err);
-    }
+    // Sync to GAS via Orchestrator
+    window.dispatchEvent(new CustomEvent('sync-trigger', { 
+      detail: { type: 'customer', data: { id: customerId, ...updates } } 
+    }));
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, `customers/${customerId}`);
     throw error;
@@ -279,10 +275,18 @@ export const updateInventoryStock = async (sku: string, quantityToDecrement: num
   if (!snap.empty) {
     const itemDoc = snap.docs[0];
     const currentStock = itemDoc.data().currentStock || 0;
-    await updateDoc(doc(db, 'inventory', itemDoc.id), {
+    const itemData = {
+      ...itemDoc.data(),
       currentStock: Math.max(0, currentStock - quantityToDecrement),
       updatedAt: serverTimestamp()
-    });
+    };
+    await updateDoc(doc(db, 'inventory', itemDoc.id), itemData);
+    
+    // Sync to GAS via Orchestrator
+    window.dispatchEvent(new CustomEvent('sync-trigger', { 
+      detail: { type: 'inventory', data: { ...itemData, id: itemDoc.id } } 
+    }));
+    
     return true;
   }
   return false;
@@ -523,12 +527,10 @@ export const createOrder = async (orderData: Partial<Order>) => {
       customerNumber: `CUST-${customerPhone.replace(/[^0-9]/g, '')}`
     };
 
-    // Sync to GAS (BlackBox)
-    try {
-      await GasService.syncOrder(result);
-    } catch (err) {
-      console.warn("GAS Sync failed, but order was created in Firebase:", err);
-    }
+    // Sync to GAS via Orchestrator (Explicit user action)
+    window.dispatchEvent(new CustomEvent('sync-trigger', { 
+      detail: { type: 'order', data: result } 
+    }));
 
     return result;
   } catch (error) {
@@ -546,12 +548,10 @@ export const updateOrder = async (orderId: string, updates: Partial<Order>) => {
     };
     await updateDoc(docRef, updatePayload);
 
-    // Sync to GAS
-    try {
-      await GasService.syncOrder({ id: orderId, ...updates });
-    } catch (err) {
-      console.warn("GAS Sync failed during update:", err);
-    }
+    // Sync to GAS via Orchestrator
+    window.dispatchEvent(new CustomEvent('sync-trigger', { 
+      detail: { type: 'order', data: { id: orderId, ...updates } } 
+    }));
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, `orders/${orderId}`);
     throw error;
