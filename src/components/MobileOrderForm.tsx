@@ -492,7 +492,7 @@ export const MobileOrderForm: React.FC<MobileOrderFormProps> = ({
               onClick={() => {
                 if (!successOrder) return;
                 const phone = formData.customerPhone.startsWith('0') ? '972' + formData.customerPhone.slice(1) : formData.customerPhone;
-                const link = `https://sidor-ai-xi.vercel.app/track/${successOrder.trackingId}`;
+                const link = `${window.location.origin}/track/${successOrder.trackingId}`;
                 const message = `שלום ${formData.customerName}, הזמנתך מסבן התקבלה! עקוב כאן: ${link}`;
                 window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
               }}

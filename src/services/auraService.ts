@@ -42,22 +42,7 @@ const sanitizeForVoice = (text: string): string => {
     .trim();
 };
 
-import { GoogleGenAI } from "@google/genai";
-
-// Initialize Gemini directly in the frontend as per modern guidelines
-let aiInstance: GoogleGenAI | null = null;
-function getAI() {
-  if (!aiInstance) {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      throw new Error("מפתח ה-API של Gemini אינו מוגדר. אנא וודא שהגדרת את ה-GEMINI_API_KEY בהגדרות המערכת.");
-    }
-    aiInstance = new GoogleGenAI({ apiKey });
-  }
-  return aiInstance;
-}
-
-// Direct call to Gemini API using modern @google/genai SDK with exponential backoff
+// Direct call to Gemini API using server-side proxy
 async function callGemini(payload: { 
   model?: string, 
   contents: any, 
@@ -66,21 +51,33 @@ async function callGemini(payload: {
   tools?: any[],
   toolConfig?: any
 }, retries = 3, delay = 1000): Promise<any> {
-  const ai = getAI();
   try {
-    const response = await ai.models.generateContent({
-      model: payload.model || "gemini-3-flash-preview",
-      contents: payload.contents,
-      config: {
-        ...payload.config,
-        systemInstruction: payload.systemInstruction,
-        tools: payload.tools,
-        toolConfig: payload.toolConfig,
-      }
+    const response = await fetch('/api/chat', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: payload.model || "gemini-3-flash-preview",
+        contents: payload.contents,
+        config: {
+          generationConfig: payload.config,
+          systemInstruction: payload.systemInstruction,
+          tools: payload.tools,
+          toolConfig: payload.toolConfig,
+        }
+      })
     });
-    return response;
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Unknown server error' }));
+      throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data;
   } catch (error: any) {
-    const isRateLimit = error?.message?.includes('429') || error?.status === 'RESOURCE_EXHAUSTED' || error?.message?.includes('quota');
+    const isRateLimit = error?.message?.includes('429') || error?.message?.includes('quota');
     
     if (isRateLimit && retries > 0) {
       console.warn(`Gemini Rate Limit hit. Retrying in ${delay}ms... (${retries} retries left)`);
@@ -88,7 +85,7 @@ async function callGemini(payload: {
       return callGemini(payload, retries - 1, delay * 2);
     }
 
-    console.error("Gemini API Error:", error);
+    console.error("Gemini Proxy Error:", error);
     throw error;
   }
 }

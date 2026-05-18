@@ -140,7 +140,7 @@ export const UserAdminPanel = () => {
   };
 
   const copyLink = (id: string) => {
-    const link = `https://sidor-ai-xi.vercel.app/user/${id}`;
+    const link = `${window.location.origin}/user/${id}`;
     navigator.clipboard.writeText(link);
     setModalConfig({
       isOpen: true,
