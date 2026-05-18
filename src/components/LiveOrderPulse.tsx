@@ -353,15 +353,24 @@ export const LiveOrderPulse: React.FC<LiveOrderPulseProps> = ({
           <motion.div 
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
+            style={{ paddingTop: '0px', paddingRight: '88px', paddingBottom: '0px' }}
             className="relative text-center max-w-2xl"
           >
-            <div className="inline-flex p-5 bg-white rounded-3xl shadow-2xl border border-slate-100 mb-10 text-indigo-600 animate-bounce">
-              <Target size={48} />
+            <div className="inline-flex p-5 bg-white rounded-3xl shadow-2xl border border-slate-100 mb-10 text-indigo-600 animate-bounce" style={{ width: '420px', height: '198.125px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <img 
+                src="https://i.postimg.cc/qqWtk5qr/Gemini-Generated-Image-6z6qts6z6qts6z6q.png"
+                alt="SabanOS Logo"
+                style={{ width: '220.5px', height: '99.5px' }}
+                className="object-contain rounded-2xl"
+              />
             </div>
-            <h2 className="text-7xl font-black text-slate-900 tracking-tighter mb-6 italic uppercase leading-none">
+            <h2 
+              style={{ fontSize: '22px', color: '#f57ce1', textAlign: 'center', marginBottom: '0px', marginRight: '0px', paddingBottom: '0px', paddingRight: '0px', paddingTop: '0px', paddingLeft: '0px', marginLeft: '0px' }}
+              className="font-black tracking-tighter italic uppercase leading-none"
+            >
               חדר בקרה <span className="text-indigo-600">SabanOS</span>
             </h2>
-            <p className="text-xl font-bold text-slate-500 leading-relaxed max-w-lg mx-auto">
+            <p className="font-bold leading-relaxed max-w-lg mx-auto" style={{ color: '#1e77f5', fontSize: '15px', textAlign: 'center', fontWeight: 'bold' }}>
               מערכת תיאום לוגיסטית ומעקב משלוחים בזמן אמת. בחר הזמנה מהרשימה כדי לצפות בתכולה ואימות נתונים.
             </p>
             
@@ -382,44 +391,71 @@ export const LiveOrderPulse: React.FC<LiveOrderPulseProps> = ({
           </motion.div>
         </div>
 
-        {/* Floating Noa Badge */}
-        <div className="absolute bottom-10 right-10 flex items-center gap-4 p-5 bg-white backdrop-blur-md rounded-3xl border border-slate-200 shadow-2xl z-20">
-           <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center">
-             <Activity size={24} className="text-indigo-600" />
-           </div>
-           <div>
-             <p className="text-[13px] font-black text-slate-900 italic">באדיבות נועה ❤️</p>
-             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">SabanOS AI Operations</p>
-           </div>
-          {/* Tactical Summary - Precision UI Update */}
-          <div className="mt-12 flex justify-center">
+        {/* Floating Noa Badge & Tactical Summary */}
+        <div className="absolute bottom-10 right-10 flex flex-col items-end gap-4 z-20">
+          <div className="flex items-center gap-4 p-5 bg-white backdrop-blur-md rounded-3xl border border-slate-200 shadow-2xl">
+            <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center">
+              <Activity size={24} className="text-indigo-600" />
+            </div>
+            <div>
+              <p className="text-[13px] font-black text-slate-900 italic">באדיבות נועה ❤️</p>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">SabanOS AI Operations</p>
+            </div>
+          </div>
+          
+          <div 
+             style={{ paddingRight: '99px' }}
+             className="flex justify-center"
+          >
             <div 
               id="tactical-summary-hub"
-              style={{ width: '560.242px', backgroundColor: '#d2dcf3' }}
-              className="p-8 rounded-[2.5rem] shadow-2xl border border-blue-200/50 flex flex-col items-center text-center"
+              style={{ 
+                width: '476px', 
+                backgroundColor: '#dae6e8', 
+                paddingTop: '44px',
+                paddingBottom: '44px',
+                paddingRight: '44px',
+                paddingLeft: '44px',
+                marginTop: '0px',
+                marginLeft: '0px',
+                marginRight: '99px',
+                marginBottom: '0px'
+              }}
+              className="rounded-[2.5rem] shadow-2xl border border-blue-200/50 flex flex-col items-center text-center"
             >
-               <span className="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em] mb-4">Tactical Operations Summary</span>
-               <div style={{ display: 'flex', gap: '31px', justifyContent: 'center' }} className="w-full">
-                  <div className="flex flex-col">
-                    <p style={{ fontSize: '18px', fontWeight: 'bold' }} className="text-blue-900 leading-none mb-1">
-                      {orders.length}
-                    </p>
-                    <span className="text-[8px] font-black text-blue-400 uppercase">משימות</span>
-                  </div>
-                  <div className="w-px h-8 bg-blue-300/30" />
-                  <div className="flex flex-col">
-                    <p style={{ fontSize: '18px', fontWeight: 'bold' }} className="text-blue-900 leading-none mb-1">
-                      {orders.filter(o => o.status === 'delivered').length}
-                    </p>
-                    <span className="text-[8px] font-black text-blue-400 uppercase">בוצעו</span>
-                  </div>
-                  <div className="w-px h-8 bg-blue-300/30" />
-                  <div className="flex flex-col">
-                    <p style={{ fontSize: '18px', fontWeight: 'bold' }} className="text-blue-900 leading-none mb-1">
-                      {orders.filter(o => o.status === 'on_the_way').length}
-                    </p>
-                    <span className="text-[8px] font-black text-blue-400 uppercase">בדרך</span>
-                  </div>
+               <div 
+                 style={{ fontSize: '22px' }}
+                 className="flex flex-col items-center"
+               >
+                 <h2 style={{ fontSize: '33px', textAlign: 'center', color: '#f50fc6' }} className="font-black uppercase tracking-tight mb-4">Tactical Summary</h2>
+                 <div style={{ display: 'flex', gap: '31px', justifyContent: 'center' }} className="w-full">
+                    <div className="flex flex-col">
+                      <p 
+                        style={{ fontSize: '22px', fontWeight: 'bold', paddingRight: '20px', marginLeft: '33px', paddingBottom: '0px' }} 
+                        className="text-blue-900 leading-none mb-1"
+                      >
+                        {orders.length}
+                      </p>
+                      <span className="text-[8px] font-black text-blue-400 uppercase">משימות</span>
+                    </div>
+                    <div className="w-px h-8 bg-blue-300/30" />
+                    <div className="flex flex-col">
+                      <p 
+                        style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '15px', paddingTop: '0px', paddingLeft: '0px', paddingRight: '0px', marginRight: '88px', marginLeft: '0px' }}
+                        className="text-blue-900 leading-none mb-1"
+                      >
+                        {orders.filter(o => o.status === 'delivered').length}
+                      </p>
+                      <span className="text-[8px] font-black text-blue-400 uppercase">בוצעו</span>
+                    </div>
+                    <div className="w-px h-8 bg-blue-300/30" />
+                    <div className="flex flex-col">
+                      <p style={{ fontSize: '18px', fontWeight: 'bold' }} className="text-blue-900 leading-none mb-1">
+                        {orders.filter(o => o.status === 'on_the_way').length}
+                      </p>
+                      <span className="text-[8px] font-black text-blue-400 uppercase">בדרך</span>
+                    </div>
+                 </div>
                </div>
                <p className="mt-4 text-[10px] font-bold text-blue-700 italic">"כל הגלגלים מסתובבים לפי התוכנית של ראמי" ❤️</p>
             </div>

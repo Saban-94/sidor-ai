@@ -518,6 +518,8 @@ const BottomNavigation = ({
   );
 };
 
+import { audioService } from './lib/audioService';
+
 export default function App() {
   return (
     <NotificationProvider>
@@ -1371,8 +1373,23 @@ function AppContent() {
   const handleNoaAction = async (msg: string, file?: File | string) => {
     if (!user) return;
     
+    // Play sound for sent message
+    audioService.playSent();
+    
     let sessionId = currentSessionId;
     
+    // Identity Detection Logic (Noa Protocol v6.0)
+    let userName = user.displayName || user.email || 'אורח';
+    if (user.email === 'hsaban2025@gmail.com') {
+      userName = "המפקד ראמי";
+    } else if (user.email?.includes('harel')) {
+      userName = "המנכ\"ל הראל";
+    } else if (user.email === 'vered@saban.co.il') {
+      userName = "ורד";
+    } else if (user.email === 'natanel@saban.co.il') {
+      userName = "נתנאל";
+    }
+
     // Create session if none exists
     if (!sessionId) {
       try {
@@ -1405,7 +1422,7 @@ function AppContent() {
     }
     
     try {
-      const result = await askNoa(msg, chatHistory, user?.displayName || user?.email || 'אורח', actualFile);
+      const result = await askNoa(msg, chatHistory, userName, actualFile);
       
       const functionCalls = result.functionCalls;
       // ... same logic for function calls ...
@@ -1688,7 +1705,11 @@ function AppContent() {
                   </button>
                 </header>
 
-                <div className="flex-1 flex flex-col relative">
+                <div 
+                  id="view-mode-container"
+                  style={{ width: '100%' }}
+                  className="flex-1 flex flex-col relative"
+                >
                   {viewMode === 'live_pulse' ? (
                     <LiveOrderPulse 
                       onViewKanban={() => setViewMode('kanban')}

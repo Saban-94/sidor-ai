@@ -187,4 +187,13 @@ export class GasService {
   static async syncWhatsApp(data: any) {
     return this.push('syncWhatsApp', { ...data, sheetName: 'whatsap' });
   }
+
+  static async syncGeneric(collectionName: string, data: any, operation: 'CREATE' | 'UPDATE' | 'DELETE') {
+    return this.push('syncGeneric', { 
+      collectionName, 
+      data, 
+      operation,
+      sheetName: `DB_${collectionName}` // Target sheet naming convention
+    });
+  }
 }
