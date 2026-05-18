@@ -68,49 +68,6 @@ async function startServer() {
     }
   });
 
-  // Gemini API Proxy (Server-side to keep key secure)
-  app.post("/api/chat", async (req, res) => {
-    try {
-      const { model, contents, config } = req.body;
-      const apiKey = process.env.GEMINI_API_KEY;
-
-      if (!apiKey) {
-        console.error("❌ [GEMINI] GEMINI_API_KEY is missing from environment");
-        return res.status(500).json({ error: "Gemini API key is not configured on the server." });
-      }
-
-      console.log(`🧠 [GEMINI] Generating content with model: ${model || 'gemini-3-flash-preview'}`);
-
-      // Using direct fetch to Gemini API to avoid dependency issues in this specific environment
-      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model || 'gemini-3-flash-preview'}:generateContent?key=${apiKey}`;
-      
-      const response = await fetch(geminiUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          contents,
-          generationConfig: config?.generationConfig,
-          systemInstruction: config?.systemInstruction,
-          tools: config?.tools,
-          toolConfig: config?.toolConfig
-        })
-      });
-
-      const data = await response.json();
-      if (!response.ok) {
-        console.error("❌ [GEMINI] API Error:", JSON.stringify(data));
-        return res.status(response.status).json(data);
-      }
-
-      res.json(data);
-    } catch (error: any) {
-      console.error("💥 [GEMINI] Internal Error:", error.message);
-      res.status(500).json({ error: error.message });
-    }
-  });
-
   // Fallback for API routes
   app.all("/api/*", (req, res) => {
     console.warn(`⚠️ [SERVER] 404 on API route: ${req.method} ${req.url}`);

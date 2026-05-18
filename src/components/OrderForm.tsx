@@ -274,7 +274,7 @@ const OrderForm: React.FC<OrderFormProps> = ({
   const sendWhatsApp = () => {
     if (!successOrder) return;
     const phone = formData.customerPhone.startsWith('0') ? '972' + formData.customerPhone.slice(1) : formData.customerPhone;
-    const link = `${window.location.origin}/track/${successOrder.trackingId}`;
+    const link = `https://sidor-ai-xi.vercel.app/track/${successOrder.trackingId}`;
     const message = `שלום ${formData.customerName}, הזמנתך מסבן חומרי בניין התקבלה! עקוב אחר ההתקדמות בדף הקסם שלך כאן: ${link}`;
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
   };

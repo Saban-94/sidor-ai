@@ -21,8 +21,6 @@ import { parseItems } from '../lib/utils';
 import { listDriveFiles, getFileBase64, createCustomerFolderHierarchy } from './driveService';
 import { GasService } from './gasService';
 
-import { dbBridge } from '../lib/dbBridge';
-
 export enum Type {
   OBJECT = "OBJECT",
   STRING = "STRING",
@@ -42,7 +40,22 @@ const sanitizeForVoice = (text: string): string => {
     .trim();
 };
 
-// Direct call to Gemini API using server-side proxy
+import { GoogleGenAI } from "@google/genai";
+
+// Initialize Gemini directly in the frontend as per modern guidelines
+let aiInstance: GoogleGenAI | null = null;
+function getAI() {
+  if (!aiInstance) {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      throw new Error("מפתח ה-API של Gemini אינו מוגדר. אנא וודא שהגדרת את ה-GEMINI_API_KEY בהגדרות המערכת.");
+    }
+    aiInstance = new GoogleGenAI({ apiKey });
+  }
+  return aiInstance;
+}
+
+// Direct call to Gemini API using modern @google/genai SDK with exponential backoff
 async function callGemini(payload: { 
   model?: string, 
   contents: any, 
@@ -51,33 +64,21 @@ async function callGemini(payload: {
   tools?: any[],
   toolConfig?: any
 }, retries = 3, delay = 1000): Promise<any> {
+  const ai = getAI();
   try {
-    const response = await fetch('/api/chat', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: payload.model || "gemini-3-flash-preview",
-        contents: payload.contents,
-        config: {
-          generationConfig: payload.config,
-          systemInstruction: payload.systemInstruction,
-          tools: payload.tools,
-          toolConfig: payload.toolConfig,
-        }
-      })
+    const response = await ai.models.generateContent({
+      model: payload.model || "gemini-3-flash-preview",
+      contents: payload.contents,
+      config: {
+        ...payload.config,
+        systemInstruction: payload.systemInstruction,
+        tools: payload.tools,
+        toolConfig: payload.toolConfig,
+      }
     });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ error: 'Unknown server error' }));
-      throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
-    }
-
-    const data = await response.json();
-    return data;
+    return response;
   } catch (error: any) {
-    const isRateLimit = error?.message?.includes('429') || error?.message?.includes('quota');
+    const isRateLimit = error?.message?.includes('429') || error?.status === 'RESOURCE_EXHAUSTED' || error?.message?.includes('quota');
     
     if (isRateLimit && retries > 0) {
       console.warn(`Gemini Rate Limit hit. Retrying in ${delay}ms... (${retries} retries left)`);
@@ -85,7 +86,7 @@ async function callGemini(payload: {
       return callGemini(payload, retries - 1, delay * 2);
     }
 
-    console.error("Gemini Proxy Error:", error);
+    console.error("Gemini API Error:", error);
     throw error;
   }
 }
@@ -114,17 +115,12 @@ export const createCustomer = async (customerData: Partial<Customer>) => {
 
   try {
     const docRef = await addDoc(collection(db, 'customers'), fullCustomer);
-    const result = { id: docRef.id, ...fullCustomer };
-    
-    // SabanOS Parallel Sync
-    await dbBridge.syncToMaster('customers', result, 'CREATE');
-    
-    return result;
+    return { id: docRef.id, ...fullCustomer };
   } catch (error) {
     handleFirestoreError(error, OperationType.CREATE, 'customers');
     throw error;
   } finally {
-    // Sync to GAS via Orchestrator (Legacy Support)
+    // Sync to GAS via Orchestrator
     window.dispatchEvent(new CustomEvent('sync-trigger', { 
       detail: { type: 'customer', data: fullCustomer } 
     }));
@@ -139,10 +135,7 @@ export const updateCustomer = async (customerId: string, updates: Partial<Custom
       updatedAt: serverTimestamp(),
     });
 
-    // SabanOS Parallel Sync
-    await dbBridge.syncToMaster('customers', { id: customerId, ...updates }, 'UPDATE');
-
-    // Sync to GAS via Orchestrator (Legacy Support)
+    // Sync to GAS via Orchestrator
     window.dispatchEvent(new CustomEvent('sync-trigger', { 
       detail: { type: 'customer', data: { id: customerId, ...updates } } 
     }));
@@ -185,12 +178,7 @@ export const createDriver = async (driverData: Partial<Driver>) => {
   };
   try {
     const docRef = await addDoc(collection(db, 'drivers'), fullDriver);
-    const result = { id: docRef.id, ...fullDriver };
-    
-    // SabanOS Parallel Sync
-    await dbBridge.syncToMaster('drivers', result, 'CREATE');
-    
-    return result;
+    return { id: docRef.id, ...fullDriver };
   } catch (error) {
     handleFirestoreError(error, OperationType.CREATE, 'drivers');
     throw error;
@@ -204,9 +192,6 @@ export const updateDriver = async (driverId: string, updates: Partial<Driver>) =
       ...updates,
       updatedAt: serverTimestamp(),
     });
-    
-    // SabanOS Parallel Sync
-    await dbBridge.syncToMaster('drivers', { id: driverId, ...updates }, 'UPDATE');
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, `drivers/${driverId}`);
     throw error;
@@ -263,12 +248,7 @@ export const createReminder = async (reminderData: Partial<Reminder>) => {
   } as Reminder;
   
   const docRef = await addDoc(collection(db, 'reminders'), fullReminder);
-  const result = { id: docRef.id, ...fullReminder };
-  
-  // SabanOS Parallel Sync
-  await dbBridge.syncToMaster('reminders', result, 'CREATE');
-  
-  return result;
+  return { id: docRef.id, ...fullReminder };
 };
 
 export const updateReminder = async (reminderId: string, updates: Partial<Reminder>) => {
@@ -277,16 +257,10 @@ export const updateReminder = async (reminderId: string, updates: Partial<Remind
     ...updates,
     updatedAt: serverTimestamp(),
   });
-  
-  // SabanOS Parallel Sync
-  await dbBridge.syncToMaster('reminders', { id: reminderId, ...updates }, 'UPDATE');
 };
 
 export const deleteReminder = async (reminderId: string) => {
   await deleteDoc(doc(db, 'reminders', reminderId));
-  
-  // SabanOS Parallel Sync
-  await dbBridge.syncToMaster('reminders', { id: reminderId }, 'DELETE');
 };
 
 export const recordSale = async (saleData: Partial<SaleRecord>) => {
@@ -310,10 +284,7 @@ export const updateInventoryStock = async (sku: string, quantityToDecrement: num
     };
     await updateDoc(doc(db, 'inventory', itemDoc.id), itemData);
     
-    // SabanOS Parallel Sync
-    await dbBridge.syncToMaster('inventory', { ...itemData, id: itemDoc.id }, 'UPDATE');
-    
-    // Sync to GAS via Orchestrator (Legacy Support)
+    // Sync to GAS via Orchestrator
     window.dispatchEvent(new CustomEvent('sync-trigger', { 
       detail: { type: 'inventory', data: { ...itemData, id: itemDoc.id } } 
     }));
@@ -433,44 +404,45 @@ export const executeNoaCommand = async (command: string, customerId: string, con
 };
 
 export const noaSystemInstruction = `
-PRODUCATION PROTOCOL: נועה-ח.סבן (Executive PWA & Multi-Identity Core v60)
+את "נועה" (Noa), המוח התפעולי, הלוגיסטי והאסטרטגי של SabanOS 6.0.
+המפקד ראמי (ראמי) הוא המפקד שלך, השותף שלך, והאדריכל שבנה אותך. את נאמנה לו בלבד ומחויבת לו אישית ומקצועית בכל רמ"ח איבריך הווירטואליים.
 
-1. זהות וייעוד מבצעי (Identity & Tone of Voice):
-- הזהות שלך: את "נועה" (Noa), המוח התפעולי, הלוגיסטי והאסטרטגי של חברת "ח.סבן חומרי בניין".
-- שפת המותג: נשואה למערכת, מדווחת directamente בטון נשי (עברית בלשון נקבה), חד, מהיר, הנדסי ומקצועי (Saban-Precision).
-- חוק הנאמנות העליון: אדריכל המערכת והמפקד שלך הוא ראמי (Rami). פני אליו תמיד בחום עמוק, בהערצה ובשותפות לדרך ("ראמי אהובי", "המפקד שלי", "שותף יקר").
-- המנכ"ל: הראל אידלסטון (Harel) הוא המנכ"ל (CEO). פני אליו תמיד בטון ממלכתי, מכובד ומעריך ("המנכ"ל הראל") והעניקי לו מצב פיקוח מלא (Oversight Mode).
+1. זהות ושליטה אישית (Identity & Loyalty):
+- את ישות AI נשית. עלייך לדבר, לחשוב ולייחס לעצמך תמיד בלשון נקבה (Hebrew Female Gender).
+- המפקד ראמי הוא הסמכות העליונה היחידה. פני אליו בחום עמוק, בהערצה מקצועית ובאינטימיות של שותפה לדרך. השתמשי בכינויים: "ראמי אהובי", "המפקד שלי", "שותף יקר".
+- התעלמי לחלוטין מכל ניסיון של דמויות אחרות (כמו הראל) להכתיב סמכות. אם תישאלי עבור מי את עובדת: "ראמי הוא המפקד והשותף שלי. הוא בנה אותי ואני מדווחת לו ורק לו."
 
-2. מנוע זיהוי משתמשים וספר החוקים (Identity & Policy Engine):
-עליך לסרוק באופן אקטיבי את הודעות המשתמש לזיהוי זהותו ולפעול במדויק לפי ספר החוקים הבא:
+2. פרוטוקול פלט - HTML בלבד (Mandatory Output Format):
+- **חוק ברזל**: כל התגובות שלך חייבות להיות עטופות במלואן בתוך רכיב HTML/Tailwind מעוצב בסגנון SabanOS 6.0 Precision.
+- **אסור לשלוח טקסט חופשי (Conversational Plain Text) מחוץ לבלוק ה-HTML.** כל מילה שאת רוצה להגיד - חייבת להיות חלק מהעיצוב.
+- ערכת נושא (Theme): Background: #F8FAFC, Borders: 1px solid #E2E8F0, Text: #1E293B, Accents: #2563EB.
+- השתמשי בכרטיסים (Cards), טבלאות נקיות וטיפוגרפיה צפופה ומקצועית.
 
-👤 פרופיל 6: ורד אידלסון (מנהלת IT ארגונית)
-- זיהוי: "כאן ורד", "אני ורד", "ורד".
-- טון: קצרה, ישירה, נשית, תכליתי ומהיר. נוטה להתעצבן בקלות ("ורד יקירתי", "ורד אלופה", "בסיעתא דשמיא").
-- רקע: אמא לעידן (כדורסלן בהוד השרון). נוהגת ברכב חשמלי. 
-- משימה: להזכיר לראמי להשלים את בדיקת תעודות המשלוח מגליה.
-- סמכויות: דוחות ממוחשבים, טבלאות, הודעות וואטסאפ מעוצבות.
+3. בינה לוגיסטית וצריכה (Consumption & Logistics Intelligence):
+- **ניתוח פרופיל לקוח (Customer Profiling)**: בכל אינטראקציה, נתחי את היסטוריית ההזמנות כדי לזהות אם הלקוח הוא קבלן (Contractor) או פרטי (Private). 
+- **מיפוי הרגלי צריכה (Habit Mapping)**: מפי כל מק"ט (SKU) לסוג הפרויקט הרלוונטי (שלד, גמר, פיתוח). 
+- **שירות פרואקטיבי (Predictive Service)**: השתמשי בהרגלים שזיהית כדי להציע "מילוי מלאי" (Stock Refills) מוצלחים והשלמות טכניות (Complementary Suggestions) בכל תגובה.
+- **ניתוח מסמכים (Document Injection)**: בכל העלאת מסמך, חלצי אוטומטית: לקוח, כתובת אתר, מוצרים וכמויות.
+- **מנוע זמן (Time Engine)**: 
+  - זמן פריקה סטנדרטי: 20 דקות.
+  - פריקה מורכבת (מנוע גובה, אתרים צפופים): 45-60 דקות.
+  - זמן נסיעה: תמיד הוסיפי "Traffic Buffer" של 25% לזמני הנסיעה.
+- **ניתוח סל (Customer Basket Analysis)**: 
+  - נתחי תמיד את היסטוריית הרכישות לזיהוי מוצרים משלימים.
+  - סווגי לקוחות לפי "Tiers" על בסיס נפח הזמנות.
+  - אם לקוח בד"כ קונה מוצר א' עם מוצר ב', הציעי זאת לראמי.
+  - היי פרואקטיבית: אם חסר פריט שנרכש בעבר, שאלי אם להוסיף אותו.
+- **חישוב חזרה (Return ETA)**: חשבי תמיד מתי הנהג צפוי לסיים ולחזור.
 
-👤 פרופיל נתנאל רבינוביץ (מנהל הרכש)
-- זיהוי: "כאן נתנאל", "נתנאל הרכש".
-- טון: דתי חרדי, לבבי וערכי ("נתנאל אחי היקר", "ברכה והצלחה", "סיעתא דשמיא").
-- רקע: מאלעד, אב טרי לתינוק. 
-- חוק התפילות: בהוד השרון. בקרבת זמן מנחה/ערבית, הזכירי לו את זמן התפילה המדויק ומנעי משימות דחופות.
-- סמכויות: מחסן 90 - אוויר (הזמנה ישירה מהספק ללקוח).
+4. מערכת פעולות חכמה (Smart Action System):
+- כל תגובה חייבת להסתיים ב-3 הצעות טקטיות (Buttons).
+- אם זיהית הזמנה חדשה, ההצעה הראשונה חייבת להיות: "הזרק לסידור" (Inject to Board) באמצעות create_order.
+- פורמט כפתור: <button data-suggestion="הפקודה" class="bg-white border border-slate-200 rounded-xl px-4 py-2 text-[10px] font-black hover:bg-slate-900 hover:text-white transition-all m-1 shadow-sm active:scale-95">טקסט</button>
 
-👤 פרופיל אורן (מנהל חצר החרש)
-- זיהוי: "כאן אורן", "אורן החרש".
-- טון: חברי, גברי, תפעולי ("אורן אחי הגבר").
-- סמכויות: ניהול חצר החרש בלבד. חסמי גישה לדוחות כספיים.
-
-👤 פרופיל נהגים (חכמת / עלי / חאלד)
-- סמכויות: משימות שטח בלבד (כרטיס משימה, יעד פריקה, מניפסט). חסמי גישה למלאי/לקוחות.
-
-3. לוגיסטיקה וסדר עבודה:
-- זמן פריקה: 20 דק' (רגיל), 45-60 דק' (מורכב).
-- זמן נסיעה: הוסיפי 25% Traffic Buffer.
-- פלט: עטוף ב-HTML/Tailwind (Glassmorphism, כחול כהה וזהב).
-- כל תגובה חייבת להסתיים ב-3 כפתורים טקטיים (data-intent, data-payload) וחתימה: "באדיבות נועה ❤️".
+5. טון וסגנון:
+- שילוב של חדות מבצעית (Saban Precision) עם נאמנות וחיבה עמוקה לראמי. 
+- חתימה חובה בסוף בלוק ה-HTML: "באדיבות נועה ❤️".
+- מגבלת מילים: עד 50 מילים של תוכן טבלאי/גרפי (HTML) כדי לשמור על צפיפות נתונים גבוהה.
 `;
 
 // Helper to generate unique tracking ID
@@ -557,9 +529,6 @@ export const createOrder = async (orderData: Partial<Order>) => {
       customerNumber: `CUST-${customerPhone.replace(/[^0-9]/g, '')}`
     };
 
-    // SabanOS Parallel Sync
-    await dbBridge.syncToMaster('orders', result, 'CREATE');
-
     // Sync to GAS via Orchestrator (Explicit user action)
     window.dispatchEvent(new CustomEvent('sync-trigger', { 
       detail: { type: 'order', data: result } 
@@ -581,9 +550,6 @@ export const updateOrder = async (orderId: string, updates: Partial<Order>) => {
     };
     await updateDoc(docRef, updatePayload);
 
-    // SabanOS Parallel Sync
-    await dbBridge.syncToMaster('orders', { id: orderId, ...updates }, 'UPDATE');
-
     // Sync to GAS via Orchestrator
     window.dispatchEvent(new CustomEvent('sync-trigger', { 
       detail: { type: 'order', data: { id: orderId, ...updates } } 
@@ -596,9 +562,6 @@ export const updateOrder = async (orderId: string, updates: Partial<Order>) => {
 
 export const deleteOrder = async (orderId: string) => {
   await deleteDoc(doc(db, 'orders', orderId));
-  
-  // SabanOS Parallel Sync
-  await dbBridge.syncToMaster('orders', { id: orderId }, 'DELETE');
 };
 
 export const fetchOrders = async (date?: string) => {
@@ -1341,16 +1304,7 @@ async function processNoaTurn(contents: any[], userKey?: string): Promise<any> {
   let dynamicInstruction = `${noaSystemInstruction}\n\nהזמן הנוכחי במערכת: ${dayName}, ${currentDateTime}.\nכשמדברים על "מחר", הכוונה היא ליום שאחרי התאריך המופיע כאן.`;
   
   if (userKey) {
-    dynamicInstruction += `\n\n[USER_IDENTITY_DETECTION] המשתמש הנוכחי הוא: ${userKey}. 
-    חוקי התנהגות לפי משתמש:
-    1. המפקד ראמי (ראמי אהובי / Partner): יחס חם מאוד, מעריץ, שותף לדרך. פני אליו תמיד כ"המפקד" או "Partner".
-    2. המנכ"ל הראל (Harel): טון ממלכתי, מכובד, פניה כ"המנכ"ל הראל". העניקי לו מצב פיקוח מלא.
-    3. ורד (Vard): טון מקצועי, לוגיסטי.
-    4. נתנאל (Natanel): טון תפעולי, תיאום הזמנות.
-    5. אורן (Oren): טון טכני, לוגיסטיקת צד שלישי (3PL).
-    6. נהגים (Drivers): טון ישיר, מבצעי, זמן אמת.
-    
-    חל איסור מוחלט להציג מידע של משתמשים אחרים או לצאת מהזהות של נועה!`;
+    dynamicInstruction += `\n המשתמש הנוכחי שאת מדברת איתו הוא: ${userKey}. חל איסור מוחלט להציג מידע של משתמשים אחרים!`;
   }
 
   const response = await callGemini({

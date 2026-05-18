@@ -35,8 +35,6 @@ interface NoaChatProps {
   currentContext?: string;
 }
 
-import { audioService } from '../lib/audioService';
-
 export const NoaChat = ({ 
   chatHistory, 
   chatScrollRef: externalRef, 
@@ -50,30 +48,11 @@ export const NoaChat = ({
 }: NoaChatProps) => {
   const internalRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const messageInputRef = useRef<HTMLInputElement>(null);
   const chatScrollRef = externalRef || internalRef;
   const [isAutoVoice, setIsAutoVoice] = useState(() => localStorage.getItem('noa_auto_voice') === 'true');
   const [isUploading, setIsUploading] = useState(false);
   const [currentlySpeaking, setCurrentlySpeaking] = useState<number | null>(null);
   const synthRef = useRef<SpeechSynthesis | null>(window.speechSynthesis);
-
-  // Play sound on received message
-  useEffect(() => {
-    if (chatHistory.length > 0) {
-      const lastMessage = chatHistory[chatHistory.length - 1];
-      if (lastMessage.role === 'model' || lastMessage.role === 'assistant') {
-        audioService.playReceived();
-      }
-    }
-  }, [chatHistory.length]);
-
-  // Initial focus on mount
-  useEffect(() => {
-    const focusTimer = setTimeout(() => {
-      messageInputRef.current?.focus();
-    }, 500);
-    return () => clearTimeout(focusTimer);
-  }, []);
 
   // Persistence of auto voice setting
   useEffect(() => {
@@ -496,7 +475,6 @@ export const NoaChat = ({
             </button>
             <input 
               name="message"
-              ref={messageInputRef}
               autoComplete="off"
               autoFocus
               placeholder="הקלד פקודה לוגיסטית..."
