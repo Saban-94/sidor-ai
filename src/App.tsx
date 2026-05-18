@@ -284,6 +284,10 @@ const Header = ({
         {notificationsEnabled ? <Bell size={20} /> : <BellOff size={20} />}
       </button>
 
+      <div className="hidden lg:block">
+        <SyncStatus />
+      </div>
+
       <div className="hidden md:flex flex-col items-end mr-2">
         <span className="text-sm font-semibold text-gray-800">{user.displayName}</span>
         <button onClick={onLogout} className="text-xs text-red-500 hover:text-red-600 transition-colors flex items-center gap-1">

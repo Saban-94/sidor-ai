@@ -42,8 +42,10 @@ import { he } from 'date-fns/locale';
 import { parseItems } from '../lib/utils';
 import { UIModal } from './UIModal';
 import { useToast } from '../providers/ToastProvider';
+import { useSync } from '../providers/SyncManager';
 import { Avatar } from './Avatar';
 import { InventorySlideOver } from './InventorySlideOver';
+import { Cloud, RefreshCw } from 'lucide-react';
 
 interface InventoryManagerProps {
   orders?: Order[];
@@ -51,6 +53,7 @@ interface InventoryManagerProps {
 
 export const InventoryManager: React.FC<InventoryManagerProps> = ({ orders = [] }) => {
   const { addToast } = useToast();
+  const { syncInventoryNow, status } = useSync();
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [sales, setSales] = useState<SaleRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -176,13 +179,24 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({ orders = [] 
           </button>
         </div>
 
-        <button 
-          onClick={() => setIsAddingItem(true)}
-          className="bg-sky-600 text-white flex items-center gap-2 px-6 py-3 rounded-2xl font-bold shadow-lg shadow-sky-600/20 hover:scale-105 transition-transform"
-        >
-          <Plus size={20} />
-          הוסף מוצר למאגר
-        </button>
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={() => syncInventoryNow()}
+            disabled={status === 'syncing'}
+            className="flex items-center gap-2 px-6 py-3 rounded-2xl font-bold bg-white border border-sky-100 text-sky-600 shadow-sm hover:bg-sky-50 transition-all disabled:opacity-50"
+          >
+            {status === 'syncing' ? <RefreshCw size={18} className="animate-spin" /> : <Cloud size={18} />}
+            סנכרן מלאי לגליון
+          </button>
+
+          <button 
+            onClick={() => setIsAddingItem(true)}
+            className="bg-sky-600 text-white flex items-center gap-2 px-6 py-3 rounded-2xl font-bold shadow-lg shadow-sky-600/20 hover:scale-105 transition-transform"
+          >
+            <Plus size={20} />
+            הוסף מוצר למאגר
+          </button>
+        </div>
       </div>
 
       {activeTab === 'inventory' ? (

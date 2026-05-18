@@ -21,6 +21,8 @@ interface SyncContextType {
     gas: boolean;
   };
   triggerSync: (type: 'order' | 'inventory' | 'customer' | 'log', data: any) => void;
+  syncAll: () => Promise<void>;
+  syncInventoryNow: () => Promise<void>;
 }
 
 const SyncContext = createContext<SyncContextType>({
@@ -28,7 +30,9 @@ const SyncContext = createContext<SyncContextType>({
   lastSync: null,
   queueSize: 0,
   pipelineHealth: { firebase: false, gas: false },
-  triggerSync: () => {}
+  triggerSync: () => {},
+  syncAll: async () => {},
+  syncInventoryNow: async () => {}
 });
 
 export const useSync = () => useContext(SyncContext);
@@ -132,6 +136,60 @@ export const SyncManager: React.FC<{ children: React.ReactNode }> = ({ children 
     throttleTimeout.current = setTimeout(processBatch, 2500);
   };
 
+  const syncAll = async () => {
+    if (isSyncing.current) return;
+    isSyncing.current = true;
+    setStatus('syncing');
+    addToast('סנכרון מלא', 'מעדכן את כל הגליונות מהבסיס... 🚛', 'info');
+
+    try {
+      const { getDocs, collection } = await import('firebase/firestore');
+      
+      // 1. Sync Active Orders (today and future)
+      const ordersSnap = await getDocs(collection(db, 'orders'));
+      const orders = ordersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      for (const order of orders) {
+        await GasService.syncOrder(order);
+      }
+
+      // 2. Sync Inventory
+      const invSnap = await getDocs(collection(db, 'inventory'));
+      const inventory = invSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      for (const item of inventory) {
+        await GasService.syncInventory(item);
+      }
+
+      addToast('הסנכרון הושלם!', 'כל הנתונים הזרקו לגליונות ✅', 'success');
+      setLastSync(new Date());
+      setStatus('connected');
+    } catch (error: any) {
+      console.error("Full sync failure:", error);
+      setStatus('error');
+      addToast('שגיאת סנכרון', error.message, 'warning');
+    } finally {
+      isSyncing.current = false;
+    }
+  };
+
+  const syncInventoryNow = async () => {
+    if (isSyncing.current) return;
+    setStatus('syncing');
+    try {
+      const { getDocs, collection } = await import('firebase/firestore');
+      const invSnap = await getDocs(collection(db, 'inventory'));
+      const inventory = invSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      for (const item of inventory) {
+        await GasService.syncInventory(item);
+      }
+      addToast('מלאי סונכרן', 'גליון המלאי עודכן ✅', 'success');
+      setLastSync(new Date());
+      setStatus('connected');
+    } catch (error: any) {
+      setStatus('error');
+      addToast('שגיאה בסנכרון מלאי', error.message, 'warning');
+    }
+  };
+
   const processBatch = async () => {
     if (isSyncing.current || Object.keys(syncQueue.current).length === 0) return;
     if (!navigator.onLine) return;
@@ -190,7 +248,7 @@ export const SyncManager: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   return (
-    <SyncContext.Provider value={{ status, lastSync, queueSize, pipelineHealth, triggerSync }}>
+    <SyncContext.Provider value={{ status, lastSync, queueSize, pipelineHealth, triggerSync, syncAll, syncInventoryNow }}>
       {children}
     </SyncContext.Provider>
   );
