@@ -192,20 +192,24 @@ export const NoaChat = ({
   const contextSuggestions: Record<string, {label: string, action: string, icon?: React.ReactNode}[]> = {
     table: [
       { label: 'בדיקת חוסרים 📦', action: 'הצלבי מלאי קיים מול הזמנות פתוחות ודוחי לי חוסרים בברזל או בטון', icon: <Database size={14} /> },
-      { label: 'תחזית הזמנות 📈', action: 'על בסיס המלאי הנוכחי, אילו מוצרים כדאי להזמין השבוע?', icon: <TrendingUp size={14} /> }
+      { label: 'מלאי סניפים 🔋', action: 'הציגי דוח מלאי מעודכן של דבק S1 ולוחות גבס חוצה סניפים', icon: <TrendingUp size={14} /> },
+      { label: 'מחסן 90 אוויר ✈️', action: 'הציגי משימות פתוחות של מחסן 90 (אוויר) לאספקה ישירה מהספק', icon: <Globe size={14} /> }
     ],
     kanban: [
       { label: 'סטטוס הפצה 🚚', action: 'תני לי תמונת מצב של כל המשאיות כרגע על המפה', icon: <Activity size={14} /> },
-      { label: 'חריגות זמן ⏱️', action: 'האם יש הזמנות שמתעכבות מעבר לממוצע בפריקה?', icon: <Waves size={14} /> }
+      { label: 'עומס נהגים 👨‍✈️', action: 'הציגי את חלוקת העבודה הנוכחית בין עלי וחכמת ואיפה יש עיכובים', icon: <Settings size={14} /> },
+      { label: 'תעודות גליה 📄', action: 'האם ראמי השלים את בדיקת תעודות המשלוח מגליה בהוראת ורד?', icon: <ClipboardList size={14} /> }
     ],
     reports: [
       { label: 'סיכום רווחיות 💰', action: 'נתחי את דוח הבוקר האחרון מבחינת חיסכון בדלק ומסלולים', icon: <Cpu size={14} /> },
-      { label: 'ביצועי נהגים 👨‍✈️', action: 'השווי בין זמני הפריקה של עלי וחכמת בשבוע האחרון', icon: <Settings size={14} /> }
+      { label: 'דוח הראל מנכ״ל 📈', action: 'הפיקי סיכום מנהלים שבועי להראל על ביצועי החצר וההפצה', icon: <TrendingUp size={14} /> },
+      { label: 'מלשינון לוגים 🚨', action: 'הציגי חריגות ואירועים חריגים ב-ai_logs מהשעות האחרונות', icon: <ShieldCheck size={14} /> }
     ],
     general: [
       { label: 'סנכרון חכם 📂', action: 'סרוק את SabanOS, חלץ נתונים והצלבת כתובות מול מאגר המיקומים החכמים', icon: <Globe size={14} /> },
       { label: 'אופטימיזציית מסלולים 🗺️', action: 'תכנני מסלול אופטימלי להפצות של מחר', icon: <Waves size={14} /> },
-      { label: 'אימות פריקה (PTO) ✅', action: 'בדקי חריגות ב-PTO עבור כל הנהגים בהובלות האחרונות', icon: <ShieldCheck size={14} /> }
+      { label: 'מנחה וערבית 🕌', action: 'הציגי זמני תפילות היום באזור הוד השרון עבור נתנאל', icon: <Clock size={14} /> },
+      { label: 'שיחת IT עם ורד 💻', action: 'ורד מדווחת על בעיית סנכרון ב-PWA, סייעי בפתרון מול השרת', icon: <Laptop size={14} /> }
     ]
   };
 
