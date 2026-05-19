@@ -400,6 +400,10 @@ export const NoaChat = ({
                         onAction(`שלח הודעת וואטסאפ לנהג: ${payload}`);
                       } else if (intent === 'siddur') {
                         onAction(`פתח סידור עבודה יומי`);
+                      } else if (intent === 'galia_notes') {
+                        onAction(`הציגי לי את משימת תעודות המשלוח של גליה`);
+                      } else if (intent === 'confirm_galia') {
+                        onAction(`אני מאשרת שסיימתי את בדיקת תעודות גליה`);
                       }
                     }
                   }}

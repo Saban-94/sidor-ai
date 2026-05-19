@@ -94,19 +94,19 @@ export const NoaChatHub = ({
           dir="rtl"
         >
           {/* Elite Operations Header - SabanOS v62 Precision Architecture */}
-          <header className="shrink-0 h-[32px] bg-[#0F172A] text-white flex items-center justify-between px-3 border-b border-gold/30 shadow-sm z-[60]">
+          <header className="shrink-0 h-[32px] bg-[#1E293B] text-white flex items-center justify-between px-3 border-b border-gold/40 shadow-sm z-[60]">
              <div className="flex items-center gap-2">
                 <button 
                   onClick={onClose}
-                  className="w-6 h-6 flex items-center justify-center bg-slate-900 text-gold rounded-md border border-gold/40 active:scale-90 transition-all"
+                  className="w-6 h-6 flex items-center justify-center bg-slate-900 text-gold rounded-md border border-gold/50 active:scale-90 transition-all"
                 >
                   <X size={14} />
                 </button>
                 <div className="flex flex-col">
-                   <h1 className="text-[10px] font-black italic tracking-tighter leading-none text-white">SabanOS Precision • Noa Gen 7</h1>
+                   <h1 className="text-[10px] font-black italic tracking-tighter leading-none text-white">SabanOS Precision • Noa v63</h1>
                    <div className="flex items-center gap-1">
                       <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                      <span className="text-[6px] font-black text-emerald-400 uppercase tracking-widest leading-none">Operational Brain Active ✅</span>
+                      <span className="text-[6px] font-black text-emerald-400 uppercase tracking-widest leading-none">Operational Brain active ✅</span>
                    </div>
                 </div>
              </div>
@@ -240,8 +240,8 @@ export const NoaChatHub = ({
           </main>
 
           {/* Streamlined SabanOS 6.0 Footer Navigation */}
-          <footer className="shrink-0 bg-blue-950 flex flex-col z-[60] border-t border-blue-800 shadow-[0_-5px_15px_rgba(0,0,0,0.3)]">
-             <div className="flex h-10 w-full divide-x divide-x-reverse divide-blue-800/30">
+          <footer className="shrink-0 bg-[#1E293B] flex flex-col z-[60] border-t border-slate-700 shadow-[0_-5px_15px_rgba(0,0,0,0.3)]">
+             <div className="flex h-10 w-full divide-x divide-x-reverse divide-slate-700">
                {[
                  { id: 'chat', icon: Activity, label: 'CHAT HUB', style: { height: '32px' } },
                  { id: 'insights', icon: Zap, label: 'ANALYTICS', style: { height: '32px' } },
@@ -252,21 +252,21 @@ export const NoaChatHub = ({
                    onClick={() => setActiveTab(nav.id as any)}
                    className={`flex-1 flex items-center justify-center gap-2 transition-all ${
                      activeTab === nav.id 
-                      ? 'bg-blue-900 text-white' 
-                      : 'text-white/40 hover:bg-blue-900/40 hover:text-white'
+                      ? 'bg-slate-800 text-white' 
+                      : 'text-slate-400 hover:bg-slate-800/40 hover:text-white'
                    }`}
                    style={nav.style}
                  >
-                   <nav.icon size={14} strokeWidth={activeTab === nav.id ? 3 : 2} className={activeTab === nav.id ? 'text-blue-400' : 'text-white/20'} />
-                   <span className={`text-[10px] font-black tracking-widest ${activeTab === nav.id ? 'opacity-100' : 'opacity-70'}`}>
+                   <nav.icon size={14} strokeWidth={activeTab === nav.id ? 3 : 2} className={activeTab === nav.id ? 'text-emerald-400' : 'text-slate-600'} />
+                   <span className={`text-[10px] font-black tracking-widest ${activeTab === nav.id ? 'text-white' : 'text-slate-500'}`}>
                      {nav.label}
                    </span>
                  </button>
                ))}
              </div>
-             <div className="bg-blue-950/90 py-1 px-4 flex justify-center text-center">
-                <span className="text-[7px] font-black italic opacity-30 uppercase tracking-widest text-white">
-                  SABAN ENTERPRISE LOGISTICS INFRASTRUCTURE • נועה ❤️
+             <div className="bg-[#1E293B] py-1 px-4 flex justify-center text-center">
+                <span className="text-[7px] font-black italic uppercase tracking-widest text-slate-400">
+                  SABAN ENTERPRISE LOGISTICS INFRASTRUCTURE • נועה v63 ❤️
                 </span>
              </div>
           </footer>
