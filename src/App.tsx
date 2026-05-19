@@ -474,6 +474,7 @@ const BottomNavigation = ({
 }) => {
   const items = [
     { id: 'live_pulse', icon: Activity, label: 'דופק' },
+    { id: 'calendar', icon: CalendarDays, label: 'לוח' },
     { id: 'table', icon: Package, label: 'מלאי' },
     { id: 'noa', icon: Brain, label: 'נועה' },
     { id: 'kanban', icon: Trello, label: 'סידור' },
@@ -1973,7 +1974,28 @@ function AppContent() {
               </div>
             )}
           </div>
-        ) : viewMode === 'calendar' ? null : (
+        ) : viewMode === 'calendar' ? (
+          <div 
+            style={{ width: '930.938px', height: '60px' }}
+            className="bg-white/80 backdrop-blur-md px-6 py-4 rounded-3xl shadow-sm border border-sky-100 mb-8 flex items-center justify-between"
+          >
+             <div className="flex items-center gap-3">
+               <div className="w-10 h-10 rounded-xl bg-navy flex items-center justify-center text-gold shadow-lg shadow-navy/20">
+                 <CalendarIcon size={20} />
+               </div>
+               <div>
+                 <h2 className="text-xl font-black text-slate-900 leading-none">לוח הפצה שנתי</h2>
+                 <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mt-1">Saban Enterprise Operations</p>
+               </div>
+             </div>
+             <button 
+               onClick={() => setViewMode('list')}
+               className="text-xs font-bold text-sky-600 hover:underline"
+             >
+               חזרה לדוח בוקר
+             </button>
+          </div>
+        ) : (
           <div className="bg-white/80 backdrop-blur-md p-6 rounded-3xl shadow-sm border border-sky-100 mb-8 flex-1 flex flex-col items-center justify-center py-20">
              <div className="w-16 h-16 bg-gold/10 rounded-full flex items-center justify-center text-gold mb-4">
                 <CalendarDays size={32} />
@@ -1990,7 +2012,10 @@ function AppContent() {
         )}
 
         {/* Action Bar */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+        <div 
+          style={{ height: '62.3px', paddingTop: '5px', paddingBottom: '5px', paddingLeft: '10px', paddingRight: '10px', marginLeft: '5px', marginTop: '0px', marginBottom: '0px' }}
+          className="flex flex-col md:flex-row md:items-center justify-between gap-4"
+        >
           <div className="flex items-center gap-4">
             <h2 className="text-xl md:text-2xl font-black text-gray-900 underline decoration-sky-500 decoration-4 underline-offset-8">
               {viewMode === 'list' ? 'דוח בוקר' : viewMode === 'kanban' ? 'לוח קנבן' : viewMode === 'calendar' ? 'לוח שנתי' : viewMode === 'drivers' ? 'נהגים וביצועים' : viewMode === 'import' ? 'יבוא הזמנות חכם' : viewMode === 'table' ? 'ניהול מלאי מוצרים' : 'ארכיון דוחות'}
@@ -2180,7 +2205,7 @@ function AppContent() {
               highlightedOrderId={highlightedOrderId}
             />
           ) : viewMode === 'calendar' ? (
-            <div className="flex-1 min-h-[700px]">
+            <div className="flex-1 min-h-[800px] h-[calc(100vh-250px)]">
               <DeliveryCalendar 
                 orders={orders}
                 drivers={drivers}
@@ -2194,7 +2219,7 @@ function AppContent() {
             </div>
           ) : (
             <div style={{ width: '560.242px', backgroundColor: '#d2dcf3' }} className="grid gap-4">
-              {filteredOrders.map((order) => (
+              {filteredOrders.map((order, index) => (
                 <OrderCard 
                   key={order.id} 
                   order={order} 
@@ -2210,6 +2235,12 @@ function AppContent() {
                   onAddToast={addToast}
                   onCreateCustomer={handleCreateCustomer}
                   onUploadDoc={handleDriveFileUpload}
+                  focusModeStyles={index === 31 ? { 
+                    badge: { width: '11px' },
+                    actions: { paddingLeft: '23px', width: '370.675px' },
+                    uploadWrapper: { width: '288.075px' },
+                    uploadInner: { width: '246.4px' } // Best guess for Selector 4
+                  } : undefined}
                 />
               ))}
             </div>

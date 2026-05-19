@@ -175,9 +175,17 @@
   }
 }
 
-/* SabanOS Enterprise v62 Overrides - Lead UI/UX Engineer Verified */
+/* SabanOS Enterprise v64 Overrides - Lead UI/UX Engineer Verified */
 .saban-proactive-btn {
-  @apply bg-slate-900 border border-gold/40 rounded-lg p-1 hover:bg-slate-800 active:scale-95 transition-all text-xs font-black !text-white shadow-md;
+  @apply bg-[#1E293B] border border-[#C5A059]/40 rounded-lg p-1 hover:bg-slate-800 active:scale-95 transition-all text-xs font-black !text-white shadow-md flex items-center justify-center;
+  min-height: 40px; /* Base height */
+}
+
+@media (max-width: 768px) {
+  .saban-proactive-btn {
+    min-height: 48px; /* Mobile tactical touch target */
+    @apply w-full text-sm;
+  }
 }
 
 .signature {

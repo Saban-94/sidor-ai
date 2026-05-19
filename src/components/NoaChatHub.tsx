@@ -106,7 +106,7 @@ export const NoaChatHub = ({
                    <h1 className="text-[10px] font-black italic tracking-tighter leading-none text-white">SabanOS Precision • Noa v63</h1>
                    <div className="flex items-center gap-1">
                       <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                      <span className="text-[6px] font-black text-emerald-400 uppercase tracking-widest leading-none">Operational Brain active ✅</span>
+                      <span className="text-[6px] font-black text-emerald-400 uppercase tracking-widest leading-none">Bridging Logistics & Time</span>
                    </div>
                 </div>
              </div>

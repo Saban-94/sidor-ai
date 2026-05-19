@@ -70,6 +70,14 @@ interface OrderCardProps {
   onUploadDoc?: (file: File, orderId?: string, docType?: any) => Promise<void>;
   isCompact?: boolean;
   isHighlighted?: boolean;
+  focusModeStyles?: {
+    card?: React.CSSProperties;
+    badge?: React.CSSProperties;
+    actions?: React.CSSProperties;
+    uploadWrapper?: React.CSSProperties;
+    uploadInner?: React.CSSProperties;
+    uploadDetail?: React.CSSProperties;
+  };
   key?: React.Key;
 }
 
@@ -401,7 +409,8 @@ export const OrderCard = ({
   searchQuery = '',
   onUploadDoc,
   isCompact = false,
-  isHighlighted = false
+  isHighlighted = false,
+  focusModeStyles
 }: OrderCardProps) => {
   const [isPredicting, setIsPredicting] = useState(false);
   const [showDocs, setShowDocs] = useState(false);
@@ -575,7 +584,8 @@ ${warningNote}
         boxShadow: isHighlighted ? '0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)' : '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)'
       }}
       style={{
-        width: order.id === 'fN8wvDxBVMa4q5NTl3m9' ? '334.83px' : undefined
+        width: order.id === 'fN8wvDxBVMa4q5NTl3m9' ? '334.83px' : undefined,
+        ...focusModeStyles?.card
       }}
       className={cn(
         "bg-white/95 backdrop-blur-sm rounded-[2rem] border transition-all relative group",
@@ -594,20 +604,22 @@ ${warningNote}
         paddingTop: '2px',
         marginBottom: '5.5px',
         marginRight: '2px',
-        marginLeft: '88px'
+        marginLeft: '88px',
+        ...focusModeStyles?.badge
       }}>
         #{order.orderNumber || order.id?.slice(-4).toUpperCase()}
       </div>
 
       <div className={cn(
         "absolute top-4 left-24 z-10 flex gap-2"
-      )} style={{ width: '1286px' }}>
+      )} style={{ width: '1286px', ...focusModeStyles?.actions }}>
         {onUploadDoc && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2" style={focusModeStyles?.uploadWrapper}>
               {(order.orderFormId || order.deliveryNoteId || (order.documentIds && order.documentIds.length > 0)) ? (
                 <button 
                   onClick={() => setShowDocs(!showDocs)}
                   disabled={order.orderFormId === 'PENDING_SCAN' || order.deliveryNoteId === 'PENDING_SCAN'}
+                  style={focusModeStyles?.uploadInner}
                   className={`p-1.5 rounded-full shadow-lg border transition-all ${
                     showDocs ? 'bg-sky-600 text-white border-sky-600' : 
                     (order.orderFormId === 'PENDING_SCAN' || order.deliveryNoteId === 'PENDING_SCAN') ? 'bg-gray-100 text-gray-400 border-gray-100 cursor-not-allowed' :

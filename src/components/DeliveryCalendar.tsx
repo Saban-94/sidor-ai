@@ -8,7 +8,7 @@ import { motion } from 'motion/react';
 import { useToast } from '../providers/ToastProvider';
 import { format } from 'date-fns';
 import { he } from 'date-fns/locale';
-import { Truck, Calendar as CalendarIcon, User, Package } from 'lucide-react';
+import { Truck, Calendar as CalendarIcon, User, Package, Zap } from 'lucide-react';
 
 interface DeliveryCalendarProps {
   orders: Order[];
@@ -71,7 +71,10 @@ export const DeliveryCalendar: React.FC<DeliveryCalendarProps> = ({
           </div>
           <div>
             <h2 className="text-2xl font-black text-slate-900 tracking-tight uppercase">לוח הפצה ומשימות</h2>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Bridging Logistics & Time</p>
+            <p className="text-xs font-black text-sky-600 uppercase tracking-widest flex items-center gap-2">
+              <Zap size={10} fill="currentColor" />
+              Bridging Logistics & Time
+            </p>
           </div>
         </div>
 
