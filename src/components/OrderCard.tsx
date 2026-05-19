@@ -120,8 +120,8 @@ const ItemsModal = ({
           </button>
         </div>
 
-        <div style={{ paddingTop: '0px', paddingRight: '350px' }} className="flex-1 overflow-y-auto pl-6 pr-6 pt-0 pb-[27px] ml-0">
-          <table style={{ width: '1415.639px', height: '2325.21px' }} className="w-full text-right border-collapse">
+        <div style={{ paddingTop: '0px', paddingRight: '0px' }} className="flex-1 overflow-y-auto pl-6 pr-6 pt-0 pb-[27px] ml-0">
+          <table style={{ width: '100%', height: 'auto' }} className="w-full text-right border-collapse">
             <thead>
               <tr className="border-b border-gray-100 italic">
                 <th style={{ color: '#575d65', fontSize: '15px' }} className="py-4 font-black uppercase tracking-widest w-12 text-center">תמונה</th>
@@ -599,10 +599,11 @@ ${warningNote}
         #{order.orderNumber || order.id?.slice(-4).toUpperCase()}
       </div>
 
-      {!isCompact && (
-        <div className="absolute top-4 left-24 z-10 flex gap-2">
-          {onUploadDoc && (
-            <div className="flex items-center gap-2">
+      <div className={cn(
+        "absolute top-4 left-24 z-10 flex gap-2"
+      )} style={{ width: '1286px' }}>
+        {onUploadDoc && (
+          <div className="flex items-center gap-2">
               {(order.orderFormId || order.deliveryNoteId || (order.documentIds && order.documentIds.length > 0)) ? (
                 <button 
                   onClick={() => setShowDocs(!showDocs)}
@@ -654,7 +655,6 @@ ${warningNote}
             )}
           </AnimatePresence>
         </div>
-      )}
 
       <div className={cn(
         "flex gap-4 pt-2",
@@ -851,6 +851,7 @@ ${warningNote}
               };
               onUpdateStatus(order.id!, nextStatusMap[order.status] || order.status);
             }}
+            style={{ fontSize: '20px', color: '#170202' }}
             className={cn(
               "bg-sky-600 text-white rounded-2xl font-black text-xs flex items-center justify-center gap-2 shadow-lg shadow-sky-600/20 active:scale-95 transition-all",
               isCompact ? "px-3 py-2" : "flex-1 py-3.5"
@@ -880,6 +881,7 @@ ${warningNote}
               <button 
                 onClick={handleSmartPredict}
                 disabled={isPredicting}
+                style={{ fontSize: '20px' }}
                 className="bg-gray-900 text-white p-3.5 rounded-2xl hover:bg-sky-700 transition-all flex items-center justify-center gap-2 shadow-lg shadow-gray-900/10 active:scale-95 disabled:opacity-50"
               >
                 {isPredicting ? (
@@ -894,6 +896,7 @@ ${warningNote}
                 onClick={handleSmartShare}
                 disabled={isGeneratingShare}
                 title="שתף עדכון חכם (Noa AI)"
+                style={{ fontSize: '20px' }}
                 className={cn(
                   "bg-emerald-600 text-white p-3.5 rounded-2xl transition-all active:scale-95 shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-2",
                   isGeneratingShare ? "opacity-50" : "hover:bg-emerald-700"
