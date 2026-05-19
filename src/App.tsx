@@ -198,6 +198,7 @@ const Header = ({
     <div className="flex items-center gap-3">
       <button 
         onClick={onOpenDrawer}
+        style={{ paddingRight: '22px', marginRight: '200px', marginLeft: '0px', marginTop: '200px', marginBottom: '700px', width: '22px', height: '22px' }}
         className="p-2 hover:bg-sky-50 rounded-xl text-gray-600 md:hidden"
       >
         <MoreVertical size={24} />
@@ -1915,7 +1916,10 @@ function AppContent() {
         >
               <div className="pb-[env(safe-area-inset-bottom)]">
               {viewMode === 'list' ? (
-                <div className="bg-white/80 backdrop-blur-md p-4 rounded-3xl shadow-sm border border-sky-100 mb-8">
+                <div 
+                  style={{ width: '930.938px', height: '200.719px' }}
+                  className="bg-white/80 backdrop-blur-md p-4 rounded-3xl shadow-sm border border-sky-100 mb-8"
+                >
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-bold text-gray-800 flex items-center gap-2">
                 <CalendarIcon size={18} className="text-sky-600" />
@@ -2243,9 +2247,13 @@ function AppContent() {
       {user && (
         <button
           onClick={() => setIsNoaBrainOpen(true)}
+          style={{ marginBottom: '400px' }}
           className="hidden lg:flex fixed bottom-8 left-8 z-[200] w-16 h-16 bg-navy border border-gold/30 rounded-3xl items-center justify-center text-gold shadow-2xl shadow-navy/40 hover:scale-110 active:scale-95 transition-all group"
         >
-          <div className="absolute inset-0 bg-gold/10 rounded-3xl blur-xl group-hover:blur-2xl transition-all" />
+          <div 
+            style={{ marginRight: '0px', paddingBottom: '0px', paddingRight: '0px', paddingLeft: '0px', paddingTop: '0px', marginLeft: '0px', marginTop: '0px', marginBottom: '0px' }}
+            className="absolute inset-0 bg-gold/10 rounded-3xl blur-xl group-hover:blur-2xl transition-all" 
+          />
           <Brain size={32} className="relative z-10" />
           <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-navy animate-pulse" />
         </button>
