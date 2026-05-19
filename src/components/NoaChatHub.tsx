@@ -93,20 +93,20 @@ export const NoaChatHub = ({
           className="fixed inset-0 z-[5000] bg-white flex flex-col overflow-hidden w-screen h-screen touch-none"
           dir="rtl"
         >
-          {/* Elite Operations Header - SabanOS High-Density Architecture */}
-          <header className="shrink-0 h-[32px] bg-blue-900 text-white flex items-center justify-between px-3 border-b border-blue-800 shadow-sm z-[60]">
+          {/* Elite Operations Header - SabanOS v62 Precision Architecture */}
+          <header className="shrink-0 h-[32px] bg-[#0F172A] text-white flex items-center justify-between px-3 border-b border-gold/30 shadow-sm z-[60]">
              <div className="flex items-center gap-2">
                 <button 
                   onClick={onClose}
-                  className="w-6 h-6 flex items-center justify-center bg-blue-950 text-white rounded-md border border-blue-700 active:scale-90 transition-all"
+                  className="w-6 h-6 flex items-center justify-center bg-slate-900 text-gold rounded-md border border-gold/40 active:scale-90 transition-all"
                 >
                   <X size={14} />
                 </button>
                 <div className="flex flex-col">
-                   <h1 className="text-[10px] font-black italic tracking-tight leading-none text-white">SabanOS Precision • Noa Gen 7</h1>
+                   <h1 className="text-[10px] font-black italic tracking-tighter leading-none text-white">SabanOS Precision • Noa Gen 7</h1>
                    <div className="flex items-center gap-1">
-                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                      <span className="text-[6px] font-black text-blue-200 uppercase tracking-widest leading-none opacity-80">Operational Brain Active ✅</span>
+                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                      <span className="text-[6px] font-black text-emerald-400 uppercase tracking-widest leading-none">Operational Brain Active ✅</span>
                    </div>
                 </div>
              </div>
@@ -114,32 +114,30 @@ export const NoaChatHub = ({
              <div className="flex items-center gap-1">
                 <button 
                   onClick={() => setIsHistoryOpen(true)}
-                  className="flex items-center gap-1.5 bg-blue-800/50 hover:bg-blue-700/50 px-2 py-0.5 rounded-md border border-blue-600/30 transition-all active:scale-95 group"
-                  title="היסטוריית שיחות"
+                  className="flex items-center gap-1.5 bg-slate-800 px-2 py-0.5 rounded-md border border-gold/20 transition-all active:scale-95 group"
                 >
-                  <History size={10} className="text-blue-200 group-hover:text-white transition-colors" />
-                  <span className="text-[8px] font-black text-blue-100 uppercase tracking-widest">History</span>
+                  <History size={10} className="text-gold" />
+                  <span className="text-[8px] font-black text-white uppercase tracking-widest">History</span>
                 </button>
                 
                 <button 
                   onClick={onNewChat}
-                  className="hidden md:flex items-center gap-1.5 bg-gold/10 hover:bg-gold/20 px-2 py-0.5 rounded-md border border-gold/30 transition-all active:scale-95 group"
-                  title="שיחה חדשה"
+                  className="hidden md:flex items-center gap-1.5 bg-gold/20 px-2 py-0.5 rounded-md border border-gold/40 transition-all active:scale-95"
                 >
-                  <Plus size={10} className="text-gold group-hover:text-white transition-colors" />
-                  <span className="text-[8px] font-black text-gold group-hover:text-white uppercase tracking-widest">New</span>
+                  <Plus size={10} className="text-gold" />
+                  <span className="text-[8px] font-black text-gold uppercase tracking-widest">New</span>
                 </button>
              </div>
              
              <div className="flex items-center gap-2">
-                <div className="hidden md:flex flex-col text-left items-end opacity-60">
-                   <span className="text-[7px] font-black uppercase tracking-widest leading-none mb-0.5">Commander Protocol</span>
-                   <span className="text-[8px] font-bold leading-none">ראמי אהובי | המפקד המורשה</span>
+                <div className="hidden md:flex flex-col text-left items-end">
+                   <span className="text-[7px] font-black uppercase tracking-widest leading-none mb-0.5 text-gold">Commander Protocol</span>
+                   <span className="text-[8px] font-bold leading-none text-white">ראמי אהובי | המפקד המורשה</span>
                 </div>
                 <img 
                   src="https://i.postimg.cc/qqWtk5qr/Gemini-Generated-Image-6z6qts6z6qts6z6q.png" 
                   alt="Noa" 
-                  className="w-6 h-6 rounded-md object-cover border border-blue-400/30"
+                  className="w-6 h-6 rounded-md object-cover border border-gold/30"
                 />
              </div>
           </header>

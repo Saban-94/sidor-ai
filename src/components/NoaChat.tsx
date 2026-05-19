@@ -234,12 +234,22 @@ export const NoaChat = ({
         .message-bubble-user {
           background-color: #f8fafc !important;
           border-color: #e2e8f0 !important;
-          color: #1e293b !important;
+          color: #0F172A !important; /* High Contrast Navy */
+          font-weight: 700 !important;
         }
         .message-bubble-ai {
-          background-color: #ffffff !important;
-          border-color: #f1f5f9 !important;
-          color: #334155 !important;
+          background-color: #0F172A !important; /* Pure Navy */
+          border-color: #C5A059 / 30 !important; /* Gold border */
+          color: #ffffff !important; /* Sharp White */
+          font-weight: 400 !important;
+        }
+        
+        .message-bubble-ai button {
+           @apply bg-slate-800 border border-gold/40 text-white font-black hover:bg-slate-700 active:scale-95;
+           padding: 4px 8px !important;
+           border-radius: 6px !important;
+           font-size: 11px !important;
+           margin: 2px !important;
         }
         
         /* Input Area Density */
@@ -375,6 +385,24 @@ export const NoaChat = ({
               {(chat.parts[0]?.text || "").includes('<table') || (chat.parts[0]?.text || "").includes('<div') ? (
                 <div 
                   className={`w-full overflow-x-auto custom-scrollbar noa-html-content ${chat.role === 'user' ? 'prose-slate' : 'prose-blue'}`}
+                  onClick={(e) => {
+                    const target = e.target as HTMLElement;
+                    const btn = target.closest('button');
+                    if (btn && btn.dataset.intent) {
+                      const intent = btn.dataset.intent;
+                      const payload = btn.dataset.payload || '';
+                      
+                      if (intent === 'inventory') {
+                        onAction(`בצע סריקת מלאי עבור: ${payload}`);
+                      } else if (intent === 'customer_history') {
+                        onAction(`הציגי היסטוריית הזמנות עבור הלקוח: ${payload}`);
+                      } else if (intent === 'whatsapp') {
+                        onAction(`שלח הודעת וואטסאפ לנהג: ${payload}`);
+                      } else if (intent === 'siddur') {
+                        onAction(`פתח סידור עבודה יומי`);
+                      }
+                    }
+                  }}
                   dangerouslySetInnerHTML={{ __html: chat.parts[0]?.text || "" }}
                 />
               ) : (
