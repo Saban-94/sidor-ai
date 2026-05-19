@@ -8,20 +8,26 @@ import { motion } from 'motion/react';
 import { useToast } from '../providers/ToastProvider';
 import { format } from 'date-fns';
 import { he } from 'date-fns/locale';
-import { Truck, Calendar as CalendarIcon, User, Package, Zap } from 'lucide-react';
+import { Truck, Calendar as CalendarIcon, User, Package, Zap, Edit2, ChevronRight } from 'lucide-react';
 
 interface DeliveryCalendarProps {
   orders: Order[];
   drivers: Driver[];
   onOrderUpdate: (id: string, updates: Partial<Order>) => Promise<void>;
   onOrderClick: (order: Order) => void;
+  focusModeStyles?: {
+    container?: React.CSSProperties;
+    event?: React.CSSProperties;
+    eventText?: React.CSSProperties;
+  };
 }
 
 export const DeliveryCalendar: React.FC<DeliveryCalendarProps> = ({
   orders,
   drivers,
   onOrderUpdate,
-  onOrderClick
+  onOrderClick,
+  focusModeStyles
 }) => {
   const { addToast } = useToast();
 
@@ -57,11 +63,34 @@ export const DeliveryCalendar: React.FC<DeliveryCalendarProps> = ({
     }
   };
 
+  const handleStatusAdvance = async (e: React.MouseEvent, order: Order) => {
+    e.stopPropagation();
+    const statusMap: Record<Order['status'], Order['status']> = {
+      'pending': 'preparing',
+      'preparing': 'ready',
+      'ready': 'on_the_way',
+      'on_the_way': 'delivered',
+      'delivered': 'delivered',
+      'cancelled': 'cancelled'
+    };
+
+    const nextStatus = statusMap[order.status];
+    if (nextStatus === order.status) return;
+
+    try {
+      await onOrderUpdate(order.id!, { status: nextStatus });
+      addToast('סטטוס עודכן', `ההזמנה קודמה ל-${nextStatus === 'preparing' ? 'בהעמסה' : nextStatus === 'ready' ? 'מוכן' : nextStatus === 'on_the_way' ? 'בדרך' : 'סופק'}`, 'success');
+    } catch (error: any) {
+      addToast('שגיאה בעדכון סטטוס', error.message, 'warning');
+    }
+  };
+
   return (
     <motion.div 
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       className="bg-white rounded-[2.5rem] border border-slate-200 shadow-xl p-8 h-full flex flex-col gap-6"
+      style={focusModeStyles?.container}
       dir="rtl"
     >
       <header className="flex items-center justify-between mb-2">
@@ -118,15 +147,42 @@ export const DeliveryCalendar: React.FC<DeliveryCalendarProps> = ({
           eventContent={(eventInfo) => {
             const { driverName } = eventInfo.event.extendedProps;
             const order = eventInfo.event.extendedProps.order as Order;
+            const canAdvance = order.status !== 'delivered' && order.status !== 'cancelled';
+
             return (
-              <div className="p-1 px-2 flex flex-col gap-0.5 overflow-hidden">
+              <div className="p-1 px-2 flex flex-col gap-0.5 overflow-hidden group/event" style={focusModeStyles?.event}>
                 <div className="flex items-center justify-between gap-1">
-                  <span className="font-black text-[10px] truncate">{order.customerName}</span>
-                  <span className="text-[8px] opacity-70">{order.time}</span>
+                  <span className="font-black text-[10px] truncate" style={focusModeStyles?.eventText}>{order.customerName}</span>
+                  <div className="flex items-center gap-1">
+                    <span className="text-[8px] opacity-70">{order.time}</span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-1 opacity-80">
-                  <Truck size={8} />
-                  <span className="text-[8px] font-bold truncate">{driverName}</span>
+                
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1 opacity-80 overflow-hidden">
+                    <Truck size={8} />
+                    <span className="text-[8px] font-bold truncate">{driverName}</span>
+                  </div>
+
+                  <div className="flex items-center gap-1 opacity-0 group-hover/event:opacity-100 transition-opacity">
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onOrderClick(order);
+                      }}
+                      className="p-1 bg-white/20 hover:bg-white/40 rounded-sm text-white"
+                    >
+                      <Edit2 size={8} />
+                    </button>
+                    {canAdvance && (
+                      <button 
+                        onClick={(e) => handleStatusAdvance(e, order)}
+                        className="p-1 bg-white/20 hover:bg-white/40 rounded-sm text-white"
+                      >
+                        <ChevronRight size={8} />
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             );

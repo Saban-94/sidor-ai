@@ -2215,6 +2215,11 @@ function AppContent() {
                 onOrderClick={(order) => {
                   setEditingOrder(order);
                 }}
+                focusModeStyles={{
+                  container: { width: '1170.938px' },
+                  event: { width: '225.868px', height: '95.9896px', fontSize: '22.2125px' },
+                  eventText: { fontSize: '15px' }
+                }}
               />
             </div>
           ) : (

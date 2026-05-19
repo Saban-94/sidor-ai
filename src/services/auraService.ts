@@ -1287,9 +1287,20 @@ export async function askNoa(message: string, history: any[] = [], userKey?: str
   // Production Protocol v64 - Device Detection
   const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
   const deviceTag = isMobile ? "[DEVICE: MOBILE]" : "[DEVICE: DESKTOP]";
+  
+  const systemPrompt = `נועה (Noa) - CRM Engine v64.
+המפקד: ראמי אהובי. המנכ"ל: הראל.
+שפת שיחה: עברית נשית, מקצועית, "Saban-Precision".
+חוקים: 
+1. אפס טקסט שקוף (Anti-Transparent).
+2. פלט מותאם למכשיר: ${deviceTag}.
+3. כיווץ רווחים מקסימלי (Compact Density).
+4. כפתורים אינטראקטיביים עם data-intent ו-data-payload (customer_history, inventory, siddur, whatsapp, galia_notes, confirm_galia).
+5. חתימה בסיום: <div class="signature">באדיבות נועה ❤️</div>`;
+
   const enhancedMessage = `${deviceTag} ${message}`;
 
-  let parts: any[] = [{ text: enhancedMessage }];
+  let parts: any[] = [{ text: `${systemPrompt}\n\nClient Message: ${enhancedMessage}` }];
   
   if (file) {
     const filePart = await fileToGenerativePart(file);
