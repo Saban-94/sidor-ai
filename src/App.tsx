@@ -111,6 +111,7 @@ import { SabanOrderEngine } from './components/SabanOrderEngine';
 import { PackageCheck, PackageX, PackageOpen, Brain } from 'lucide-react';
 import { NoaFloatingChat } from './components/NoaFloatingChat';
 import { SmartCalendarDrawer } from './components/SmartCalendarDrawer';
+import { DeliveryCalendar } from './components/DeliveryCalendar';
 import { NoaChatHub } from './components/NoaChatHub';
 import { NoaChatHistory } from './components/NoaChatHistory';
 import { 
@@ -164,7 +165,9 @@ const Header = ({
   onOpenReminders,
   onAddReminder,
   hasNaggingReminder,
-  uploadProgress = 0
+  uploadProgress = 0,
+  viewMode,
+  setViewMode
 }: { 
   user: FirebaseUser, 
   notificationsEnabled: boolean, 
@@ -178,7 +181,9 @@ const Header = ({
   onOpenReminders: () => void,
   onAddReminder: () => void,
   hasNaggingReminder?: boolean,
-  uploadProgress?: number
+  uploadProgress?: number,
+  viewMode: string,
+  setViewMode: (v: string) => void
 }) => (
   <header className="flex items-center justify-between px-6 py-4 bg-white/80 backdrop-blur-md border-b border-sky-100 sticky top-0 z-30 overflow-hidden">
     {uploadProgress > 0 && (
@@ -212,13 +217,13 @@ const Header = ({
       <div className="hidden lg:block">
         <ConnectionOrbit />
       </div>
-      <button 
-        onClick={onOpenCalendar}
-        className="p-2.5 rounded-xl bg-white text-navy border border-slate-100 hover:bg-slate-50 relative group"
+            <button 
+        onClick={() => setViewMode('calendar')}
+        className={`p-2.5 rounded-xl transition-all border relative group ${viewMode === 'calendar' ? 'bg-navy text-gold border-navy shadow-lg' : 'bg-white text-navy border-slate-100 hover:bg-slate-50'}`}
         title="יומן משלוחים"
       >
         <CalendarDays size={20} />
-        <span className="absolute -top-1 -right-1 w-2 h-2 bg-gold rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
+        <span className={`absolute -top-1 -right-1 w-2 h-2 bg-gold rounded-full transition-opacity ${viewMode === 'calendar' ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`} />
       </button>
 
       <button 
@@ -378,9 +383,7 @@ const Drawer = ({
                 <button
                   key={item.id}
                   onClick={() => {
-                    if (item.id === 'calendar') {
-                      onOpenCalendar();
-                    } else if (item.id === 'brain') {
+                    if (item.id === 'brain') {
                       onOpenBrain();
                     } else {
                       setViewMode(item.id as any);
@@ -1768,6 +1771,8 @@ function AppContent() {
               }}
               onAddReminder={() => setIsAddingReminder(true)}
               hasNaggingReminder={hasNaggingReminder}
+              viewMode={viewMode}
+              setViewMode={setViewMode}
             />
 
             <GlobalAlertBanner 
@@ -1964,7 +1969,7 @@ function AppContent() {
               </div>
             )}
           </div>
-        ) : (
+        ) : viewMode === 'calendar' ? null : (
           <div className="bg-white/80 backdrop-blur-md p-6 rounded-3xl shadow-sm border border-sky-100 mb-8 flex-1 flex flex-col items-center justify-center py-20">
              <div className="w-16 h-16 bg-gold/10 rounded-full flex items-center justify-center text-gold mb-4">
                 <CalendarDays size={32} />
@@ -1972,7 +1977,7 @@ function AppContent() {
              <h3 className="text-xl font-bold text-gray-900 mb-2">יומן המשלוחים מוסתר</h3>
              <p className="text-gray-500 text-sm mb-6">לחץ על כפתור היומן בתפריט או בראש הדף כדי לצפות בלוח הזמנים.</p>
              <button 
-               onClick={() => setIsCalendarDrawerOpen(true)}
+               onClick={() => setViewMode('calendar')}
                className="bg-navy text-white px-6 py-2.5 rounded-xl font-bold hover:scale-105 transition-all shadow-lg"
              >
                פתח יומן
@@ -2170,6 +2175,19 @@ function AppContent() {
               onUploadDoc={handleDriveFileUpload}
               highlightedOrderId={highlightedOrderId}
             />
+          ) : viewMode === 'calendar' ? (
+            <div className="flex-1 min-h-[700px]">
+              <DeliveryCalendar 
+                orders={orders}
+                drivers={drivers}
+                onOrderUpdate={async (id, updates) => {
+                  await updateOrder(id, updates);
+                }}
+                onOrderClick={(order) => {
+                  setEditingOrder(order);
+                }}
+              />
+            </div>
           ) : (
             <div style={{ width: '560.242px', backgroundColor: '#d2dcf3' }} className="grid gap-4">
               {filteredOrders.map((order) => (
