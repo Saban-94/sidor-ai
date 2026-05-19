@@ -859,18 +859,21 @@ ${warningNote}
               const nextStatusMap: Record<string, string> = {
                 pending: 'preparing',
                 preparing: 'ready',
-                ready: 'delivered'
+                ready: 'on_the_way',
+                on_the_way: 'delivered',
+                delivered: 'delivered',
+                cancelled: 'cancelled'
               };
               onUpdateStatus(order.id!, nextStatusMap[order.status] || order.status);
             }}
-            style={{ fontSize: '20px', color: '#170202' }}
+            style={{ fontSize: '15px', color: '#FFFFFF' }}
             className={cn(
               "bg-sky-600 text-white rounded-2xl font-black text-xs flex items-center justify-center gap-2 shadow-lg shadow-sky-600/20 active:scale-95 transition-all",
               isCompact ? "px-3 py-2" : "flex-1 py-3.5"
             )}
           >
             <CheckCircle2 size={isCompact ? 14 : 16} /> 
-            {isCompact ? "קדם" : "עדכן סטטוס"}
+            {isCompact ? "קדם" : "קדם סטטוס"}
           </button>
           
           {isCompact ? (
@@ -890,6 +893,14 @@ ${warningNote}
              </div>
           ) : (
             <>
+              <button 
+                onClick={() => onEdit(order)}
+                title="עריכת הזמנה"
+                className="p-3.5 text-gray-400 hover:text-sky-600 hover:bg-sky-50 rounded-2xl transition-all"
+              >
+                <Pencil size={18} />
+              </button>
+
               <button 
                 onClick={handleSmartPredict}
                 disabled={isPredicting}

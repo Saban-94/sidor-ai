@@ -28,11 +28,13 @@ import { askNoa } from '../services/auraService';
 interface LiveOrderPulseProps {
   onViewKanban: () => void;
   onAddToast: (title: string, msg: string, type?: any) => void;
+  onOrderUpdateStatus?: (id: string, s: Order['status']) => void;
 }
 
 export const LiveOrderPulse: React.FC<LiveOrderPulseProps> = ({
   onViewKanban,
-  onAddToast
+  onAddToast,
+  onOrderUpdateStatus
 }) => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
@@ -561,6 +563,26 @@ export const LiveOrderPulse: React.FC<LiveOrderPulseProps> = ({
 
               {/* Detail Panel Actions */}
               <div className="mt-12 pt-10 border-t border-slate-100 flex gap-5">
+                <button 
+                  onClick={() => {
+                    if (onOrderUpdateStatus && selectedOrder) {
+                      const nextStatusMap: Record<string, Order['status']> = {
+                        pending: 'preparing',
+                        preparing: 'ready',
+                        ready: 'on_the_way',
+                        on_the_way: 'delivered',
+                        delivered: 'delivered',
+                        cancelled: 'cancelled'
+                      };
+                      onOrderUpdateStatus(selectedOrder.id!, nextStatusMap[selectedOrder.status] || selectedOrder.status);
+                    }
+                  }}
+                  disabled={selectedOrder.status === 'delivered' || selectedOrder.status === 'cancelled'}
+                  className="flex-1 h-20 bg-emerald-600 hover:bg-emerald-700 text-white rounded-[1.5rem] font-black text-base uppercase tracking-widest flex items-center justify-center gap-4 transition-all shadow-2xl shadow-emerald-100 disabled:opacity-50 disabled:bg-slate-200"
+                >
+                  <CheckCircle2 size={24} />
+                  קדם סטטוס
+                </button>
                 <button 
                   onClick={() => handleShareUpdate(selectedOrder)}
                   disabled={isGenerating || !selectedOrder.customerName || !selectedOrder.items}

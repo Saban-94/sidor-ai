@@ -62,6 +62,33 @@ export const MiniOrderCard: React.FC<MiniOrderCardProps> = ({ orderId, onView })
 
   const status = getStatusInfo(order.status);
 
+  const handleAdvanceStatus = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!order.id) return;
+    
+    const nextStatusMap: Record<string, Order['status']> = {
+      pending: 'preparing',
+      preparing: 'ready',
+      ready: 'on_the_way',
+      on_the_way: 'delivered',
+      delivered: 'delivered',
+      cancelled: 'cancelled'
+    };
+    
+    const nextStatus = nextStatusMap[order.status];
+    if (nextStatus === order.status) return;
+
+    try {
+      const { updateOrder } = await import('../services/auraService');
+      await updateOrder(order.id, { status: nextStatus });
+      // In a real app we might want to refresh the local state or use a global state manager
+      // but since this is a mini card often used in chat, simple UI update is harder without props
+      setOrder({...order, status: nextStatus});
+    } catch (err) {
+      console.error('Failed to advance status from mini card:', err);
+    }
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.9, y: 5 }}
@@ -77,7 +104,7 @@ export const MiniOrderCard: React.FC<MiniOrderCardProps> = ({ orderId, onView })
           <div>
             <h4 className="text-xs font-black text-slate-900 truncate max-w-[150px]">{order.customerName}</h4>
             <div className="flex items-center gap-1">
-              <span className="text-[9px] font-bold text-slate-400">הזמנה {order.id}</span>
+              <span className="text-[9px] font-bold text-slate-400">הזמנה {order.id?.slice(-4).toUpperCase()}</span>
               <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full border text-[8px] font-black ${status.color}`}>
                 {status.icon}
                 {status.label}
@@ -85,12 +112,23 @@ export const MiniOrderCard: React.FC<MiniOrderCardProps> = ({ orderId, onView })
             </div>
           </div>
         </div>
-        <button 
-          onClick={() => onView?.(order)}
-          className="p-2 bg-slate-50 hover:bg-sky-50 text-slate-400 hover:text-sky-600 rounded-xl transition-all"
-        >
-          <ExternalLink size={14} />
-        </button>
+        <div className="flex items-center gap-1">
+          {order.status !== 'delivered' && order.status !== 'cancelled' && (
+            <button 
+              onClick={handleAdvanceStatus}
+              className="p-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 rounded-xl transition-all"
+              title="קדם סטטוס"
+            >
+              <CheckCircle2 size={14} />
+            </button>
+          )}
+          <button 
+            onClick={() => onView?.(order)}
+            className="p-2 bg-slate-50 hover:bg-sky-50 text-slate-400 hover:text-sky-600 rounded-xl transition-all"
+          >
+            <ExternalLink size={14} />
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3 mb-3">

@@ -1702,6 +1702,7 @@ function AppContent() {
                     <LiveOrderPulse 
                       onViewKanban={() => setViewMode('kanban')}
                       onAddToast={addToast}
+                      onOrderUpdateStatus={handleStatusUpdate}
                     />
                   ) : viewMode === 'desktop_dashboard' ? (
                     <ClientDesktopDashboard 
