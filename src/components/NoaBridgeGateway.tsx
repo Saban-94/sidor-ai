@@ -103,10 +103,34 @@ export const NoaBridgeGateway: React.FC<NoaBridgeGatewayProps> = ({ onBack }) =>
   const [copied, setCopied] = useState(false);
   const [isInjecting, setIsInjecting] = useState(false);
   const [editingItemIdx, setEditingItemIdx] = useState<number | null>(null);
+  const [isAddingItem, setIsAddingItem] = useState(false);
+  
+  // Inline editing states for a matched item
+  const [editQty, setEditQty] = useState<number>(1);
+  const [editName, setEditName] = useState<string>('');
+  const [editSku, setEditSku] = useState<string>('');
+  const [editUnit, setEditUnit] = useState<string>('יח');
+  const [editStatus, setEditStatus] = useState<'validated' | 'missing_specs' | 'delay_warning'>('validated');
+
+  // New item defaults
+  const [newQty, setNewQty] = useState<number>(1);
+  const [newName, setNewName] = useState<string>('');
+  const [newSku, setNewSku] = useState<string>('');
+  const [newUnit, setNewUnit] = useState<string>('יח');
+  const [newStatus, setNewStatus] = useState<'validated' | 'missing_specs' | 'delay_warning'>('validated');
+
+  // Editable whatsapp responses
+  const [isEditingWhatsapp, setIsEditingWhatsapp] = useState(false);
+  const [editedWhatsappText, setEditedWhatsappText] = useState('');
+
+  // Tactical popup data
+  const [tacticalModalType, setTacticalModalType] = useState<'customer_history' | 'inventory_lookup' | 'siddur_preview' | null>(null);
+
   const [chatHistory, setChatHistory] = useState<any[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [showClientMenu, setShowClientMenu] = useState(false);
   const [clients, setClients] = useState<Customer[]>([]);
+  const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [selectedClient, setSelectedClient] = useState<Customer | null>(null);
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const [reportResult, setReportResult] = useState<string | null>(null);
@@ -115,11 +139,22 @@ export const NoaBridgeGateway: React.FC<NoaBridgeGatewayProps> = ({ onBack }) =>
 
   useEffect(() => {
     fetchClients();
+    fetchInventory();
   }, []);
+
+  const fetchInventory = async () => {
+    try {
+      const q = query(collection(db, 'inventory'));
+      const snap = await getDocs(q);
+      setInventory(snap.docs.map(d => ({ id: d.id, ...d.data() })) as InventoryItem[]);
+    } catch (e) {
+      console.warn('Failed to fetch inventory:', e);
+    }
+  };
 
   const fetchClients = async () => {
     try {
-      const q = query(collection(db, 'customers'), orderBy('name', 'asc'), limit(20));
+      const q = query(collection(db, 'customers'), orderBy('name', 'asc'), limit(25));
       const snap = await getDocs(q);
       setClients(snap.docs.map(d => ({ id: d.id, ...d.data() })) as Customer[]);
     } catch (e) {
@@ -132,9 +167,14 @@ export const NoaBridgeGateway: React.FC<NoaBridgeGatewayProps> = ({ onBack }) =>
     setIsProcessing(true);
     setAnalysis(null);
     setChatHistory([]);
+    setEditedWhatsappText('');
+    setIsEditingWhatsapp(false);
+    setEditingItemIdx(null);
+    setIsAddingItem(false);
     try {
       const result = await processNoaBridge(inputText);
       setAnalysis(result);
+      setEditedWhatsappText(result.whatsappResponse || '');
       
       if (result.customer?.id) {
         fetchChatHistory(result.customer.id);
@@ -235,7 +275,7 @@ export const NoaBridgeGateway: React.FC<NoaBridgeGatewayProps> = ({ onBack }) =>
       await GasService.syncWhatsApp({
         customer: analysis.customer.name,
         items: itemsString,
-        response: analysis.whatsappResponse,
+        response: editedWhatsappText || analysis.whatsappResponse,
         orderId: result.id
       });
 
@@ -254,11 +294,83 @@ export const NoaBridgeGateway: React.FC<NoaBridgeGatewayProps> = ({ onBack }) =>
     }
   };
 
+  const startEditingItem = (idx: number) => {
+    if (!analysis) return;
+    const item = analysis.items[idx];
+    setEditingItemIdx(idx);
+    setEditQty(item.qty);
+    setEditName(item.name);
+    setEditSku(item.sku || '');
+    setEditUnit(item.unit || 'יח');
+    setEditStatus(item.status || 'validated');
+  };
+
+  const saveEditedItem = (idx: number) => {
+    if (!analysis) return;
+    const updatedItems = [...analysis.items];
+    updatedItems[idx] = {
+      ...updatedItems[idx],
+      qty: editQty,
+      name: editName,
+      sku: editSku,
+      unit: editUnit,
+      status: editStatus
+    };
+    setAnalysis({
+      ...analysis,
+      items: updatedItems
+    });
+    setEditingItemIdx(null);
+    addToast('הפריט עודכן!', 'המלאי עודכן בניתוח החכם 🛠️', 'success');
+  };
+
+  const deleteItem = (idx: number) => {
+    if (!analysis) return;
+    const updatedItems = analysis.items.filter((_, i) => i !== idx);
+    setAnalysis({
+      ...analysis,
+      items: updatedItems
+    });
+    addToast('הפריט נמחק', 'הפריט הוסר מהניתוח הלוגיסטי', 'info');
+  };
+
+  const addItemToAnalysis = () => {
+    if (!analysis) return;
+    if (!newName.trim()) {
+      addToast('שם פריט ריק', 'אנא הזן שם פריט חוקי', 'warning');
+      return;
+    }
+    const newItem = {
+      raw: newName,
+      qty: newQty,
+      name: newName,
+      sku: newSku,
+      unit: newUnit,
+      status: newStatus
+    };
+    setAnalysis({
+      ...analysis,
+      items: [...analysis.items, newItem]
+    });
+    // Reset defaults
+    setIsAddingItem(false);
+    setNewName('');
+    setNewSku('');
+    setNewQty(1);
+    setNewUnit('יח');
+    setNewStatus('validated');
+    addToast('פריט נוסף בהצלחה', 'נוסף לניתוח המוצרים של נועה ✅', 'success');
+  };
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     
     setIsProcessing(true);
+    setEditedWhatsappText('');
+    setIsEditingWhatsapp(false);
+    setEditingItemIdx(null);
+    setIsAddingItem(false);
     try {
       const base64 = await new Promise<string>((resolve) => {
         const reader = new FileReader();
@@ -271,6 +383,7 @@ export const NoaBridgeGateway: React.FC<NoaBridgeGatewayProps> = ({ onBack }) =>
         mimeType: file.type
       });
       setAnalysis(result);
+      setEditedWhatsappText(result.whatsappResponse || '');
       if (result.customer?.id) fetchChatHistory(result.customer.id);
       addToast('הקובץ נותח!', 'נועה זיהתה את ההזמנה ✅', 'success');
     } catch (error: any) {
@@ -404,8 +517,7 @@ export const NoaBridgeGateway: React.FC<NoaBridgeGatewayProps> = ({ onBack }) =>
             </div>
 
             <div 
-              style={{ marginRight: '77.5625px', marginLeft: '77.5px' }}
-              className="flex-1 flex flex-col gap-6 overflow-hidden"
+              className="flex-1 flex flex-col gap-6 overflow-hidden w-full"
             >
               <div className="relative group">
                 <textarea 
@@ -472,25 +584,211 @@ export const NoaBridgeGateway: React.FC<NoaBridgeGatewayProps> = ({ onBack }) =>
                           </div>
                         </div>
 
-                        <div className="p-5 bg-white rounded-[2rem] border border-gray-100 shadow-sm">
-                           <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center justify-between">
+                        <div className="p-5 bg-white rounded-[2rem] border border-gray-100 shadow-sm flex flex-col gap-4">
+                           <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center justify-between">
                              <span>Matched Items</span>
                              <span className="text-sky-600">{analysis.items.length} units</span>
                            </h4>
-                           <div className="space-y-2">
+                           <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
                              {analysis.items.map((item, i) => (
-                               <div key={i} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-transparent hover:border-sky-50 transition-colors">
-                                 <div className="flex flex-col">
-                                   <span className="text-xs font-black text-gray-800">{item.name}</span>
-                                   <span className="text-[9px] text-gray-400 font-mono">{item.sku || 'N/A'}</span>
-                                 </div>
-                                 <div className="flex items-center gap-3">
-                                   <span className="text-xs font-black text-gray-900">{item.qty} {item.unit}</span>
-                                   {item.status === 'validated' ? <Check size={14} className="text-emerald-500" /> : <AlertTriangle size={14} className="text-amber-500" />}
-                                 </div>
+                               <div key={i}>
+                                 {editingItemIdx === i ? (
+                                   <div className="p-4 bg-sky-50 rounded-2xl border border-sky-100 flex flex-col gap-3">
+                                     <div className="grid grid-cols-2 gap-2 text-right">
+                                       <div>
+                                         <label className="text-[10px] font-black text-gray-400">שם פריט</label>
+                                         <input 
+                                           type="text" 
+                                           value={editName} 
+                                           onChange={(e) => setEditName(e.target.value)} 
+                                           className="w-full p-2 bg-white rounded-lg border border-gray-200 text-xs font-bold text-right"
+                                         />
+                                       </div>
+                                       <div>
+                                         <label className="text-[10px] font-black text-gray-400">מק"ט</label>
+                                         <input 
+                                           type="text" 
+                                           value={editSku} 
+                                           onChange={(e) => setEditSku(e.target.value)} 
+                                           className="w-full p-2 bg-white rounded-lg border border-gray-200 text-xs font-mono font-bold text-right"
+                                         />
+                                       </div>
+                                     </div>
+                                     <div className="grid grid-cols-3 gap-2 text-right">
+                                       <div>
+                                         <label className="text-[10px] font-black text-gray-400">כמות</label>
+                                         <input 
+                                           type="number" 
+                                           value={editQty} 
+                                           onChange={(e) => setEditQty(Number(e.target.value))} 
+                                           className="w-full p-2 bg-white rounded-lg border border-gray-200 text-xs font-bold text-right"
+                                         />
+                                       </div>
+                                       <div>
+                                         <label className="text-[10px] font-black text-gray-400">יחידה</label>
+                                         <input 
+                                           type="text" 
+                                           value={editUnit} 
+                                           onChange={(e) => setEditUnit(e.target.value)} 
+                                           className="w-full p-2 bg-white rounded-lg border border-gray-200 text-xs font-bold text-right"
+                                         />
+                                       </div>
+                                       <div>
+                                         <label className="text-[10px] font-black text-gray-400">סטטוס</label>
+                                         <select 
+                                           value={editStatus} 
+                                           onChange={(e) => setEditStatus(e.target.value as any)}
+                                           className="w-full p-2 bg-white rounded-lg border border-gray-200 text-xs font-bold text-right"
+                                         >
+                                           <option value="validated">תקין במלאי</option>
+                                           <option value="missing_specs">מוצר מיוחד</option>
+                                           <option value="delay_warning">חריגת מלאי</option>
+                                         </select>
+                                       </div>
+                                     </div>
+                                     <div className="flex justify-end gap-2 mt-2">
+                                       <button 
+                                         onClick={() => setEditingItemIdx(null)}
+                                         className="px-3 py-1.5 bg-gray-100 text-gray-600 rounded-lg text-xs font-black"
+                                       >
+                                         ביטול
+                                       </button>
+                                       <button 
+                                         onClick={() => saveEditedItem(i)}
+                                         className="px-3 py-1.5 bg-sky-600 text-white rounded-lg text-xs font-black"
+                                       >
+                                         שמירה
+                                       </button>
+                                     </div>
+                                   </div>
+                                 ) : (
+                                   <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-transparent hover:border-sky-50 transition-colors group/item">
+                                     <div className="flex flex-col text-right">
+                                       <span className="text-xs font-black text-gray-800">{item.name}</span>
+                                       <span className="text-[9px] text-gray-400 font-mono">{item.sku || 'N/A'}</span>
+                                     </div>
+                                     <div className="flex items-center gap-3">
+                                       <span className="text-xs font-black text-gray-900">{item.qty} {item.unit || 'יח'}</span>
+                                       {item.status === 'validated' ? (
+                                         <Check size={14} className="text-emerald-500" />
+                                       ) : (
+                                         <AlertTriangle size={14} className="text-amber-500" />
+                                       )}
+                                       
+                                       <div className="opacity-0 group-hover/item:opacity-100 transition-opacity flex items-center gap-1">
+                                         <button 
+                                           onClick={() => startEditingItem(i)}
+                                           className="p-1 text-sky-600 hover:bg-sky-100 rounded"
+                                           title="ערוך מוצר"
+                                         >
+                                           <Pencil size={12} />
+                                         </button>
+                                         <button 
+                                           onClick={() => deleteItem(i)}
+                                           className="p-1 text-rose-600 hover:bg-rose-100 rounded"
+                                           title="מחק מהניתוח"
+                                         >
+                                           <Trash2 size={12} />
+                                         </button>
+                                       </div>
+                                     </div>
+                                   </div>
+                                 )}
                                </div>
                              ))}
                            </div>
+
+                           {isAddingItem ? (
+                             <div className="p-4 bg-emerald-50/40 rounded-2xl border border-emerald-100 flex flex-col gap-3">
+                               <div className="font-black text-xs text-emerald-800 text-right">הוספת מוצר ידנית</div>
+                               <div className="grid grid-cols-2 gap-2 text-right">
+                                 <div>
+                                   <label className="text-[10px] font-black text-gray-400">שם פריט</label>
+                                   <input 
+                                     type="text" 
+                                     value={newName} 
+                                     onChange={(e) => setNewName(e.target.value)} 
+                                     placeholder="לדוגמא: חול ים"
+                                     className="w-full p-2 bg-white rounded-lg border border-gray-200 text-xs font-bold text-right"
+                                   />
+                                 </div>
+                                 <div>
+                                   <label className="text-[10px] font-black text-gray-400">חפש מהקטלוג</label>
+                                   <select 
+                                     value={newSku} 
+                                     onChange={(e) => {
+                                       setNewSku(e.target.value);
+                                       const matched = inventory.find(i => i.sku === e.target.value);
+                                       if (matched) {
+                                         setNewName(matched.name);
+                                         setNewUnit(matched.unit || 'יח');
+                                       }
+                                     }}
+                                     className="w-full p-2 bg-white rounded-lg border border-gray-200 text-xs font-bold text-right"
+                                   >
+                                     <option value="">-- בחר פריט קטלוגי --</option>
+                                     {inventory.map(inv => (
+                                       <option key={inv.sku} value={inv.sku}>{inv.name} ({inv.sku})</option>
+                                     ))}
+                                   </select>
+                                 </div>
+                               </div>
+                               <div className="grid grid-cols-3 gap-2 text-right">
+                                 <div>
+                                   <label className="text-[10px] font-black text-gray-400">כמות</label>
+                                   <input 
+                                     type="number" 
+                                     value={newQty} 
+                                     onChange={(e) => setNewQty(Number(e.target.value))} 
+                                     className="w-full p-2 bg-white rounded-lg border border-gray-200 text-xs font-bold text-right"
+                                   />
+                                 </div>
+                                 <div>
+                                   <label className="text-[10px] font-black text-gray-400">יחידה</label>
+                                   <input 
+                                     type="text" 
+                                     value={newUnit} 
+                                     onChange={(e) => setNewUnit(e.target.value)} 
+                                     className="w-full p-2 bg-white rounded-lg border border-gray-200 text-xs font-bold text-right"
+                                   />
+                                 </div>
+                                 <div>
+                                   <label className="text-[10px] font-black text-gray-400">חיווי מלאי</label>
+                                   <select 
+                                     value={newStatus} 
+                                     onChange={(e) => setNewStatus(e.target.value as any)}
+                                     className="w-full p-2 bg-white rounded-lg border border-gray-200 text-xs font-bold text-right"
+                                   >
+                                     <option value="validated">תקין במלאי</option>
+                                     <option value="missing_specs">מוצר בהזמנה מיוחדת</option>
+                                     <option value="delay_warning">חריגה (בדוק שוב)</option>
+                                   </select>
+                                 </div>
+                               </div>
+                               <div className="flex justify-end gap-2 mt-2">
+                                 <button 
+                                   onClick={() => setIsAddingItem(false)}
+                                   className="px-3 py-1.5 bg-gray-100 text-gray-600 rounded-lg text-xs font-black"
+                                 >
+                                   ביטול
+                                 </button>
+                                 <button 
+                                   onClick={addItemToAnalysis}
+                                   className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-black"
+                                 >
+                                   הוספה
+                                 </button>
+                               </div>
+                             </div>
+                           ) : (
+                             <button 
+                               onClick={() => setIsAddingItem(true)}
+                               className="w-full py-3 border border-dashed border-gray-200 rounded-2xl text-xs font-black text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50/20 transition-all flex items-center justify-center gap-1.5"
+                             >
+                               <Plus size={14} />
+                               הוסף מוצר ידנית ללוח הניתוח
+                             </button>
+                           )}
                         </div>
                       </div>
 
@@ -503,10 +801,18 @@ export const NoaBridgeGateway: React.FC<NoaBridgeGatewayProps> = ({ onBack }) =>
                                <MessageSquare size={16} className="text-sky-200" />
                                <span className="text-[10px] font-black uppercase text-sky-100">WhatsApp Concierge</span>
                              </div>
-                             <motion.button 
+                             <div className="flex items-center gap-1.5 z-10">
+                               <button 
+                                 onClick={() => setIsEditingWhatsapp(!isEditingWhatsapp)}
+                                 className="bg-white/20 px-2.5 py-1.5 rounded-xl hover:bg-white/30 transition-all text-white text-[11px] font-black flex items-center gap-1"
+                               >
+                                 {isEditingWhatsapp ? <Save size={12} fill="currentColor" /> : <Pencil size={12} fill="currentColor" />}
+                                 {isEditingWhatsapp ? 'שמור' : 'עריכה'}
+                               </button>
+                               <motion.button 
                                whileTap={{ scale: 0.9 }}
                                onClick={() => {
-                                 navigator.clipboard.writeText(analysis.whatsappResponse);
+                                 navigator.clipboard.writeText(editedWhatsappText || analysis.whatsappResponse);
                                  setCopied(true);
                                  setTimeout(() => setCopied(false), 2000);
                                  addToast('בוצע!', 'התגובה הועתקה. זמין להדבקה.', 'success');
@@ -516,9 +822,17 @@ export const NoaBridgeGateway: React.FC<NoaBridgeGatewayProps> = ({ onBack }) =>
                                {copied ? <Check size={18} /> : <Copy size={18} />}
                              </motion.button>
                            </div>
-                           <p className="text-lg font-black leading-relaxed whitespace-pre-wrap text-right">
-                             {analysis.whatsappResponse}
+                           </div>
+                           <p className={isEditingWhatsapp ? "hidden" : "text-lg font-black leading-relaxed whitespace-pre-wrap text-right"}>
+                             {editedWhatsappText || analysis.whatsappResponse}
                            </p>
+                           {isEditingWhatsapp && (
+                             <textarea 
+                               value={editedWhatsappText}
+                               onChange={(e) => setEditedWhatsappText(e.target.value)}
+                               className="w-full h-48 bg-white/10 text-white rounded-2xl p-4 text-right text-sm font-bold border border-white/20 focus:ring-1 focus:ring-white/40 whitespace-pre-wrap outline-none resize-none"
+                             />
+                           )}
                            <div className="mt-8 flex items-center justify-between">
                              <span className="text-[9px] font-black text-sky-200 uppercase">Status: Ready for broadcast</span>
                              <div className="flex gap-2">
@@ -557,8 +871,7 @@ export const NoaBridgeGateway: React.FC<NoaBridgeGatewayProps> = ({ onBack }) =>
 
         {/* Right Pane: Client Brain & Real-time Tracking (Desktop Only) */}
         <aside 
-          style={{ width: '80px' }}
-          className="hidden xl:flex flex-col gap-4 overflow-hidden"
+          className="hidden xl:flex flex-col w-[350px] shrink-0 gap-4 overflow-hidden"
         >
           {/* Customer Brain Profile */}
           <div className="bg-white rounded-[2.5rem] p-6 border border-gray-100 shadow-xl shadow-gray-900/5">
@@ -616,7 +929,6 @@ export const NoaBridgeGateway: React.FC<NoaBridgeGatewayProps> = ({ onBack }) =>
 
           {/* Real-time Order Tracking (Mini-Log) */}
           <div 
-            style={{ marginRight: '99px', width: '281.009px' }}
             className="flex-1 bg-gray-900 rounded-[2.5rem] p-6 shadow-2xl relative overflow-hidden group"
           >
             <div className="absolute top-0 right-0 w-64 h-64 bg-sky-500/10 rounded-full blur-3xl -mr-32 -mt-32 group-hover:scale-110 transition-transform duration-1000" />

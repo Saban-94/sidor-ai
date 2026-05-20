@@ -1668,8 +1668,15 @@ function AppContent() {
 
           <main className={`flex-1 min-w-0 flex flex-col h-screen overflow-y-auto bg-[#F8FAFC] hide-scrollbar scroll-smooth`}>
             <div 
-              style={{ width: '1045.12px', backgroundColor: '#f7f9fd' }}
-              className="mx-auto flex-1 flex flex-col relative w-full px-4 md:px-12 py-8 gap-6 pb-32 lg:pb-12 transition-all duration-500"
+              style={{ 
+                width: viewMode === 'noa_bridge' ? '100%' : '1045.12px', 
+                maxWidth: '100%',
+                backgroundColor: '#f7f9fd' 
+              }}
+              className={viewMode === 'noa_bridge'
+                ? "flex-1 flex flex-col relative w-full px-2 lg:px-4 py-4 gap-4 pb-12 transition-all duration-300"
+                : "mx-auto flex-1 flex flex-col relative w-full px-4 md:px-12 py-8 gap-6 pb-32 lg:pb-12 transition-all duration-500"
+              }
             >
                 <header 
                   style={{ paddingTop: '10px', marginBottom: '27px' }}
