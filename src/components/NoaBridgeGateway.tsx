@@ -93,6 +93,13 @@ interface BridgeAnalysis {
   }[];
   warnings: string[];
   whatsappResponse: string;
+  smartAnalysis?: {
+    specialOrders: string[];
+    complements: {
+      name: string;
+      reason: string;
+    }[];
+  };
 }
 
 export const NoaBridgeGateway: React.FC<NoaBridgeGatewayProps> = ({ onBack }) => {
@@ -559,17 +566,23 @@ export const NoaBridgeGateway: React.FC<NoaBridgeGatewayProps> = ({ onBack }) =>
                             <div className="flex items-center justify-between p-3 bg-white rounded-xl shadow-sm border border-gray-50">
                               <span className="text-xs font-bold text-gray-500">Client</span>
                               <div className="flex items-center gap-2">
-                                <span className={`text-[9px] px-2 py-0.5 rounded-full font-black uppercase ${analysis.customer.isNew ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>
-                                  {analysis.customer.isNew ? 'New Detected' : 'Existing Match'}
-                                </span>
-                                <span className="text-sm font-black text-gray-900">{analysis.customer.name}</span>
+                                {analysis.customer?.isNew ? (
+                                  <>
+                                    <span className="text-[9px] px-2 py-0.5 rounded-full font-black uppercase bg-amber-100 text-amber-700">
+                                      New Detected
+                                    </span>
+                                    <span className="text-sm font-black text-gray-900">{analysis.customer?.name}</span>
+                                  </>
+                                ) : (
+                                  <span dangerouslySetInnerHTML={{ __html: `<span class="text-xs font-black text-emerald-800">👤 לקוח מזוהה: ${analysis.customer?.name || 'לקוח כללי'}</span>` }} />
+                                )}
                               </div>
                             </div>
                             <div className="flex items-center justify-between p-3 bg-white rounded-xl shadow-sm border border-gray-50">
                               <span className="text-xs font-bold text-gray-500">Site/Link</span>
                               <span className="text-sm font-black text-sky-600 truncate max-w-[150px]">{analysis.site || 'TBD'}</span>
                             </div>
-                            {analysis.customer.recallNote && (
+                            {analysis.customer?.recallNote && (
                               <motion.div 
                                 initial={{ opacity: 0, scale: 0.95 }}
                                 animate={{ opacity: 1, scale: 1 }}
@@ -577,17 +590,17 @@ export const NoaBridgeGateway: React.FC<NoaBridgeGatewayProps> = ({ onBack }) =>
                               >
                                 <Brain size={16} className="text-indigo-600 mt-0.5 shrink-0" />
                                 <div className="text-xs font-bold text-indigo-900 leading-relaxed italic">
-                                  {analysis.customer.recallNote}
+                                  {analysis.customer?.recallNote}
                                 </div>
                               </motion.div>
                             )}
                           </div>
                         </div>
 
-                        <div className="p-5 bg-white rounded-[2rem] border border-gray-100 shadow-sm flex flex-col gap-4">
-                           <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center justify-between">
-                             <span>Matched Items</span>
-                             <span className="text-sky-600">{analysis.items.length} units</span>
+                        <div className="mt-2 p-1.5 bg-slate-50 border border-slate-200 rounded-lg">
+                           <h4 className="text-[10px] font-black text-slate-400 uppercase mb-1 border-b pb-1 flex justify-between items-center font-sans">
+                             <span>פריטים מאומתים (Matched Items)</span>
+                             <span className="text-[#c5a059] font-mono">{analysis.items.length} units</span>
                            </h4>
                            <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
                              {analysis.items.map((item, i) => (
@@ -662,7 +675,40 @@ export const NoaBridgeGateway: React.FC<NoaBridgeGatewayProps> = ({ onBack }) =>
                                      </div>
                                    </div>
                                  ) : (
-                                   <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-transparent hover:border-sky-50 transition-colors group/item">
+                                   <>
+                                     <div className="relative group/item w-full">
+                                     {item.status === 'validated' && item.sku ? (
+                                       <div className="flex justify-between items-center bg-slate-50 border p-1 rounded w-full">
+                                         <span className="text-[11px] font-black text-slate-900">📦 {item.name} ({item.qty} {item.unit || 'יח'})</span>
+                                         <span className="bg-blue-100 text-blue-900 text-[9px] px-1.5 rounded font-black font-mono">מק"ט: {item.sku}</span>
+                                       </div>
+                                     ) : (
+                                       <div className="flex justify-between items-center bg-rose-50 border border-rose-200 p-1 rounded text-right w-full">
+                                         <span className="text-[11px] font-black text-rose-950">⚠️ {item.name} ({item.qty} {item.unit || 'יח'})</span>
+                                         <span className="bg-rose-100 text-rose-900 text-[9px] px-1.5 rounded font-black font-mono">
+                                           [פריט חסר/דורש אימות - לא נמצא במאגר]
+                                         </span>
+                                       </div>
+                                     )}
+                                     
+                                     <div className="absolute top-1/2 -left-2 -translate-y-1/2 opacity-0 group-hover/item:opacity-100 transition-opacity flex items-center gap-1 bg-white/95 shadow-md border rounded p-0.5 z-10">
+                                       <button 
+                                         onClick={() => startEditingItem(i)}
+                                         className="p-1 text-sky-600 hover:bg-sky-100 rounded cursor-pointer"
+                                         title="ערוך מוצר"
+                                       >
+                                         <Pencil size={12} />
+                                       </button>
+                                       <button 
+                                         onClick={() => deleteItem(i)}
+                                         className="p-1 text-rose-600 hover:bg-rose-100 rounded cursor-pointer"
+                                         title="מחק מהניתוח"
+                                       >
+                                         <Trash2 size={12} />
+                                       </button>
+                                     </div>
+                                   </div>
+                                   <div className="hidden select-none">
                                      <div className="flex flex-col text-right">
                                        <span className="text-xs font-black text-gray-800">{item.name}</span>
                                        <span className="text-[9px] text-gray-400 font-mono">{item.sku || 'N/A'}</span>
@@ -693,7 +739,7 @@ export const NoaBridgeGateway: React.FC<NoaBridgeGatewayProps> = ({ onBack }) =>
                                        </div>
                                      </div>
                                    </div>
-                                 )}
+                               </>)}
                                </div>
                              ))}
                            </div>
@@ -780,14 +826,60 @@ export const NoaBridgeGateway: React.FC<NoaBridgeGatewayProps> = ({ onBack }) =>
                                  </button>
                                </div>
                              </div>
-                           ) : (
+                           ) : (<>
                              <button 
                                onClick={() => setIsAddingItem(true)}
                                className="w-full py-3 border border-dashed border-gray-200 rounded-2xl text-xs font-black text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50/20 transition-all flex items-center justify-center gap-1.5"
                              >
                                <Plus size={14} />
                                הוסף מוצר ידנית ללוח הניתוח
-                             </button>
+                              </button>
+
+                              {/* Saban Proactive Operational Control Center (v64) */}
+                              <div className="mt-4 pt-4 border-t border-gray-100 flex flex-col gap-2">
+                                <span className="text-[10px] font-black text-gray-400 text-right uppercase tracking-wider block font-sans">פעולות נועה ביצועיות:</span>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                  <button 
+                                    data-intent="create_order" 
+                                    data-payload={JSON.stringify({
+                                      customerName: analysis.customer.name,
+                                      customerId: analysis.customer.id || '',
+                                      items: analysis.items.map(it => `${it.qty}x ${it.name}${it.sku ? ` (${it.sku})` : ''}`).join('\n'),
+                                      destination: analysis.site || 'עודכן משדה הקרב'
+                                    })}
+                                    onClick={handleInjectOrder}
+                                    className="saban-proactive-btn w-full flex items-center justify-center gap-1.5 cursor-pointer text-xs font-black font-sans"
+                                  >
+                                    ✅ אשר והכנס הזמנה לסידור
+                                  </button>
+                                  
+                                  <button 
+                                    data-intent="inventory" 
+                                    data-payload={analysis.items.find(it => it.status !== 'validated')?.name || 'כללי'}
+                                    onClick={() => {
+                                      const firstUnmatched = analysis.items.find(it => it.status !== 'validated');
+                                      if (firstUnmatched) {
+                                        const matched = inventory.filter(inv => inv.name.toLowerCase().includes(firstUnmatched.name.toLowerCase()));
+                                        if (matched.length > 0) {
+                                          addToast('במלאי', `נמצאו ${matched.length} פריטים דומים במלאי: ${matched.slice(0, 3).map(m => m.name).join(', ')}`, 'success');
+                                        } else {
+                                          addToast('אין התאמה', `לא נמצאו מוצרים תואמים במלאי עבור "${firstUnmatched.name}"`, 'warning');
+                                        }
+                                      } else {
+                                        addToast('מלאי תקין', 'כל מוצרי ההזמנה הותאמו במלואם ומאושרים במלאי המערכת!', 'success');
+                                      }
+                                    }}
+                                    className="saban-proactive-btn w-full flex items-center justify-center gap-1.5 cursor-pointer text-xs font-black bg-slate-800 hover:bg-slate-900 border border-slate-700 text-white font-sans"
+                                  >
+                                    🔍 בדוק מלאי לחומר שלא אותר
+                                  </button>
+                                </div>
+                              </div>
+                              <div className="hidden select-none">
+                                <div className="hidden">
+                                </div>
+                              </div>
+                              </>
                            )}
                         </div>
                       </div>
@@ -843,7 +935,103 @@ export const NoaBridgeGateway: React.FC<NoaBridgeGatewayProps> = ({ onBack }) =>
                            </div>
                          </div>
 
-                         <motion.button 
+                         
+
+                          {(() => {
+                            const specialOrders = [
+                              ...(analysis.smartAnalysis?.specialOrders || []),
+                              ...analysis.items
+                                .filter(item => item.status === 'missing_specs')
+                                .map(item => `📦 ${item.name} - מוצר זה דורש אימות מפרט או ייצור ייעודי ויסווג כהזמנה מיוחדת [special_order]`)
+                            ];
+
+                            const complementsFallback: { name: string; reason: string }[] = [];
+                            analysis.items.forEach(item => {
+                              const name = item.name.toLowerCase();
+                              if (name.includes('גבס') && !complementsFallback.some(c => c.name.includes('גבס'))) {
+                                complementsFallback.push({ name: 'ברגי גבס 25 מ"מ (פח)', reason: 'לחיבור לוחות גבס בצורה תקנית לקונסטרוקציה.' });
+                                complementsFallback.push({ name: 'שפכטל אמריקאי מוכן (פח)', reason: 'למריחה וגימור חלק ומקצועי למחיצות.' });
+                              } else if ((name.includes('מלט') || name.includes('טיח') || name.includes('צמנט')) && !complementsFallback.some(c => c.name.includes('מלט'))) {
+                                complementsFallback.push({ name: 'חול בניין מסונן', reason: 'מרכיב יסוד להכנת תערובת מלט תקנית לריצוף או טיח קירות.' });
+                                complementsFallback.push({ name: 'כפפות עבודה עבות מחוזקות', reason: 'לשמירה על בטיחות הנהג או הפועלים בעת הפריקה.' });
+                              } else if (name.includes('בלוק') && !complementsFallback.some(c => c.name.includes('בלוק'))) {
+                                complementsFallback.push({ name: 'מלט שחור 50 ק"ג', reason: 'חיוני להכנת הטיט להצמדה ובניית קירות הבלוקים.' });
+                              } else if (name.includes('ברזל') && !complementsFallback.some(c => c.name.includes('ברזל'))) {
+                                complementsFallback.push({ name: 'חוט קשירה שחור (גליל)', reason: 'לקשירת רשתות ברזל או מוטות לפני יציקות בטון.' });
+                              } else if ((name.includes('צבע') || name.includes('טמבור') || name.includes('נירלט')) && !complementsFallback.some(c => c.name.includes('צבע'))) {
+                                complementsFallback.push({ name: 'סט מברשות ורולר מקצועי', reason: 'ליישום מדויק, אחיד ומהיר של הגוון הנבחר.' });
+                                complementsFallback.push({ name: 'סרט מסקנטייפ וניילון הגנה', reason: 'להגנה הרמטית על משקופים, פנלים וריהוט.' });
+                              } else if ((name.includes('קרמיקה') || name.includes('ריצוף') || name.includes('דבק')) && !complementsFallback.some(c => c.name.includes('קרמיקה'))) {
+                                complementsFallback.push({ name: 'רובה אקרילית לצבעים נבחרים', reason: 'למילוי פוגות אופטימלי ואטימה מפני חדירת נוזלים.' });
+                                complementsFallback.push({ name: 'צלבי פלסטיק לפוגות (שקית)', reason: 'לקבלת מרווחים שווים לחלוטין ומראה ישר ומושלם.' });
+                              }
+                            });
+
+                            const complements = analysis.smartAnalysis?.complements && analysis.smartAnalysis.complements.length > 0
+                              ? analysis.smartAnalysis.complements
+                              : complementsFallback.slice(0, 3);
+
+                            return (
+                              <div className="p-4 bg-slate-900 text-white rounded-[2rem] border border-slate-800 shadow-xl space-y-4 font-sans text-right relative overflow-hidden my-4">
+                                <div className="absolute top-0 left-0 w-24 h-24 bg-emerald-500/10 rounded-full blur-2xl -ml-8 -mt-8" />
+                                <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                                  <div className="flex items-center gap-2">
+                                    <Sparkles size={16} className="text-[#c5a059]" />
+                                    <span className="text-xs font-black uppercase text-slate-200 font-sans">SabanOS Smart Engine (v65)</span>
+                                  </div>
+                                  <span className="text-[9px] font-black bg-[#c5a059] text-slate-950 px-2 py-0.5 rounded">ניתוח בינה מלאכותית</span>
+                                </div>
+
+                                {/* Special Orders Section */}
+                                <div className="space-y-1.5">
+                                  <h5 className="text-[11px] font-black text-[#c5a059] flex items-center gap-1.5 justify-end uppercase font-sans">
+                                    🚨 זיהוי הזמנות מיוחדות (Special Orders)
+                                  </h5>
+                                  {specialOrders.length > 0 ? (
+                                    <ul className="space-y-1 m-0 p-0 text-xs font-bold text-slate-100">
+                                      {specialOrders.map((itm, i) => (
+                                        <li key={i} className="bg-rose-950/40 border border-rose-900/60 p-2 rounded-xl flex items-start gap-2 justify-end text-right">
+                                          <span className="text-right text-[11px] text-rose-200 leading-snug font-sans">{itm}</span>
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  ) : (
+                                    <div className="p-2 bg-emerald-950/20 border border-emerald-900/40 rounded-xl text-[11px] text-emerald-300 font-bold text-center font-sans">
+                                      לעסק איתור מדויק: כל פריטי ההזמנה קטלוגיים ותקניים לחלוטין! ✅
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* Complementary Recommendations Section */}
+                                <div className="space-y-1.5 font-sans">
+                                  <h5 className="text-[11px] font-black text-emerald-400 flex items-center gap-1.5 justify-end uppercase font-sans">
+                                    💡 הצעות למוצרים משלימים (Complementary Recommendations)
+                                  </h5>
+                                  {complements.length > 0 ? (
+                                    <div className="grid grid-cols-1 gap-1.5">
+                                      {complements.map((comp, i) => (
+                                        <div key={i} className="bg-slate-800/60 border border-slate-700/50 p-2 rounded-xl text-right">
+                                          <div className="flex justify-between items-center mb-0.5 font-sans">
+                                            <span className="text-[10px] text-[#c5a059] font-black">הצעת אפסל 💎</span>
+                                            <span className="text-[11px] text-emerald-300 font-extrabold">{comp.name}</span>
+                                          </div>
+                                          <p className="text-[10px] text-slate-100 font-medium leading-relaxed m-0 p-0">
+                                            {comp.reason}
+                                          </p>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  ) : (
+                                    <div className="p-2 bg-slate-800/40 rounded-xl text-[11px] text-slate-300 font-bold text-center">
+                                      אין הצעות משלימות זמינות עבור סל מוצרים זה.
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })()}
+
+<motion.button 
                            whileTap={{ scale: 0.98 }}
                            onClick={handleInjectOrder}
                            disabled={isInjecting}
