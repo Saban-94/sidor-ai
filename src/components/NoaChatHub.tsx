@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { NoaChat } from './NoaChat';
 import { NoaChatHistory } from './NoaChatHistory';
+import { LogixKpiDashboard } from './LogixKpiDashboard';
 import { Order, ChatSession } from '../types';
 import { getLogisticsInsight, getTrafficRefinedRoute } from '../services/auraService';
 
@@ -227,15 +228,14 @@ export const NoaChatHub = ({
                   </div>
                 )}
 
-                {activeTab === 'performance' && (
-                  <div className="p-8 flex flex-col items-center justify-center h-full text-center space-y-4 bg-white">
-                     <div className="w-16 h-16 bg-blue-900/5 rounded-2xl flex items-center justify-center text-blue-900 mb-2 shadow-inner">
-                        <TrendingUp size={32} />
-                     </div>
-                     <h3 className="text-lg font-black text-blue-950 italic">ניתוח ביצועים בבנייה</h3>
-                     <p className="text-xs font-bold text-slate-400 max-w-md mx-auto leading-tight">נועה מעבדת את נתוני העבר כדי לבנות מודל חיזוי רווחיות (Predictive ROI Model) עבור המפקד ראמי.</p>
-                  </div>
-                )}
+                                 {activeTab === 'performance' && (
+                   <div className="h-full overflow-y-auto px-4 py-6 bg-[#0B0F19] text-white">
+                     <LogixKpiDashboard onSuggestCommand={(cmd) => {
+                       setActiveTab('chat');
+                       onAction(cmd);
+                     }} />
+                   </div>
+                 )}
              </div>
           </main>
 
