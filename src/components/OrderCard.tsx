@@ -44,13 +44,58 @@ export const StatusBadge = ({ status }: { status: Order['status'] }) => {
 
   const config = configs[status] || configs.pending;
   const Icon = config.icon;
+  const isDelivered = status === 'delivered';
 
   return (
-    <span className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-black border ${config.color} shadow-sm uppercase tracking-tight`}>
-      <span className="text-[14px] leading-none">{config.emoji}</span>
-      <Icon size={12} strokeWidth={3} />
+    <motion.span 
+      layout
+      key={status}
+      initial={isDelivered ? { scale: 0.9, y: 2 } : false}
+      animate={isDelivered ? { 
+        scale: [1, 1.15, 0.98, 1.02, 1], 
+        y: 0,
+        boxShadow: [
+          "0px 0px 0px rgba(74, 222, 128, 0)", 
+          "0px 4px 14px rgba(74, 222, 128, 0.4)", 
+          "0px 2px 4px rgba(74, 222, 128, 0.1)"
+        ] 
+      } : { scale: 1, y: 0 }}
+      transition={{ duration: 0.6, ease: "easeOut" }}
+      className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-black border ${config.color} shadow-sm uppercase tracking-tight overflow-hidden`}
+    >
+      <span className="text-[14px] leading-none">
+        {isDelivered ? (
+          <motion.span
+            initial={{ scale: 0, rotate: -30 }}
+            animate={{ scale: [0, 1.4, 1], rotate: 0 }}
+            transition={{ delay: 0.1, duration: 0.4, type: "spring" }}
+            className="inline-block"
+          >
+            {config.emoji}
+          </motion.span>
+        ) : (
+          config.emoji
+        )}
+      </span>
+      {isDelivered ? (
+        <motion.span
+          initial={{ scale: 0, rotate: -45 }}
+          animate={{ scale: 1, rotate: 0 }}
+          transition={{ 
+            type: "spring", 
+            stiffness: 350, 
+            damping: 10,
+            delay: 0.05
+          }}
+          className="inline-flex items-center justify-center text-green-600 font-bold"
+        >
+          <Icon size={12} strokeWidth={4} />
+        </motion.span>
+      ) : (
+        <Icon size={12} strokeWidth={3} />
+      )}
       {config.label}
-    </span>
+    </motion.span>
   );
 };
 
