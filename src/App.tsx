@@ -1669,7 +1669,7 @@ function AppContent() {
           <main className={`flex-1 min-w-0 flex flex-col h-screen overflow-y-auto bg-[#F8FAFC] hide-scrollbar scroll-smooth`}>
             <div 
               style={{ 
-                width: viewMode === 'noa_bridge' ? '100%' : '1045.12px', 
+                width: viewMode === 'noa_bridge' ? '100%' : '1545.1px', 
                 maxWidth: '100%',
                 backgroundColor: '#f7f9fd' 
               }}
@@ -2080,7 +2080,7 @@ function AppContent() {
               )}
             </AnimatePresence>
           </div>
-          <div className="flex flex-wrap gap-3">
+          <div style={{ width: '16000px' }} className="flex flex-wrap gap-3">
             <select 
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
