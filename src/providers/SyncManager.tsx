@@ -91,9 +91,16 @@ export const SyncManager: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const unsubscribeAuth = auth.onAuthStateChanged((user) => {
       if (user) {
-        setStatus(Object.keys(syncQueue.current).length > 0 ? 'offline-pending' : 'connected');
-        setPipelineHealth(prev => ({ ...prev, firebase: true }));
-        if (navigator.onLine) processBatch();
+        const hasPending = Object.keys(syncQueue.current).length > 0;
+        setStatus(hasPending ? 'offline-pending' : 'connected');
+        setPipelineHealth(prev => ({ 
+          ...prev, 
+          firebase: true,
+          gas: navigator.onLine ? (!hasPending ? true : prev.gas) : false 
+        }));
+        if (navigator.onLine && hasPending) {
+          processBatch();
+        }
       } else {
         setStatus('disconnected');
         setPipelineHealth({ firebase: false, gas: false });
@@ -162,9 +169,11 @@ export const SyncManager: React.FC<{ children: React.ReactNode }> = ({ children 
       addToast('הסנכרון הושלם!', 'כל הנתונים הזרקו לגליונות ✅', 'success');
       setLastSync(new Date());
       setStatus('connected');
+      setPipelineHealth(prev => ({ ...prev, gas: true }));
     } catch (error: any) {
       console.error("Full sync failure:", error);
       setStatus('error');
+      setPipelineHealth(prev => ({ ...prev, gas: false }));
       addToast('שגיאת סנכרון', error.message, 'warning');
     } finally {
       isSyncing.current = false;
@@ -184,8 +193,10 @@ export const SyncManager: React.FC<{ children: React.ReactNode }> = ({ children 
       addToast('מלאי סונכרן', 'גליון המלאי עודכן ✅', 'success');
       setLastSync(new Date());
       setStatus('connected');
+      setPipelineHealth(prev => ({ ...prev, gas: true }));
     } catch (error: any) {
       setStatus('error');
+      setPipelineHealth(prev => ({ ...prev, gas: false }));
       addToast('שגיאה בסנכרון מלאי', error.message, 'warning');
     }
   };
@@ -241,6 +252,7 @@ export const SyncManager: React.FC<{ children: React.ReactNode }> = ({ children 
     } catch (err) {
       console.error("Batch sync failure:", err);
       setStatus('error');
+      setPipelineHealth(prev => ({ ...prev, gas: false }));
     } finally {
       isSyncing.current = false;
       throttleTimeout.current = null;
