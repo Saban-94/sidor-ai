@@ -262,20 +262,9 @@ export const LiveOrderPulse: React.FC<LiveOrderPulseProps> = ({
           <div style={{ marginRight: '0px' }} className={cn(
             "w-11 h-11 rounded-2xl flex items-center justify-center text-white shadow-lg transition-transform group-hover:scale-110",
             order.status === 'on_the_way' ? "bg-indigo-500 shadow-indigo-200" : 
-            order.status === 'delivered' ? "bg-emerald-500 shadow-emerald-250 border border-emerald-400" : "bg-slate-200 text-slate-500"
+            order.status === 'delivered' ? "bg-emerald-500 shadow-emerald-200" : "bg-slate-200 text-slate-500"
           )}>
-                      {order.status === 'delivered' ? (
-                        <motion.div
-                          key={`delivered-pulse-${order.status}`}
-                          initial={{ scale: 0, rotate: -45 }}
-                          animate={{ scale: [0, 1.35, 1], rotate: 0 }}
-                          transition={{ type: "spring", stiffness: 350, damping: 12 }}
-                        >
-                          <currentStatus.icon size={20} className="text-white" strokeWidth={3} />
-                        </motion.div>
-                      ) : (
-                        <currentStatus.icon size={20} />
-                      )}
+                      <currentStatus.icon size={20} />
                     </div>
                     <div>
                       <h3 className="font-black text-slate-900 text-lg">#{order.orderNumber || order.id?.slice(-4).toUpperCase()}</h3>
@@ -483,24 +472,7 @@ export const LiveOrderPulse: React.FC<LiveOrderPulseProps> = ({
                    <div className="flex items-center justify-between mb-6">
                       <span className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">סטטוס לוגיסטי</span>
                       <span className="px-4 py-2 bg-white text-indigo-600 rounded-2xl text-[11px] font-black uppercase shadow-sm border border-slate-100">
-                        {selectedOrder.status === 'delivered' ? (
-                          <motion.span
-                            key="delivered-status-pop"
-                            initial={{ scale: 0, rotate: -15 }}
-                            animate={{ scale: [0, 1.3, 1], rotate: 0 }}
-                            transition={{ type: "spring", stiffness: 350, damping: 12 }}
-                            className="inline-flex items-center gap-1 text-emerald-600 font-black"
-                          >
-                            <span>סופק</span>
-                            <motion.span 
-                              initial={{ scale: 0 }} 
-                              animate={{ scale: [0, 1.5, 1] }} 
-                              transition={{ delay: 0.15, type: 'spring' }}
-                            >
-                              ✅
-                            </motion.span>
-                          </motion.span>
-                        ) : selectedOrder.status.toUpperCase()}
+                        {selectedOrder.status.toUpperCase()}
                       </span>
                    </div>
                    <div className="grid grid-cols-4 gap-3 h-2 mt-10">

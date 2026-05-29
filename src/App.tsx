@@ -50,8 +50,7 @@ import {
   Loader2,
   ListTodo,
   FileSpreadsheet,
-  Activity,
-  Mail
+  Activity
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
@@ -91,7 +90,6 @@ import { InventoryManager } from './components/InventoryManager';
 import { InventoryDashboard } from './components/InventoryDashboard';
 import { ClientDesktopDashboard } from './components/ClientDesktopDashboard';
 import { LiveOrderPulse } from './components/LiveOrderPulse';
-import { GmailInbox } from './components/GmailInbox';
 import OrderForm from './components/OrderForm';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { NoaBridgeGateway } from './components/NoaBridgeGateway';
@@ -766,7 +764,7 @@ function AppContent() {
 
   // --- User Memory Persistence ---
   const [settings, setSettings] = useUserMemory(user?.uid, 'ui_settings', {
-    viewMode: 'desktop_dashboard' as 'list' | 'calendar' | 'reports' | 'chat' | 'drivers' | 'kanban' | 'import' | 'chat_full' | 'admin_users' | 'desktop_dashboard' | 'gmail',
+    viewMode: 'desktop_dashboard' as 'list' | 'calendar' | 'reports' | 'chat' | 'drivers' | 'kanban' | 'import' | 'chat_full' | 'admin_users' | 'desktop_dashboard',
     statusFilter: 'all',
     driverFilter: 'all',
     warehouseFilter: 'all',
@@ -1334,7 +1332,6 @@ function AppContent() {
     { id: 'noa_bridge', icon: Sparkles, label: 'גשר לוגיסטי' },
     { id: 'order_engine', icon: PackageCheck, label: 'מנוע הזמנות' },
     { id: 'desktop_dashboard', icon: Database, label: 'ניהול לקוחות' },
-    { id: 'gmail', icon: Mail, label: 'דואר (Gmail)' },
     { id: 'kanban', icon: Trello, label: 'לוח סידור' },
     { id: 'table', icon: Table, label: 'מחסן ומלאי' },
     { id: 'calendar', icon: CalendarDays, label: 'יומן שנתי' },
@@ -1672,7 +1669,7 @@ function AppContent() {
           <main className={`flex-1 min-w-0 flex flex-col h-screen overflow-y-auto bg-[#F8FAFC] hide-scrollbar scroll-smooth`}>
             <div 
               style={{ 
-                width: viewMode === 'noa_bridge' ? '100%' : '1545.1px', 
+                width: viewMode === 'noa_bridge' ? '100%' : '1045.12px', 
                 maxWidth: '100%',
                 backgroundColor: '#f7f9fd' 
               }}
@@ -1744,10 +1741,6 @@ function AppContent() {
                        drivers={drivers} 
                        inventory={inventoryItems}
                      />
-                  ) : viewMode === 'gmail' ? (
-                    <div className="flex-1 flex flex-col min-h-0 p-4 lg:p-6">
-                      <GmailInbox onAddToast={addToast} />
-                    </div>
                   ) : viewMode === 'chat' ? (
                     <div className="flex-1 w-full h-full flex flex-col bg-white overflow-hidden shadow-none mt-0">
                       <NoaChat 
