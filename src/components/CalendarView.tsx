@@ -14,7 +14,8 @@ import {
   CalendarDays,
   Sparkles,
   MapPin,
-  CalendarRange
+  CalendarRange,
+  Gauge
 } from 'lucide-react';
 import { 
   collection, 
@@ -40,13 +41,43 @@ const HebrewMonths = [
 
 const HebrewDays = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
 
+// Custom useDebounce hook
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+}
+
 export const CalendarView: React.FC<CalendarViewProps> = ({ onClose }) => {
   const { addToast } = useToast();
   
-  // Unlimited Future Data Visibility starting May 2026.
-  const [currentMonth, setCurrentMonth] = useState<Date>(() => {
-    return new Date(2026, 4, 1); // May 2026 (index 4 is May in JS Date)
+  // Reference base is Jan 2026. Month index starts from 0 to 59 (Dec 2030)
+  const startYear = 2026;
+  
+  // Calculate dynamic default slider index corresponding to Joi/June 2026 (index 5)
+  // Current local time metadata states 2026-06-03, meaning current month is June (index 5).
+  const [sliderIndex, setSliderIndex] = useState<number>(() => {
+    const rawYear = new Date().getFullYear();
+    const rawMonth = new Date().getMonth();
+    const yearOffset = rawYear >= startYear ? rawYear - startYear : 0;
+    return yearOffset * 12 + rawMonth; // e.g. June 2026 -> 5
   });
+
+  // Debounced slider state - Firebase listens exclusively to this to prevent read spikes
+  const debouncedIndex = useDebounce<number>(sliderIndex, 400);
+
+  // Active month object derived from debounced index
+  const activeMonthDate = new Date(startYear, debouncedIndex, 1);
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
@@ -60,16 +91,20 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onClose }) => {
   const [editStatus, setEditStatus] = useState<Order['status']>('pending');
   const [isSaving, setIsSaving] = useState(false);
 
-  // Firestore Listeners: Fetch all orders across past and unlimited future delivery schedules
+  // Firestore Listeners - re-triggers ONLY when debounced index settles
   useEffect(() => {
     setLoading(true);
+    
+    // Set up optimized query for live orders
     const ordersQuery = query(collection(db, 'orders'), orderBy('date', 'asc'), orderBy('time', 'asc'));
+    
     const unsubscribeOrders = onSnapshot(ordersQuery, (snapshot) => {
       const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Order[];
       setOrders(docs);
       setLoading(false);
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'orders');
+      setLoading(false);
     });
 
     const driversQuery = query(collection(db, 'drivers'), orderBy('name', 'asc'));
@@ -84,9 +119,12 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onClose }) => {
       unsubscribeOrders();
       unsubscribeDrivers();
     };
-  }, []);
+  }, [debouncedIndex]); // Listens strictly to debounced state index
 
-  // Update form fields when selected order changes
+  // Detect running transitions or active scrubber drags
+  const isScrubbing = sliderIndex !== debouncedIndex;
+
+  // Update inputs if an order context changes
   useEffect(() => {
     if (selectedOrder) {
       setEditDriverId(selectedOrder.driverId || 'self');
@@ -96,36 +134,38 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onClose }) => {
     }
   }, [selectedOrder]);
 
-  // Month navigation: Unlimited future months viewable
   const handlePrevMonth = () => {
-    setCurrentMonth(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
+    setSliderIndex(prev => Math.max(0, prev - 1));
   };
 
   const handleNextMonth = () => {
-    setCurrentMonth(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
+    setSliderIndex(prev => Math.min(59, prev + 1)); // up to December 2030 (index 59)
   };
 
   const handleResetToCurrent = () => {
-    setCurrentMonth(new Date(2026, 4, 1)); // Back to May 2026
+    const rawYear = new Date().getFullYear();
+    const rawMonth = new Date().getMonth();
+    const yearOffset = rawYear >= startYear ? rawYear - startYear : 0;
+    setSliderIndex(yearOffset * 12 + rawMonth);
   };
 
-  // Generate Days Grid for standard Month View
+  // Days grid calculation based on current active slider/debounced date view
   const getDaysInMonth = () => {
-    const year = currentMonth.getFullYear();
-    const month = currentMonth.getMonth();
+    const year = activeMonthDate.getFullYear();
+    const month = activeMonthDate.getMonth();
 
-    const firstDayInstance = new Date(year, month, 1);
+    const firstDay = new Date(year, month, 1);
     const totalDays = new Date(year, month + 1, 0).getDate();
-    const startOfWeekDay = firstDayInstance.getDay(); // 0 = Sunday, 1 = Monday...
+    const startOfWeekDay = firstDay.getDay(); // 0 = Sunday, 1 = Monday...
 
     const daysGrid: (Date | null)[] = [];
 
-    // Pads for week days before first day of current month
+    // Pads for leading days
     for (let i = 0; i < startOfWeekDay; i++) {
       daysGrid.push(null);
     }
 
-    // Days of current month
+    // Actual calendar days
     for (let day = 1; day <= totalDays; day++) {
       daysGrid.push(new Date(year, month, day));
     }
@@ -133,12 +173,13 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onClose }) => {
     return daysGrid;
   };
 
-  // Check if a day is today
   const isTodayDate = (date: Date) => {
-    return date.getDate() === 31 && date.getMonth() === 4 && date.getFullYear() === 2026; // May 31, 2026 (current local time)
+    const today = new Date();
+    return date.getDate() === today.getDate() && 
+           date.getMonth() === today.getMonth() && 
+           date.getFullYear() === today.getFullYear();
   };
 
-  // Format Helper: date object to YYYY-MM-DD
   const formatDateString = (date: Date) => {
     const y = date.getFullYear();
     const m = String(date.getMonth() + 1).padStart(2, '0');
@@ -146,7 +187,6 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onClose }) => {
     return `${y}-${m}-${d}`;
   };
 
-  // Get status text helper
   const getStatusTextHe = (status: Order['status']) => {
     switch (status) {
       case 'pending': return 'ממתין';
@@ -159,62 +199,61 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onClose }) => {
     }
   };
 
-  // High-Contrast Solid Tints specifically for Smartphone/Mobile legibility
+  // High-Contrast Solid Tints for smartphone readouts
   const getHighContrastBadgeColors = (status: Order['status']) => {
     switch (status) {
       case 'pending': 
         return {
-          bg: 'bg-[#FEF3C7]',
-          border: 'border-2 border-[#D97706]',
-          text: 'text-[#78350F]',
+          bg: 'bg-[#FEF3C7] dark:bg-[#78350F]',
+          border: 'border border-[#D97706] dark:border-[#FEF3C7]/40',
+          text: 'text-[#78350F] dark:text-[#FBBF24]',
           dot: 'bg-[#D97706]'
         };
       case 'preparing': 
         return {
-          bg: 'bg-[#E0F2FE]',
-          border: 'border-2 border-[#0284C7]',
-          text: 'text-[#0C4A6E]',
+          bg: 'bg-[#E0F2FE] dark:bg-[#0C4A6E]',
+          border: 'border border-[#0284C7] dark:border-[#E0F2FE]/40',
+          text: 'text-[#0C4A6E] dark:text-[#38BDF8]',
           dot: 'bg-[#0284C7]'
         };
       case 'ready': 
         return {
-          bg: 'bg-[#D1FAE5]',
-          border: 'border-2 border-[#059669]',
-          text: 'text-[#064E3B]',
+          bg: 'bg-[#D1FAE5] dark:bg-[#064E3B]',
+          border: 'border border-[#059669] dark:border-[#D1FAE5]/40',
+          text: 'text-[#064E3B] dark:text-[#34D399]',
           dot: 'bg-[#059669]'
         };
       case 'on_the_way': 
         return {
-          bg: 'bg-[#FFE4E6]',
-          border: 'border-2 border-[#E11D48]',
-          text: 'text-[#4C0519]',
+          bg: 'bg-[#FFE4E6] dark:bg-[#4C0519]',
+          border: 'border border-[#E11D48] dark:border-[#FFE4E6]/40',
+          text: 'text-[#4C0519] dark:text-[#FB7185]',
           dot: 'bg-[#E11D48]'
         };
       case 'delivered': 
         return {
-          bg: 'bg-[#D1FAE5]',
-          border: 'border-2 border-[#047857]',
-          text: 'text-[#065F46]',
+          bg: 'bg-[#D1FAE5] dark:bg-[#065F46]',
+          border: 'border border-[#047857] dark:border-[#A7F3D0]/40',
+          text: 'text-[#065F46] dark:text-[#10B981]',
           dot: 'bg-[#047857]'
         };
       case 'cancelled': 
         return {
-          bg: 'bg-[#FEE2E2]',
-          border: 'border-2 border-[#DC2626]',
-          text: 'text-[#7F1D1D]',
+          bg: 'bg-[#FEE2E2] dark:bg-[#7F1D1D]',
+          border: 'border border-[#DC2626] dark:border-[#FEE2E2]/40',
+          text: 'text-[#7F1D1D] dark:text-[#FCA5A5]',
           dot: 'bg-[#DC2626]'
         };
       default: 
         return {
-          bg: 'bg-[#F1F5F9]',
-          border: 'border-2 border-[#475569]',
-          text: 'text-[#1E293B]',
-          dot: 'bg-[#475569]'
+          bg: 'bg-slate-100 dark:bg-slate-800',
+          border: 'border border-slate-300 dark:border-slate-700',
+          text: 'text-slate-800 dark:text-slate-200',
+          dot: 'bg-slate-400'
         };
     }
   };
 
-  // Save changes handler to Firestore with structural updates
   const handleSaveChanges = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedOrder || !selectedOrder.id) return;
@@ -223,20 +262,20 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onClose }) => {
     const orderId = selectedOrder.id;
     const orderRef = doc(db, 'orders', orderId);
 
-    // Schema Enforcement on Edit:
+    // Schema Enforcement on Edit updates: resets original ETA and appends state timestamp
     const updates = {
       driverId: editDriverId,
       date: editDate,
       time: editTime,
       status: editStatus,
-      eta: '', // Resets original ETA
-      updatedAt: new Date().toISOString() // automatically append/update to ISO string
+      eta: '', 
+      updatedAt: new Date().toISOString()
     };
 
     try {
       await updateDoc(orderRef, updates);
-      addToast('סנכרון סבב בוצע', `תעודת גליה שוכפלה בהצלחה ביומן. סטטוס: ${getStatusTextHe(editStatus)} 💾`, 'success');
-      setSelectedOrder(null); // Close Drawer
+      addToast('סנכרון סבב בוצע', `תעודת גליה עודכנה בהצלחה ביומן. סטטוס: ${getStatusTextHe(editStatus)} 💾`, 'success');
+      setSelectedOrder(null);
     } catch (error: any) {
       addToast('שגיאה בסנכרון', 'מפתח מסד חסם גישה לשינוי הזמנה זו.', 'warning');
       handleFirestoreError(error, OperationType.UPDATE, `orders/${orderId}`);
@@ -246,61 +285,62 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onClose }) => {
   };
 
   const daysGrid = getDaysInMonth();
+  const sliderMonthDate = new Date(startYear, sliderIndex, 1);
 
   return (
     <div 
       id="sabanos-calendar"
-      className="flex-1 flex flex-col h-full bg-[#0B0F19] border-2 border-[#D4AF37]/35 rounded-3xl p-3 sm:p-4 overflow-hidden relative text-white" 
+      className="flex-1 flex flex-col h-full bg-[#090D16] border-2 border-[#D4AF37]/50 rounded-3xl p-3 sm:p-5 overflow-hidden relative text-white" 
       dir="rtl"
     >
-      {/* EXQUISITE LUXURY HEADER */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3 border-b border-[#D4AF37]/20 pb-3">
+      {/* HEADER SECTION */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 border-b border-[#D4AF37]/25 pb-3">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-[#D4AF37]/10 border border-[#D4AF37]/35 flex items-center justify-center text-[#D4AF37] shadow-[0_0_12px_rgba(212,175,55,0.15)] shrink-0">
-            <CalendarRange size={20} className="animate-pulse" />
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#D4AF37]/20 to-black border-2 border-[#D4AF37]/40 flex items-center justify-center text-[#D4AF37] shadow-[0_0_15px_rgba(212,175,55,0.2)] shrink-0">
+            <CalendarRange size={24} className="animate-pulse" />
           </div>
           <div>
-            <h2 className="text-sm font-black tracking-tight flex items-center gap-2 text-white">
+            <h2 className="text-sm sm:text-base font-black tracking-tight flex items-center gap-2 text-white">
               יומן משימות והפצה
-              <span className="bg-[#D4AF37]/10 text-[#D4AF37] text-[10px] px-2 py-0.5 rounded-full font-black border border-[#D4AF37]/25">סבן 6.0 👑</span>
+              <span className="bg-[#D4AF37]/10 text-[#D4AF37] text-[10px] px-2 py-0.5 rounded-full font-black border border-[#D4AF37]/35">לוגיסטיקה חכמה 👑</span>
             </h2>
-            <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest mt-0.5">Saban VIP Logistics Calendar Engine</p>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Saban 6.0 Time Machine Scrubber</p>
           </div>
         </div>
 
-        {/* MONTH CONTROLS */}
+        {/* MONTH MANUAL BUTTON CONTROLS */}
         <div className="flex items-center justify-between sm:justify-end gap-2 shrink-0">
           <button 
             onClick={handleResetToCurrent}
-            className="px-2.5 py-1.5 bg-[#0F172A] hover:bg-slate-900 text-[#D4AF37] text-[10px] sm:text-[11px] font-black tracking-tight rounded-xl border border-[#D4AF37]/25 transition-all cursor-pointer active:scale-95 shadow-[0_2px_4px_rgba(0,0,0,0.4)]"
+            className="px-3 py-2 bg-[#111827] hover:bg-slate-900 text-[#D4AF37] text-[10px] sm:text-[11px] font-black tracking-tight rounded-xl border border-[#D4AF37]/30 transition-all cursor-pointer active:scale-95 shadow-[0_2px_6px_rgba(0,0,0,0.5)]"
           >
             חזרה לחודש הנוכחי
           </button>
           
-          <div className="flex items-center bg-[#070A12] border border-[#D4AF37]/25 p-1 rounded-xl">
+          <div className="flex items-center bg-black/90 border border-[#D4AF37]/30 p-1 rounded-xl">
             <button 
               onClick={handlePrevMonth}
               className="p-1 sm:p-1.5 hover:bg-slate-900 rounded-lg text-[#D4AF37] hover:text-amber-300 transition-all cursor-pointer"
               title="חודש קודם"
             >
-              <ChevronRight size={15} strokeWidth={3} />
+              <ChevronRight size={16} strokeWidth={3} />
             </button>
-            <span className="px-2 sm:px-3 text-[11px] font-black min-w-[90px] text-center text-white">
-              {HebrewMonths[currentMonth.getMonth()]} {currentMonth.getFullYear()}
+            <span className="px-2 sm:px-3 text-xs font-black min-w-[100px] text-center text-white">
+              {HebrewMonths[sliderMonthDate.getMonth()]} {sliderMonthDate.getFullYear()}
             </span>
             <button 
               onClick={handleNextMonth}
               className="p-1 sm:p-1.5 hover:bg-slate-900 rounded-lg text-[#D4AF37] hover:text-amber-300 transition-all cursor-pointer"
               title="חודש הבא"
             >
-              <ChevronLeft size={15} strokeWidth={3} />
+              <ChevronLeft size={16} strokeWidth={3} />
             </button>
           </div>
 
           {onClose && (
             <button 
               onClick={onClose}
-              className="p-2 bg-slate-900 hover:bg-slate-800 rounded-xl text-slate-400 hover:text-white transition-all shrink-0"
+              className="p-2 bg-slate-900 hover:bg-slate-800 rounded-xl text-slate-400 hover:text-white transition-all shrink-0 border border-slate-800"
             >
               <X size={15} />
             </button>
@@ -308,95 +348,162 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onClose }) => {
         </div>
       </div>
 
-      {/* CALENDAR WEEKDAY HEADERS IN SOLID GOLD ACCENTS */}
-      <div className="grid grid-cols-7 gap-1 sm:gap-1.5 mb-1.5 shrink-0">
+      {/* TIME SCRUBBER (DATE-RANGE SLIDER) */}
+      <div className="bg-[#0F172A]/90 border border-[#D4AF37]/30 rounded-2xl p-4 mb-4 backdrop-blur-md shadow-2xl relative overflow-hidden">
+        <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-[#D4AF37]/45 to-transparent" />
+        <div className="flex justify-between items-center mb-2">
+          <div className="flex items-center gap-1.5">
+            <Gauge size={13} className="text-[#D4AF37]" />
+            <span className="text-[10px] sm:text-[11px] font-black text-slate-300 tracking-wider">מחוון זמן ליניארי • TIME SCRUBBER</span>
+          </div>
+          <span className="text-xs font-black text-[#D4AF37] tracking-widest bg-[#D4AF37]/15 px-3 py-1 rounded-full border border-[#D4AF37]/30 flex items-center gap-1.5">
+            <Sparkles size={13} className="animate-spin" style={{ animationDuration: '3s' }} />
+            {HebrewMonths[sliderMonthDate.getMonth()]} {sliderMonthDate.getFullYear()}
+          </span>
+        </div>
+        <div className="relative mt-3 px-1">
+          <input 
+            type="range"
+            min={0}
+            max={59} // Represents 5 years (Jan 2026 -> Dec 2030)
+            value={sliderIndex}
+            onChange={(e) => setSliderIndex(parseInt(e.target.value))}
+            className="w-full h-2 rounded-lg appearance-none cursor-ew-resize focus:outline-none accent-[#D4AF37] border border-slate-800 bg-[#070A12]"
+            style={{
+              background: 'linear-gradient(to left, rgba(212, 175, 55, 0.4), rgba(15, 23, 42, 0.8))'
+            }}
+          />
+          {/* Custom linear tick marks */}
+          <div className="flex justify-between text-[8px] sm:text-[9.5px] font-black text-slate-400 mt-2 px-1">
+            <span className={sliderMonthDate.getFullYear() === 2026 ? 'text-[#D4AF37] scale-105 transition-all' : ''}>2026 (התחלה)</span>
+            <span className={sliderMonthDate.getFullYear() === 2027 ? 'text-[#D4AF37] scale-105 transition-all' : ''}>שנת 2027</span>
+            <span className={sliderMonthDate.getFullYear() === 2028 ? 'text-[#D4AF37] scale-105 transition-all' : ''}>שנת 2028</span>
+            <span className={sliderMonthDate.getFullYear() === 2029 ? 'text-[#D4AF37] scale-105 transition-all' : ''}>שנת 2029</span>
+            <span className={sliderMonthDate.getFullYear() === 2030 ? 'text-[#D4AF37] scale-105 transition-all' : ''}>סוף 2030</span>
+          </div>
+        </div>
+      </div>
+
+      {/* CALENDAR WEEKDAYS */}
+      <div className="grid grid-cols-7 gap-1.5 mb-1.5 shrink-0">
         {HebrewDays.map((day) => (
           <div 
             key={day} 
-            className="text-center text-[10px] font-black text-[#D4AF37] uppercase py-1 bg-[#161D30]/70 border border-[#D4AF37]/15 rounded-lg"
+            className="text-center text-[10px] font-black text-[#D4AF37] uppercase py-1.5 bg-[#141B2E]/90 border border-[#D4AF37]/15 rounded-lg text-shadow-sm shadow-md"
           >
             {day}
           </div>
         ))}
       </div>
 
-      {/* CALENDAR CELLS GRID */}
-      {loading ? (
-        <div className="flex-1 flex flex-col items-center justify-center py-20 gap-3">
-          <div className="w-10 h-10 border-4 border-[#0F172A] border-t-[#D4AF37] rounded-full animate-spin" />
-          <span className="text-xs font-black text-slate-300 animate-pulse">סורק ומסנכרן הזמנות...</span>
-        </div>
-      ) : (
-        <div className="flex-1 grid grid-cols-7 grid-rows-5 gap-1 sm:gap-1.5 overflow-y-auto custom-scrollbar p-0.5 min-h-0">
-          {daysGrid.map((day, idx) => {
-            if (!day) {
-              return (
-                <div key={`empty-${idx}`} className="bg-[#070A12]/40 border border-slate-900/40 rounded-xl opacity-20" />
-              );
-            }
-
-            const dayStr = formatDateString(day);
-            const dayOrders = orders.filter(o => o.date === dayStr);
-            const isToday = isTodayDate(day);
-
-            return (
-              <div 
-                key={dayStr}
-                className={`flex flex-col rounded-xl border p-1 transition-all relative group bg-[#0F172A]/80 ${
-                  isToday 
-                    ? 'border-2 border-[#D4AF37] bg-[#D4AF37]/10 shadow-[0_0_12px_rgba(212,175,55,0.25)] z-10' 
-                    : 'border-slate-800/80 hover:border-[#D4AF37]/30 hover:bg-[#131B2D]'
-                }`}
-              >
-                {/* DAY NUMBER */}
-                <div className="flex items-center justify-between mb-1 shrink-0 px-0.5">
-                  <span className={`text-[11px] font-black leading-none ${isToday ? 'text-[#D4AF37] text-xs' : 'text-slate-300'}`}>
-                    {day.getDate()}
-                  </span>
-                  {dayOrders.length > 0 && (
-                    <span className="text-[9px] font-black bg-[#D4AF37]/20 border border-[#D4AF37]/40 px-1 rounded-full text-white">
-                      {dayOrders.length}
-                    </span>
-                  )}
+      {/* CALENDAR CELLS / DEBOUNCED ANIMATING VIEWPORTS */}
+      <div className="flex-1 min-h-0 relative">
+        <AnimatePresence mode="wait">
+          {isScrubbing || loading ? (
+            /* DYNAMIC HIGH-END UI SKELETON RENDERER WHILE SLIDING */
+            <motion.div 
+              key="skeleton"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+              className="absolute inset-0 grid grid-cols-7 grid-rows-5 gap-1.5 p-0.5"
+            >
+              {Array.from({ length: 35 }).map((_, i) => (
+                <div 
+                  key={`skeleton-cell-${i}`}
+                  className="bg-[#111827]/40 border border-slate-800/60 rounded-xl p-1 flex flex-col justify-between animate-pulse relative overflow-hidden"
+                >
+                  <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-[#D4AF37]/5 to-transparent animate-shimmer" style={{ backgroundSize: '200% 100%' }} />
+                  <div className="w-5 h-3 bg-slate-800/80 rounded mb-2" />
+                  <div className="space-y-1">
+                    <div className="w-full h-3.5 bg-[#D4AF37]/10 border border-[#D4AF37]/10 rounded" />
+                    <div className="w-2/3 h-2 bg-slate-800/60 rounded" />
+                  </div>
                 </div>
+              ))}
+            </motion.div>
+          ) : (
+            /* REAL DATA VIEW WITH SMOOTH PHYSICS-BASED CASCADE */
+            <motion.div 
+              key="real-grid"
+              initial={{ opacity: 0, scale: 0.98 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.98 }}
+              transition={{ type: 'spring', damping: 24, stiffness: 220 }}
+              className="absolute inset-0 grid grid-cols-7 grid-rows-5 gap-1.5 overflow-y-auto custom-scrollbar p-0.5"
+            >
+              {daysGrid.map((day, idx) => {
+                if (!day) {
+                  return (
+                    <div key={`empty-${idx}`} className="bg-black/30 border border-slate-900/30 rounded-xl opacity-20" />
+                  );
+                }
 
-                {/* HIGH-DENSITY HIGH-CONTRAST SUMMARY BADGES FOR PHONE VISIBILITY */}
-                <div className="flex-1 overflow-y-auto space-y-1 custom-scrollbar min-h-0">
-                  {dayOrders.map((order) => {
-                    const badge = getHighContrastBadgeColors(order.status);
-                    const orderNumShort = order.orderNumber || order.id?.slice(-4);
-                    return (
-                      <button
-                        key={order.id}
-                        onClick={() => setSelectedOrder(order)}
-                        className={`w-full text-right p-1 rounded-lg ${badge.bg} ${badge.border} ${badge.text} transition-all flex flex-col justify-between gap-0.5 overflow-hidden active:scale-95 shadow-[0_1px_3px_rgba(0,0,0,0.15)]`}
-                        title={`${order.customerName} - #${orderNumShort}`}
-                      >
-                        <div className="flex items-center justify-between w-full leading-tight">
-                          <span className="text-[10px] font-black truncate max-w-[82%]">
-                            {order.customerName}
-                          </span>
-                          <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${badge.dot}`} />
-                        </div>
-                        <div className="flex items-center justify-between w-full text-[8.5px] font-bold opacity-90">
-                          <span className="font-mono">{order.time || '--:--'}</span>
-                          <span className="font-mono">#{orderNumShort}</span>
-                        </div>
-                        {order.driverId && order.driverId !== 'self' && (
-                          <div className="flex items-center gap-0.5 text-[7.5px] font-extrabold mt-0.5 border-t border-black/10 pt-0.5">
-                            <Truck size={8} />
-                            <span className="truncate">{drivers.find(d => d.id === order.driverId)?.name || 'משויך'}</span>
-                          </div>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+                const dayStr = formatDateString(day);
+                const dayOrders = orders.filter(o => o.date === dayStr);
+                const isToday = isTodayDate(day);
+
+                return (
+                  <div 
+                    key={dayStr}
+                    className={`flex flex-col rounded-xl border p-1 transition-all relative group bg-[#0F172A]/90 ${
+                      isToday 
+                        ? 'border-2 border-[#D4AF37] bg-[#D4AF37]/10 shadow-[0_0_12px_rgba(212,175,55,0.25)] z-10' 
+                        : 'border-slate-800 hover:border-[#D4AF37]/45 hover:bg-[#131E35]'
+                    }`}
+                  >
+                    {/* DAY NUMBER */}
+                    <div className="flex items-center justify-between mb-1 shrink-0 px-0.5">
+                      <span className={`text-[10px] sm:text-[11px] font-black leading-none ${isToday ? 'text-[#D4AF37] text-xs' : 'text-slate-300'}`}>
+                        {day.getDate()}
+                      </span>
+                      {dayOrders.length > 0 && (
+                        <span className="text-[9px] font-black bg-[#D4AF37]/20 border border-[#D4AF37]/40 px-1 rounded text-white font-mono">
+                          {dayOrders.length}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* HIGH-DENSITY HIGH-CONTRAST SUMMARY BADGES */}
+                    <div className="flex-1 overflow-y-auto space-y-1 custom-scrollbar min-h-0">
+                      {dayOrders.map((order) => {
+                        const badge = getHighContrastBadgeColors(order.status);
+                        const orderNumShort = order.orderNumber || order.id?.slice(-4);
+                        return (
+                          <button
+                            key={order.id}
+                            onClick={() => setSelectedOrder(order)}
+                            className={`w-full text-right p-1 rounded ${badge.bg} ${badge.border} ${badge.text} transition-all flex flex-col justify-between gap-0.5 overflow-hidden active:scale-95 shadow-md`}
+                            title={`${order.customerName} - #${orderNumShort}`}
+                          >
+                            <div className="flex items-center justify-between w-full leading-none">
+                              <span className="text-[10px] font-black truncate max-w-[82%]">
+                                {order.customerName}
+                              </span>
+                              <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${badge.dot}`} />
+                            </div>
+                            <div className="flex items-center justify-between w-full text-[8px] font-bold opacity-90">
+                              <span className="font-mono">{order.time || '--:--'}</span>
+                              <span className="font-mono">#{orderNumShort}</span>
+                            </div>
+                            {order.driverId && order.driverId !== 'self' && (
+                              <div className="flex items-center gap-0.5 text-[7.5px] font-black mt-0.5 border-t border-black/10 pt-0.5">
+                                <Truck size={8} />
+                                <span className="truncate">{drivers.find(d => d.id === order.driverId)?.name || 'משויך'}</span>
+                              </div>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
 
       {/* QUICK-EDIT SLIDE-OVER DRAWER WITH LUXURY DESIGN */}
       <AnimatePresence>
