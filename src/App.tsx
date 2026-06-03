@@ -50,7 +50,8 @@ import {
   Loader2,
   ListTodo,
   FileSpreadsheet,
-  Activity
+  Activity,
+  TrendingUp
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
@@ -90,6 +91,7 @@ import { InventoryManager } from './components/InventoryManager';
 import { InventoryDashboard } from './components/InventoryDashboard';
 import { ClientDesktopDashboard } from './components/ClientDesktopDashboard';
 import { LiveOrderPulse } from './components/LiveOrderPulse';
+import { SummaryAnalyticsDashboard } from './components/SummaryAnalyticsDashboard';
 import OrderForm from './components/OrderForm';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { NoaBridgeGateway } from './components/NoaBridgeGateway';
@@ -369,6 +371,7 @@ const Drawer = ({
             {[
               { id: 'live_pulse', label: 'לוח דופק מבצעי', icon: Activity },
               { id: 'brain', label: 'נועה AI - מוח לוגיסטי', icon: Brain },
+              { id: 'analytics', label: 'מחוון ביצועים שבועי', icon: TrendingUp },
               { id: 'calendar', label: 'יומן משלוחים', icon: CalendarDays },
               { id: 'list', label: 'דוח בוקר (סידור)', icon: LayoutList },
               { id: 'kanban', label: 'לוח קנבן', icon: Trello },
@@ -2149,7 +2152,9 @@ function AppContent() {
         </div>
 
         <div className="space-y-4">
-          {viewMode === 'chat_full' && currentUserProfile ? (
+          {viewMode === 'analytics' ? (
+            <SummaryAnalyticsDashboard />
+          ) : viewMode === 'chat_full' && currentUserProfile ? (
             <SocialChatRoom 
               currentUserProfile={currentUserProfile} 
               onClose={() => setViewMode('list')} 
