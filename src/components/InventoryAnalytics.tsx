@@ -22,6 +22,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { OrderItem, InventoryItem } from '../types';
+import { parseDate } from '../lib/utils';
 import { 
   Package, 
   TrendingUp, 
@@ -66,7 +67,7 @@ export const InventoryAnalytics: React.FC = () => {
     const today = startOfDay(new Date());
     return orderItems
       .filter(item => {
-        const itemDate = item.createdAt instanceof Timestamp ? item.createdAt.toDate() : new Date();
+        const itemDate = parseDate(item.createdAt);
         return itemDate >= today;
       })
       .reduce((sum, item) => sum + item.quantity, 0);

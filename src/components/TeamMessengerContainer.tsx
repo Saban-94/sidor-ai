@@ -36,6 +36,7 @@ import { useNotifications } from './NotificationProvider';
 import { ChatInput } from './ChatInput';
 import { ChatWindow } from './ChatWindow';
 import { GasService } from '../services/gasService';
+import { parseDate } from '../lib/utils';
 
 interface TeamMessengerContainerProps {
   currentUserProfile: UserProfile;
@@ -170,7 +171,7 @@ export const TeamMessengerContainer: React.FC<TeamMessengerContainerProps> = ({
       // Use the timestamp of the latest message as the last seen mark
       const lastMsg = messages[messages.length - 1];
       if (lastMsg.timestamp) {
-        const mTime = lastMsg.timestamp.toDate ? lastMsg.timestamp.toDate().getTime() : new Date(lastMsg.timestamp).getTime();
+        const mTime = parseDate(lastMsg.timestamp).getTime();
         setLastSeenMsgTime(mTime);
         localStorage.setItem('lastSeenMsgTime', mTime.toString());
       } else {
@@ -254,14 +255,14 @@ export const TeamMessengerContainer: React.FC<TeamMessengerContainerProps> = ({
   const isOnline = (lastSeen: any) => {
     if (!lastSeen) return false;
     const now = new Date();
-    const lastSeenDate = lastSeen.toDate ? lastSeen.toDate() : new Date(lastSeen);
+    const lastSeenDate = parseDate(lastSeen);
     return (now.getTime() - lastSeenDate.getTime()) < 5 * 60 * 1000;
   };
 
   const unreadCount = messages.filter(m => {
     if (m.senderId === currentUserProfile.id) return false;
     if (!m.timestamp) return false;
-    const mTime = m.timestamp.toDate ? m.timestamp.toDate().getTime() : new Date(m.timestamp).getTime();
+    const mTime = parseDate(m.timestamp).getTime();
     return mTime > lastSeenMsgTime;
   }).length;
 

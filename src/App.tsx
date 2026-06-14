@@ -50,8 +50,7 @@ import {
   Loader2,
   ListTodo,
   FileSpreadsheet,
-  Activity,
-  TrendingUp
+  Activity
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
@@ -91,7 +90,6 @@ import { InventoryManager } from './components/InventoryManager';
 import { InventoryDashboard } from './components/InventoryDashboard';
 import { ClientDesktopDashboard } from './components/ClientDesktopDashboard';
 import { LiveOrderPulse } from './components/LiveOrderPulse';
-import { SummaryAnalyticsDashboard } from './components/SummaryAnalyticsDashboard';
 import OrderForm from './components/OrderForm';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { NoaBridgeGateway } from './components/NoaBridgeGateway';
@@ -371,7 +369,6 @@ const Drawer = ({
             {[
               { id: 'live_pulse', label: 'לוח דופק מבצעי', icon: Activity },
               { id: 'brain', label: 'נועה AI - מוח לוגיסטי', icon: Brain },
-              { id: 'analytics', label: 'מחוון ביצועים שבועי', icon: TrendingUp },
               { id: 'calendar', label: 'יומן משלוחים', icon: CalendarDays },
               { id: 'list', label: 'דוח בוקר (סידור)', icon: LayoutList },
               { id: 'kanban', label: 'לוח קנבן', icon: Trello },
@@ -1672,9 +1669,17 @@ function AppContent() {
           <main className={`flex-1 min-w-0 flex flex-col h-screen overflow-y-auto bg-[#F8FAFC] hide-scrollbar scroll-smooth`}>
             <div 
               style={{ 
-                width: viewMode === 'noa_bridge' ? '100%' : '1045.12px', 
+                width: viewMode === 'noa_bridge' 
+                  ? '100%' 
+                  : viewMode === 'reports'
+                    ? '1245.11px'
+                    : '1045.12px', 
                 maxWidth: '100%',
-                backgroundColor: '#f7f9fd' 
+                backgroundColor: '#f7f9fd',
+                paddingLeft: viewMode === 'reports' ? '64px' : undefined,
+                paddingRight: viewMode === 'reports' ? '4px' : undefined,
+                marginLeft: viewMode === 'reports' ? '1022.438px' : 'auto',
+                marginRight: viewMode === 'reports' ? '0px' : 'auto',
               }}
               className={viewMode === 'noa_bridge'
                 ? "flex-1 flex flex-col relative w-full px-2 lg:px-4 py-4 gap-4 pb-12 transition-all duration-300"
@@ -2152,9 +2157,7 @@ function AppContent() {
         </div>
 
         <div className="space-y-4">
-          {viewMode === 'analytics' ? (
-            <SummaryAnalyticsDashboard />
-          ) : viewMode === 'chat_full' && currentUserProfile ? (
+          {viewMode === 'chat_full' && currentUserProfile ? (
             <SocialChatRoom 
               currentUserProfile={currentUserProfile} 
               onClose={() => setViewMode('list')} 

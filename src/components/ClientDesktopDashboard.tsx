@@ -42,7 +42,7 @@ import { db } from '../lib/firebase';
 import { Order, Customer } from '../types';
 import { format } from 'date-fns';
 import { he } from 'date-fns/locale';
-import { cn } from '../lib/utils';
+import { cn, parseDate } from '../lib/utils';
 import { askNoa, executeNoaCommand, updateCustomer } from '../services/auraService';
 
 interface ClientDesktopDashboardProps {
@@ -335,7 +335,7 @@ export const ClientDesktopDashboard: React.FC<ClientDesktopDashboardProps> = ({
                   </span>
                   {customer.lastOrderAt && (
                     <span className={cn("text-[9px] font-bold", selectedCustomerId === customer.id ? "text-white/60" : "text-gray-300")}>
-                      פעילות אחרונה: {format(customer.lastOrderAt.toDate(), 'dd/MM/yy')}
+                      פעילות אחרונה: {format(parseDate(customer.lastOrderAt), 'dd/MM/yy')}
                     </span>
                   )}
                 </div>
@@ -439,7 +439,7 @@ export const ClientDesktopDashboard: React.FC<ClientDesktopDashboardProps> = ({
                                 {msg.text}
                               </div>
                               <div className="text-[9px] font-black text-gray-300 uppercase px-2">
-                                {msg.senderName} • {msg.timestamp?.toDate ? format(msg.timestamp.toDate(), 'HH:mm') : 'עכשיו'}
+                                {msg.senderName} • {msg.timestamp ? format(parseDate(msg.timestamp), 'HH:mm') : 'עכשיו'}
                               </div>
                             </motion.div>
                           ))
@@ -557,7 +557,7 @@ export const ClientDesktopDashboard: React.FC<ClientDesktopDashboardProps> = ({
                                      )}>
                                        {order.status}
                                      </span>
-                                     <span className="text-[10px] font-bold text-gray-400">Updated {format(order.updatedAt?.toDate() || new Date(), 'HH:mm')}</span>
+                                     <span className="text-[10px] font-bold text-gray-400">Updated {format(parseDate(order.updatedAt), 'HH:mm')}</span>
                                   </div>
                                   <button 
                                     onClick={() => handleSmartShare(order)}

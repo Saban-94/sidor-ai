@@ -27,6 +27,7 @@ import { db, logout } from './lib/firebase';
 import { Order, InventoryItem } from './types';
 import { format } from 'date-fns';
 import { he } from 'date-fns/locale';
+import { parseDate } from './lib/utils';
 
 const POWER_TILES = [
   { id: 'new_order', label: 'הזמנה חדשה', icon: Plus, color: 'bg-sky-600', textColor: 'text-white' },
@@ -356,7 +357,7 @@ export const MobileApp: React.FC = () => {
                     <div className="bg-gray-50 rounded-2xl p-4">
                       <p className="text-[10px] font-black text-gray-400 uppercase mb-2">הזמנה אחרונה</p>
                       <p className="text-xs font-bold text-gray-600">
-                        {customer.lastOrderAt ? format(customer.lastOrderAt.toDate(), 'PPP', { locale: he }) : 'אין נתונים'}
+                        {customer.lastOrderAt ? format(parseDate(customer.lastOrderAt), 'PPP', { locale: he }) : 'אין נתונים'}
                       </p>
                     </div>
                   </div>
@@ -386,7 +387,7 @@ export const MobileApp: React.FC = () => {
                   <div key={log.id} className="bg-white p-4 rounded-2xl border-r-4 border-rose-500 shadow-sm">
                     <div className="flex justify-between items-center mb-2">
                        <span className="text-[10px] font-black text-gray-400 uppercase">
-                         {log.timestamp ? format(log.timestamp.toDate(), 'HH:mm:ss', { locale: he }) : ''}
+                         {log.timestamp ? format(parseDate(log.timestamp), 'HH:mm:ss', { locale: he }) : ''}
                        </span>
                        <Sparkles size={14} className="text-rose-400" />
                     </div>

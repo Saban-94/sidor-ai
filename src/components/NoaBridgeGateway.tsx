@@ -51,6 +51,7 @@ import {
 import { GasService } from '../services/gasService';
 import { useToast } from '../providers/ToastProvider';
 import { InventoryItem, Order, Customer } from '../types';
+import { parseDate } from '../lib/utils';
 import { format, subHours } from 'date-fns';
 import { he } from 'date-fns/locale';
 import { 
@@ -999,7 +1000,7 @@ export const NoaBridgeGateway: React.FC<NoaBridgeGatewayProps> = ({ onBack }) =>
                      {chatHistory.slice(0, 3).map((chat, i) => (
                        <div key={i} className="p-3 bg-gray-50 rounded-xl relative group">
                           <p className="text-[11px] font-bold text-gray-600 leading-relaxed pr-2">{chat.text}</p>
-                          <div className="absolute top-3 left-3 text-[8px] font-mono text-gray-300">{chat.timestamp?.toDate ? format(chat.timestamp.toDate(), 'HH:mm') : ''}</div>
+                          <div className="absolute top-3 left-3 text-[8px] font-mono text-gray-300">{chat.timestamp ? format(parseDate(chat.timestamp), 'HH:mm') : ''}</div>
                        </div>
                      ))}
                    </div>

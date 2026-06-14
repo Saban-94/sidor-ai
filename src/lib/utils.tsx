@@ -138,3 +138,24 @@ export function cleanImageUrl(url: string | null | undefined): string {
 export function cn(...classes: (string | boolean | undefined | null)[]) {
   return classes.filter(Boolean).join(' ');
 }
+
+/**
+ * Safely converts a Firestore Timestamp, serialized Timestamp, Date, string, or number to a Date object.
+ */
+export function parseDate(timestamp: any): Date {
+  if (!timestamp) return new Date();
+  if (typeof timestamp.toDate === 'function') {
+    return timestamp.toDate();
+  }
+  if (typeof timestamp.seconds === 'number') {
+    return new Date(timestamp.seconds * 1000);
+  }
+  if (typeof timestamp._seconds === 'number') {
+    return new Date(timestamp._seconds * 1000);
+  }
+  const dateObj = new Date(timestamp);
+  if (!isNaN(dateObj.getTime())) {
+    return dateObj;
+  }
+  return new Date();
+}

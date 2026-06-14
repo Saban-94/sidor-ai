@@ -8,6 +8,7 @@ import {
   Truck, 
   ArrowLeft,
   Share2,
+  Trash2,
   Calendar,
   Layers,
   CheckSquare,
@@ -26,7 +27,9 @@ import {
   addDoc, 
   serverTimestamp,
   doc,
-  getDoc
+  getDoc,
+  deleteDoc,
+  updateDoc
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { handleFirestoreError, OperationType } from '../lib/firebaseUtils';
@@ -34,7 +37,7 @@ import { Order, Driver, InventoryItem } from '../types';
 import { format } from 'date-fns';
 import { he } from 'date-fns/locale';
 import { UIModal } from './UIModal';
-import { parseItems } from '../lib/utils';
+import { parseItems, parseDate } from '../lib/utils';
 
 interface MorningReport {
   id?: string;
@@ -115,7 +118,9 @@ export default function MorningReportSystem({
         text += `👤 *${driver.name}:*\n`;
         driverOrders.forEach(o => {
           const idStr = o.orderNumber ? `#${o.orderNumber}` : `#${o.id?.slice(-4).toUpperCase()}`;
-          text += `• ${o.time} | ${idStr} ${o.customerName} - ${o.destination} (${o.warehouse})\n`;
+          const whVal = (o.warehouse && String(o.warehouse) !== 'undefined') ? String(o.warehouse).trim() : 'החרש';
+          const displayWarehouse = whVal.includes('מחסן') ? whVal : `מחסן ${whVal}`;
+          text += `• ${o.time} | ${idStr} ${o.customerName} - ${o.destination} (${displayWarehouse})\n`;
         });
         text += `\n`;
       }
@@ -123,8 +128,14 @@ export default function MorningReportSystem({
 
     // Stats
     const total = selectedOrdersData.length;
-    const harashCount = selectedOrdersData.filter(o => o.warehouse === 'החרש').length;
-    const talmidCount = selectedOrdersData.filter(o => o.warehouse === 'התלמיד').length;
+    const harashCount = selectedOrdersData.filter(o => {
+      const wh = String(o.warehouse || '').trim();
+      return wh === 'החרש' || wh === 'מחסן החרש' || !wh || wh === 'undefined';
+    }).length;
+    const talmidCount = selectedOrdersData.filter(o => {
+      const wh = String(o.warehouse || '').trim();
+      return wh === 'התלמיד' || wh === 'מחסן התלמיד';
+    }).length;
     const craneCount = selectedOrdersData.filter(o => drivers.find(d => d.id === o.driverId)?.vehicleType === 'crane').length;
     const truckCount = total - craneCount;
 
@@ -180,8 +191,84 @@ export default function MorningReportSystem({
     });
   };
 
+  const handleDeleteReport = (id: string) => {
+    if (!id) return;
+    setModalConfig({
+      isOpen: true,
+      title: 'מחיקת דוח בוקר',
+      message: 'האם אתה בטוח שברצונך למחוק דוח זה לצמיתות מהארכיון?',
+      type: 'confirm',
+      onConfirm: async () => {
+        try {
+          await deleteDoc(doc(db, 'morning_reports', id));
+          setModalConfig({
+            isOpen: true,
+            title: 'נמחק בהצלחה',
+            message: 'הדוח נמחק בהצלחה מארכיון דוחות הבוקר! 🗑️',
+            type: 'alert'
+          });
+        } catch (error) {
+          handleFirestoreError(error, OperationType.DELETE, `morning_reports/${id}`);
+          setModalConfig({
+            isOpen: true,
+            title: 'שגיאה',
+            message: 'חלה שגיאה במחיקת הדוח. אנא נסה שנית.',
+            type: 'alert'
+          });
+        }
+      }
+    });
+  };
+
+  const handleUpdateStatus = async (newStatus: 'pending' | 'preparing' | 'ready' | 'on_the_way' | 'delivered' | 'cancelled') => {
+    if (selectedOrders.length === 0) return;
+    
+    const statusLabels: Record<string, string> = {
+      pending: '⏳ ממתין',
+      preparing: '🏭 בהכנה במחסן',
+      ready: '📦 מוכן להעמסה',
+      on_the_way: '🚛 בדרך ליעד',
+      delivered: '✅ נמסר בהצלחה',
+      cancelled: '❌ בוטל'
+    };
+
+    setModalConfig({
+      isOpen: true,
+      title: 'עדכון סטטוס הזמנות',
+      message: `האם אתה בטוח שברצונך לעדכן את הסטטוס של ${selectedOrders.length} ההזמנות שנבחרו ל-${statusLabels[newStatus] || newStatus}?`,
+      type: 'confirm',
+      onConfirm: async () => {
+        try {
+          const promises = selectedOrders.map(orderId => 
+            updateDoc(doc(db, 'orders', orderId), { 
+              status: newStatus,
+              updatedAt: serverTimestamp() 
+            })
+          );
+          await Promise.all(promises);
+          
+          setSelectedOrders([]); // Clear selection on success
+          setModalConfig({
+            isOpen: true,
+            title: 'העדכון בוצע',
+            message: 'סטטוס ההזמנות עודכן בהצלחה במערכת! ⚡',
+            type: 'alert'
+          });
+        } catch (error) {
+          handleFirestoreError(error, OperationType.WRITE, `orders/bulk-status`);
+          setModalConfig({
+            isOpen: true,
+            title: 'שגיאה',
+            message: 'חלה שגיאה בעדכון הסטטוסים. אנא נסה שנית.',
+            type: 'alert'
+          });
+        }
+      }
+    });
+  };
+
   return (
-    <div className="h-[100dvh] bg-gray-50 flex flex-col overflow-hidden" dir="rtl">
+    <div className="h-[100dvh] bg-gray-50 flex flex-col overflow-hidden" dir="rtl" style={{ width: '1377.11px' }}>
       {/* Header */}
       <div className="p-4 md:p-8 shrink-0 bg-white/40 backdrop-blur-md border-b border-gray-100">
         <div className="flex items-center justify-between">
@@ -209,18 +296,63 @@ export default function MorningReportSystem({
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 md:p-8">
-        <div className="grid md:grid-cols-12 gap-6 md:gap-8 max-w-7xl mx-auto w-full">
+      <div className="flex-1 overflow-y-auto p-4 md:p-8" style={{ width: '1237.09px' }}>
+        <div className="grid md:grid-cols-12 gap-6 md:gap-8 max-w-7xl mx-auto w-full" style={{ width: '1250.109px', marginLeft: '2px' }}>
           {/* Creation Section */}
-          <div className="md:col-span-7 space-y-6">
-            <div className="bg-white/80 backdrop-blur-md rounded-[24px] md:rounded-[32px] shadow-sm border border-sky-100 overflow-hidden flex flex-col">
-              <div className="p-5 md:p-6 border-b border-sky-50 flex items-center justify-between shrink-0">
+          <div className="md:col-span-7 space-y-6" style={{ paddingLeft: '0px', marginLeft: '44px' }}>
+            <div className="bg-white/80 backdrop-blur-md rounded-[24px] md:rounded-[32px] shadow-sm border border-sky-100 overflow-hidden flex flex-col" style={{ width: '614.219px' }}>
+              <div className="p-5 md:p-6 border-b border-sky-50 flex items-center justify-between shrink-0" style={{ width: '578.891px' }}>
                 <h2 className="font-bold text-gray-800 flex items-center gap-2 text-base md:text-lg">
                   <PlusCircle size={20} className="text-sky-600" />
                   יצירת דוח חדש
                 </h2>
                 <span className="text-[10px] md:text-xs font-bold text-gray-400">בחר הזמנות לסידור</span>
               </div>
+              
+              {selectedOrders.length > 0 && (
+                <div className="bg-amber-50/70 border-b border-amber-100 p-2 md:p-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1.5 transition-all duration-300">
+                  <div className="flex items-center gap-1.5 m-0 p-0">
+                    <span className="text-amber-500 font-extrabold text-[11px] bg-amber-100/60 rounded-full px-1.5 py-0.2">
+                      {selectedOrders.length}
+                    </span>
+                    <span className="text-xs font-black text-amber-900 m-0">הזמנות נבחרו לסידור</span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1 m-0 p-0">
+                    <span className="text-[11px] font-black text-gray-700 ml-1">עדכן סטטוס:</span>
+                    <div className="flex flex-wrap gap-1">
+                      {(['pending', 'preparing', 'ready', 'on_the_way', 'delivered', 'cancelled'] as const).map((st) => {
+                        const labels: Record<string, string> = {
+                          pending: '⏳ ממתין',
+                          preparing: '🏭 בהכנה',
+                          ready: '📦 מוכן',
+                          on_the_way: '🚛 בדרך',
+                          delivered: '✅ נמסר',
+                          cancelled: '❌ בוטל'
+                        };
+                        const bgColors: Record<string, string> = {
+                          pending: 'hover:bg-slate-100 bg-white text-slate-700 border-slate-200',
+                          preparing: 'hover:bg-amber-100 bg-white text-amber-700 border-amber-200',
+                          ready: 'hover:bg-emerald-100 bg-white text-emerald-700 border-emerald-200',
+                          on_the_way: 'hover:bg-sky-100 bg-white text-sky-700 border-sky-200',
+                          delivered: 'hover:bg-teal-100 bg-white text-teal-700 border-teal-200',
+                          cancelled: 'hover:bg-rose-100 bg-white text-rose-700 border-rose-200'
+                        };
+                        return (
+                          <button
+                            key={st}
+                            onClick={() => handleUpdateStatus(st)}
+                            className={`text-[10px] md:text-[11px] font-bold px-1.5 py-1 rounded-md border transition-all shadow-sm ${bgColors[st] || ''}`}
+                            data-intent="status_change"
+                            data-payload={st}
+                          >
+                            {labels[st]}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
               
               {/* Desktop Table / Mobile Cards */}
               <div className="p-2 md:p-0">
@@ -240,9 +372,9 @@ export default function MorningReportSystem({
                     <tbody className="divide-y divide-gray-50">
                       {orders.length === 0 ? (
                         <tr>
-                          <td colSpan={5} className="py-20 text-center opacity-30 select-none">
-                            <Clock size={48} className="mx-auto mb-4" />
-                            <p className="font-bold text-lg">אין הזמנות פתוחות כרגע</p>
+                          <td colSpan={5} className="py-20 text-center text-slate-350 select-none">
+                            <Clock size={48} className="mx-auto mb-4 text-slate-300" />
+                            <p className="font-bold text-lg text-slate-400">אין הזמנות פתוחות כרגע</p>
                           </td>
                         </tr>
                       ) : (
@@ -309,7 +441,9 @@ export default function MorningReportSystem({
                                 <span className="text-xs font-black text-sky-600">{order.time}</span>
                               </td>
                               <td className="px-6 py-4 text-left">
-                                <span className="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-lg font-bold">{order.warehouse}</span>
+                                <span className="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-lg font-bold">
+                                  {order.warehouse && String(order.warehouse) !== 'undefined' ? order.warehouse : 'החרש'}
+                                </span>
                               </td>
                             </tr>
                           );
@@ -322,9 +456,9 @@ export default function MorningReportSystem({
                 {/* Mobile view (Cards) */}
                 <div className="md:hidden space-y-3 p-3">
                   {orders.length === 0 ? (
-                    <div className="py-12 text-center opacity-30 select-none">
-                      <Clock size={32} className="mx-auto mb-2" />
-                      <p className="font-bold text-sm">אין הזמנות פתוחות</p>
+                    <div className="py-12 text-center text-slate-350 select-none">
+                      <Clock size={32} className="mx-auto mb-2 text-slate-300" />
+                      <p className="font-bold text-sm text-slate-400">אין הזמנות פתוחות</p>
                     </div>
                   ) : (
                     orders.map((order) => {
@@ -391,17 +525,17 @@ export default function MorningReportSystem({
           </div>
 
           {/* History Section */}
-          <div className="md:col-span-5 space-y-6">
-            <div className="bg-white/80 backdrop-blur-md rounded-[24px] md:rounded-[32px] shadow-sm border border-sky-100 p-5 md:p-6">
+          <div className="md:col-span-5 space-y-6" style={{ paddingBottom: '0px', paddingRight: '0px', paddingLeft: '50px', paddingTop: '0px', marginRight: '0px', marginLeft: '50px', marginTop: '0px' }}>
+            <div className="bg-white/80 backdrop-blur-md rounded-[24px] md:rounded-[32px] shadow-sm border border-sky-100 p-5 md:p-6" style={{ width: '109.844px', paddingLeft: '77px', paddingRight: '-55px', paddingBottom: '77px', marginRight: '-88px', marginLeft: '0px', marginTop: '0px', marginBottom: '77px', paddingTop: '0px', height: '586.25px' }}>
               <h2 className="font-bold text-gray-800 flex items-center gap-2 text-base md:text-lg mb-6">
                 <History size={20} className="text-blue-500" />
                 היסטוריית דוחות
               </h2>
 
-              <div className="space-y-4 md:max-h-[600px] overflow-y-auto pr-1">
+              <div className="space-y-4 md:max-h-[600px] overflow-y-auto pr-1" style={{ width: '395.844px' }}>
                 {reports.length === 0 ? (
-                  <div className="text-center py-10 opacity-30 select-none">
-                    <p className="text-sm font-bold">טרם נוצרו דוחות</p>
+                  <div className="text-center py-10 text-slate-350 select-none">
+                    <p className="text-sm font-bold text-slate-400">טרם נוצרו דוחות – הארכיון ריק</p>
                   </div>
                 ) : (
                   reports.map((report) => (
@@ -415,17 +549,26 @@ export default function MorningReportSystem({
                             <Calendar size={18} />
                           </div>
                           <div>
-                            <div className="text-sm font-black text-gray-900">{format(new Date(report.createdAt?.toDate() || new Date()), 'dd/MM/yyyy')}</div>
+                            <div className="text-sm font-black text-gray-900">{format(parseDate(report.createdAt), 'dd/MM/yyyy')}</div>
                             <div className="text-[10px] text-gray-400 font-bold uppercase">{report.orderIds.length} הזמנות בדוח</div>
                           </div>
                         </div>
-                        <button 
-                          onClick={() => copyToClipboard(report.reportText)}
-                          className="p-2 text-sky-500 hover:bg-sky-50 rounded-xl transition-colors md:opacity-0 md:group-hover:opacity-100"
-                          title="העתק לוואטסאפ"
-                        >
-                          <Share2 size={18} />
-                        </button>
+                        <div className="flex items-center gap-1" style={{ paddingLeft: '0px', marginLeft: '22px' }}>
+                          <button 
+                            onClick={() => copyToClipboard(report.reportText)}
+                            className="p-2 text-sky-500 hover:bg-sky-50 rounded-xl transition-colors md:opacity-0 md:group-hover:opacity-100"
+                            title="העתק לוואטסאפ"
+                          >
+                            <Share2 size={18} />
+                          </button>
+                          <button 
+                            onClick={() => handleDeleteReport(report.id!)}
+                            className="p-2 text-rose-500 hover:bg-rose-50 rounded-xl transition-colors md:opacity-0 md:group-hover:opacity-100"
+                            title="מחיקת דוח"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        </div>
                       </div>
 
                       {/* Info Row for Mobile */}
@@ -453,6 +596,10 @@ export default function MorningReportSystem({
                     </div>
                   ))
                 )}
+              </div>
+
+              <div className="signature text-center pt-4 border-t border-gray-100 mt-4">
+                <span className="text-xs font-black text-gray-700 italic">באדיבות נועה ❤️</span>
               </div>
             </div>
           </div>

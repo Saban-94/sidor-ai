@@ -35,6 +35,7 @@ import { useNotifications } from './NotificationProvider';
 import { Avatar } from './Avatar';
 import { handleFirestoreError, OperationType } from '../lib/firebaseUtils';
 import { uploadFileToDrive } from '../services/driveService';
+import { parseDate } from '../lib/utils';
 
 interface SocialChatRoomProps {
   currentUserProfile: UserProfile;
@@ -228,7 +229,7 @@ export const SocialChatRoom: React.FC<SocialChatRoomProps> = ({
   const isOnline = (lastSeen: any) => {
     if (!lastSeen) return false;
     const now = new Date();
-    const lastSeenDate = lastSeen.toDate ? lastSeen.toDate() : new Date(lastSeen);
+    const lastSeenDate = parseDate(lastSeen);
     return (now.getTime() - lastSeenDate.getTime()) < 5 * 60 * 1000;
   };
 
