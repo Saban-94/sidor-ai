@@ -147,6 +147,11 @@ export class GasService {
     // Trigger tracking sync in parallel
     this.syncTracking(orderData);
     
+    // Automatically dispatch order copy to JONI Pipe (Make.com webhook) in background
+    this.sendToJoniPipe(orderData, 'order').catch(err => {
+      console.warn("⚠️ Auto-forwarding to JONI pipeline failed in syncOrder:", err.message);
+    });
+
     return this.push('syncOrder', payload);
   }
 
@@ -186,5 +191,135 @@ export class GasService {
 
   static async syncWhatsApp(data: any) {
     return this.push('syncWhatsApp', { ...data, sheetName: 'whatsap' });
+  }
+
+  /**
+   * Private internal helper to send payload to Make JONI webhook
+   */
+  private static async sendToJoniPipe(data: any, type: 'order' | 'morning_report' | 'manual'): Promise<any> {
+    const webhookUrl = import.meta.env.VITE_MAKE_JONI_URL || "Fallback_URL";
+    
+    const id = data?.id || data?.orderNumber || data?.reportId || `joni-${Date.now()}`;
+    const requestPayload = {
+      source: "SabanOS_App",
+      triggerType: type,
+      timestamp: new Date().toISOString(),
+      payload: data
+    };
+
+    try {
+      if (!webhookUrl || webhookUrl === 'Fallback_URL') {
+        console.warn(`⚠️ VITE_MAKE_JONI_URL is missing or set to fallback. Skipping JONI pipeline auto-dispatch for type: "${type}".`);
+        if (type === 'order') {
+          // Gracefully resolve for automated background order syncs without throwing errors
+          return {
+            status: 'skipped',
+            reason: 'unconfigured',
+            triggerType: type,
+            timestamp: requestPayload.timestamp
+          };
+        }
+        // Throw for manual trigger requests so users are notified of missing configurations
+        throw new Error("Missing Webhook URL (VITE_MAKE_JONI_URL)");
+      }
+
+      const response = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestPayload)
+      });
+
+      if (!response.ok) {
+        throw new Error(`JONI Pipe responded with HTTP status ${response.status}`);
+      }
+
+      const responseText = await response.text().catch(() => '');
+      
+      // Save to localStorage history upon SUCCESSFUL dispatch as defined in rules
+      this.saveJoniHistory(id, type, data, 'success');
+
+      return {
+        status: 'success',
+        triggerType: type,
+        response: responseText,
+        timestamp: requestPayload.timestamp
+      };
+    } catch (error: any) {
+      console.error(`❌ JONI Pipe Transmission Failed [${type}]:`, error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Commits a successful transmission to LocalStorage while preventing duplicates by ID + triggerType
+   */
+  private static saveJoniHistory(id: string, triggerType: 'order' | 'morning_report' | 'manual', payload: any, status: 'success' | 'failed') {
+    try {
+      const HISTORY_KEY = 'saban_os_joni_history';
+      const historyRaw = localStorage.getItem(HISTORY_KEY);
+      let history: any[] = [];
+
+      if (historyRaw) {
+        try {
+          history = JSON.parse(historyRaw);
+          if (!Array.isArray(history)) history = [];
+        } catch {
+          history = [];
+        }
+      }
+
+      // Filter out duplicate records by key fields to ensure tidy data structure
+      history = history.filter(item => !(item.id === id && item.triggerType === triggerType));
+
+      history.unshift({
+        id,
+        triggerType,
+        timestamp: new Date().toISOString(),
+        payload,
+        status
+      });
+
+      // Keep size bounded to avoid local storage degradation
+      if (history.length > 200) {
+        history = history.slice(0, 200);
+      }
+
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+    } catch (e) {
+      console.error("Failed to persist JONI delivery trace to LocalStorage:", e);
+    }
+  }
+
+  /**
+   * Public API: Manually triggers JONI pipeline for a single order
+   */
+  static async sendOrderManually(orderData: any): Promise<any> {
+    return this.sendToJoniPipe(orderData, 'manual');
+  }
+
+  /**
+   * Public API: Triggers JONI pipeline for a combined morning report
+   */
+  static async sendMorningReport(reportData: any): Promise<any> {
+    return this.sendToJoniPipe(reportData, 'morning_report');
+  }
+
+  /**
+   * Public API: Retrieves cached successful JONI transmissions log
+   */
+  static getJoniHistory(): any[] {
+    try {
+      const HISTORY_KEY = 'saban_os_joni_history';
+      const historyRaw = localStorage.getItem(HISTORY_KEY);
+      if (historyRaw) {
+        const parsed = JSON.parse(historyRaw);
+        return Array.isArray(parsed) ? parsed : [];
+      }
+    } catch (e) {
+      console.error("Failed to query JONI local history log:", e);
+    }
+    return [];
   }
 }
