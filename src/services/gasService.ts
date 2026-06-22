@@ -253,9 +253,9 @@ export class GasService {
   }
 
   /**
-   * Commits a successful transmission to LocalStorage while preventing duplicates by ID + triggerType
+   * Commits a transmission to LocalStorage while preventing duplicates by ID + triggerType
    */
-  private static saveJoniHistory(id: string, triggerType: 'order' | 'morning_report' | 'manual', payload: any, status: 'success' | 'failed') {
+  public static saveJoniHistory(id: string, triggerType: string, payload: any, status: 'success' | 'failed') {
     try {
       const HISTORY_KEY = 'saban_os_joni_history';
       const historyRaw = localStorage.getItem(HISTORY_KEY);

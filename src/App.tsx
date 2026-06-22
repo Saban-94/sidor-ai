@@ -144,6 +144,7 @@ import { uploadFileToDrive, createCustomerFolderHierarchy } from './services/dri
 import { useAuth } from './hooks/useAuth';
 import { SyncStatus } from './components/SyncStatus';
 import { useToast } from './providers/ToastProvider';
+import { WebhookMonitor } from './components/WebhookMonitor';
 
 // --- Components ---
 
@@ -167,7 +168,8 @@ const Header = ({
   hasNaggingReminder,
   uploadProgress = 0,
   viewMode,
-  setViewMode
+  setViewMode,
+  onOpenWebhookMonitor
 }: { 
   user: FirebaseUser, 
   notificationsEnabled: boolean, 
@@ -183,7 +185,8 @@ const Header = ({
   hasNaggingReminder?: boolean,
   uploadProgress?: number,
   viewMode: string,
-  setViewMode: (v: string) => void
+  setViewMode: (v: string) => void,
+  onOpenWebhookMonitor: () => void
 }) => (
   <header className="flex items-center justify-between px-6 py-4 bg-white/80 backdrop-blur-md border-b border-sky-100 sticky top-0 z-30 overflow-hidden">
     {uploadProgress > 0 && (
@@ -239,6 +242,15 @@ const Header = ({
         {hasNaggingReminder && (
           <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 border-2 border-white rounded-full" />
         )}
+      </button>
+
+      <button 
+        onClick={onOpenWebhookMonitor}
+        className="p-2.5 rounded-xl bg-white text-amber-600 border border-amber-100 hover:bg-amber-50 hover:border-amber-200 transition-all flex items-center justify-center relative"
+        title="ניטור JONI Webhooks"
+      >
+        <Activity size={20} className="animate-pulse" />
+        <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-500 border-2 border-white rounded-full" />
       </button>
 
       <button 
@@ -548,6 +560,7 @@ function AppContent() {
   const [isAddingReminder, setIsAddingReminder] = useState(false);
   const [isCalendarDrawerOpen, setIsCalendarDrawerOpen] = useState(false);
   const [isNoaBrainOpen, setIsNoaBrainOpen] = useState(false);
+  const [isWebhookMonitorOpen, setIsWebhookMonitorOpen] = useState(false);
   const [lastSeenRemindersAt, setLastSeenRemindersAt] = useState<number>(() => {
     const saved = localStorage.getItem('lastSeenRemindersAt');
     return saved ? parseInt(saved, 10) : Date.now();
@@ -1791,6 +1804,7 @@ function AppContent() {
               hasNaggingReminder={hasNaggingReminder}
               viewMode={viewMode}
               setViewMode={setViewMode}
+              onOpenWebhookMonitor={() => setIsWebhookMonitorOpen(true)}
             />
 
             <GlobalAlertBanner 
@@ -2352,6 +2366,12 @@ function AppContent() {
           }}
         />
       )}
+
+      <WebhookMonitor 
+        isOpen={isWebhookMonitorOpen} 
+        onClose={() => setIsWebhookMonitorOpen(false)} 
+        onAddToast={addToast} 
+      />
 
       <UIModal 
         isOpen={modalConfig.isOpen}

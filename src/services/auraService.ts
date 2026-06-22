@@ -481,8 +481,12 @@ export const getOrderByTrackingId = async (trackingId: string) => {
  */
 export const sendNewOrderWebhook = async (orderData: any): Promise<void> => {
   const joniUrl = import.meta.env.VITE_MAKE_JONI_URL;
+  const orderId = orderData?.id || orderData?.orderNumber || `order-${Date.now()}`;
+  
   if (!joniUrl || joniUrl === "Fallback_URL") {
     console.warn("⚠️ [Aura Webhook] VITE_MAKE_JONI_URL is not configured.");
+    // Log as failed due to configuration
+    GasService.saveJoniHistory(orderId, 'order_created', { ...orderData, error: "VITE_MAKE_JONI_URL is not configured" }, 'failed');
     return;
   }
 
@@ -509,11 +513,14 @@ export const sendNewOrderWebhook = async (orderData: any): Promise<void> => {
 
     if (response.ok) {
       console.log("✅ [Aura Webhook] Success: New order webhook dispatched to JONI.");
+      GasService.saveJoniHistory(orderId, 'order_created', payloadToPost, 'success');
     } else {
       console.error(`❌ [Aura Webhook] Malformed webhook response: ${response.status}`);
+      GasService.saveJoniHistory(orderId, 'order_created', { ...payloadToPost, error: `HTTP ${response.status}` }, 'failed');
     }
   } catch (error: any) {
     console.error("💥 [Aura Webhook] Connection error:", error.message);
+    GasService.saveJoniHistory(orderId, 'order_created', { ...payloadToPost, error: error.message }, 'failed');
   }
 };
 
