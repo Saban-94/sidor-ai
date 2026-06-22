@@ -476,6 +476,47 @@ export const getOrderByTrackingId = async (trackingId: string) => {
   return { id: snap.docs[0].id, ...snap.docs[0].data() } as Order;
 };
 
+/**
+ * Sends a POST request to import.meta.env.VITE_MAKE_JONI_URL on successful order creation
+ */
+export const sendNewOrderWebhook = async (orderData: any): Promise<void> => {
+  const joniUrl = import.meta.env.VITE_MAKE_JONI_URL;
+  if (!joniUrl || joniUrl === "Fallback_URL") {
+    console.warn("⚠️ [Aura Webhook] VITE_MAKE_JONI_URL is not configured.");
+    return;
+  }
+
+  // Handle serverTimestamp replacement with serializable dates for POST request
+  const payloadToPost = {
+    ...orderData,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+
+  try {
+    const response = await fetch(joniUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        source: "SabanOS_App",
+        triggerType: "order_created",
+        timestamp: new Date().toISOString(),
+        payload: payloadToPost
+      })
+    });
+
+    if (response.ok) {
+      console.log("✅ [Aura Webhook] Success: New order webhook dispatched to JONI.");
+    } else {
+      console.error(`❌ [Aura Webhook] Malformed webhook response: ${response.status}`);
+    }
+  } catch (error: any) {
+    console.error("💥 [Aura Webhook] Connection error:", error.message);
+  }
+};
+
 export const createOrder = async (orderData: Partial<Order>) => {
   if (!auth.currentUser) throw new Error('Not authenticated');
 
@@ -554,6 +595,11 @@ export const createOrder = async (orderData: Partial<Order>) => {
     window.dispatchEvent(new CustomEvent('sync-trigger', { 
       detail: { type: 'order', data: result } 
     }));
+
+    // Trigger Make Webhook in the background
+    sendNewOrderWebhook(result).catch((err) => {
+      console.error("⚠️ Failed background new order webhook trigger:", err);
+    });
 
     return result;
   } catch (error) {
