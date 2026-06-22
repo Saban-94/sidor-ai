@@ -680,12 +680,18 @@ ${warningNote}
           <Truck size={isCompact ? 20 : 28} strokeWidth={2.5} />
         </div>
         <div className="flex-1 min-w-0 text-right">
-          <h3 className={cn(
-            "font-black text-gray-900 leading-tight mb-1 truncate",
-            isCompact ? "text-base" : "text-xl"
-          )}>
-            {highlightText(order.customerName, searchQuery)}
-          </h3>
+          <div className="flex items-center flex-wrap gap-2 mb-1">
+            <h3 className={cn(
+              "font-black text-gray-900 leading-tight truncate m-0",
+              isCompact ? "text-base" : "text-xl"
+            )}>
+              {highlightText(order.customerName, searchQuery)}
+            </h3>
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-sky-100 text-sky-800 border border-sky-200 text-[10px] font-black shadow-sm select-none">
+              <Package size={10} className="text-sky-600 stroke-[3px]" />
+              <span>{parsedItemsCount} פריטים</span>
+            </span>
+          </div>
           <div className="flex flex-wrap items-center gap-2">
             <p className="text-[10px] text-gray-400 font-bold flex items-center gap-1">
                <Info size={10} /> {highlightText(order.destination, searchQuery)}
