@@ -39,40 +39,6 @@ app.post("/api/sync", async (req, res) => {
 
     const action = req.body?.action;
     console.log(`📡 [PROXY] Forwarding sync request to GAS: ${action || 'unknown'}`);
-
-    // Server-Side forwarding to JONI Pipe to completely bypass client CORS/CSP limitations
-    if (action === "syncOrder") {
-      const joniUrl = process.env.VITE_MAKE_JONI_URL || process.env.MAKE_JONI_URL;
-      if (joniUrl && joniUrl !== 'Fallback_URL' && joniUrl !== '') {
-        console.log(`📡 [SERVER JONI] Intercepted syncOrder, routing to Make webhook server-side...`);
-        
-        // Reconstruct order data by destructuring system wrapper properties
-        const { action: _a, method: _m, timestamp: _t, user: _u, uid: _ui, idToken: _i, sheetName: _s, ...orderData } = req.body;
-        
-        fetch(joniUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            source: "SabanOS_App",
-            triggerType: 'order',
-            timestamp: new Date().toISOString(),
-            payload: orderData
-          })
-        }).then(response => {
-          if (response.ok) {
-            console.log("✅ [SERVER JONI] Successfully dispatched order server-side.");
-          } else {
-            console.error(`❌ [SERVER JONI] Webhook responded with status: ${response.status}`);
-          }
-        }).catch(err => {
-          console.error("💥 [SERVER JONI] Background dispatch request failed:", err.message);
-        });
-      } else {
-        console.warn("⚠️ [SERVER JONI] VITE_MAKE_JONI_URL is not configured on the environment / server.");
-      }
-    }
     
     const response = await fetch(gasUrl, {
       method: 'POST',
