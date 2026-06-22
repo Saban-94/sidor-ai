@@ -23,7 +23,9 @@ import {
   Package,
   X,
   ExternalLink,
-  ChevronLeft
+  ChevronLeft,
+  Mail,
+  MessageCircle
 } from 'lucide-react';
 import { AnimatePresence } from 'motion/react';
 import { predictOrderEta, askNoa, updateCustomer } from '../services/auraService';
@@ -31,6 +33,7 @@ import { serverTimestamp } from 'firebase/firestore';
 import { Order, Driver, InventoryItem } from '../types';
 import { highlightText, parseItems, isKnownProduct, cn } from '../lib/utils';
 import { UIModal } from './UIModal';
+import { GasService } from '../services/gasService';
 
 export const StatusBadge = ({ status }: { status: Order['status'] }) => {
   const configs = {
@@ -420,6 +423,34 @@ export const OrderCard = ({
   const [rescheduleData, setRescheduleData] = useState({ date: order.date, time: order.time });
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isGeneratingShare, setIsGeneratingShare] = useState(false);
+  const [isSendingWhatsApp, setIsSendingWhatsApp] = useState(false);
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
+
+  const handleSendToWhatsApp = async () => {
+    setIsSendingWhatsApp(true);
+    try {
+      await GasService.sendToWhatsApp(order);
+      onAddToast('שליחה לוואטסאפ ✅', 'פרטי ההזמנה נשלחו בהצלחה ל-Make.', 'success');
+    } catch (err: any) {
+      console.error(err);
+      onAddToast('שגיאה בשליחה ל-Make ⚠️', err.message || 'לא ניתן לשלוח לוואטסאפ', 'warning');
+    } finally {
+      setIsSendingWhatsApp(false);
+    }
+  };
+
+  const handleSendByEmail = async () => {
+    setIsSendingEmail(true);
+    try {
+      await GasService.sendByEmail(order);
+      onAddToast('שליחה במייל ✅', 'פרטי ההזמנה נשלחו בהצלחה במייל דרך Make.', 'success');
+    } catch (err: any) {
+      console.error(err);
+      onAddToast('שגיאה בשליחה ל-Make ⚠️', err.message || 'לא ניתן לשלוח במייל', 'warning');
+    } finally {
+      setIsSendingEmail(false);
+    }
+  };
 
   const handleSmartShare = async () => {
     if (!order || !order.customerName) {
@@ -891,6 +922,22 @@ ${warningNote}
                  <Share2 size={14} />
                </button>
                <button 
+                 onClick={handleSendToWhatsApp} 
+                 disabled={isSendingWhatsApp}
+                 className="p-2 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-xl disabled:opacity-50 transition-colors"
+                 title="שליחה לוואטסאפ (Make)"
+               >
+                 {isSendingWhatsApp ? <Loader2 size={14} className="animate-spin" /> : <MessageCircle size={14} className="stroke-[2.5]" />}
+               </button>
+               <button 
+                 onClick={handleSendByEmail} 
+                 disabled={isSendingEmail}
+                 className="p-2 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-xl disabled:opacity-50 transition-colors"
+                 title="שליחה במייל (Make)"
+               >
+                 {isSendingEmail ? <Loader2 size={14} className="animate-spin" /> : <Mail size={14} className="stroke-[2.5]" />}
+               </button>
+               <button 
                 onClick={() => setIsDeleteModalOpen(true)}
                 className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl"
                >
@@ -945,6 +992,36 @@ ${warningNote}
                 className="bg-white border-2 border-gray-100 text-gray-600 p-3.5 rounded-2xl hover:bg-sky-50 hover:text-sky-600 hover:border-sky-100 transition-all active:scale-95 shadow-sm"
               >
                 <div className="opacity-60"><Share2 size={16} /></div>
+              </button>
+
+              <button 
+                onClick={handleSendToWhatsApp}
+                disabled={isSendingWhatsApp}
+                style={{ fontSize: '20px' }}
+                title="שליחה לוואטסאפ (Make)"
+                className="bg-white border-2 border-emerald-100 text-emerald-600 p-3.5 rounded-2xl hover:bg-emerald-50 hover:border-emerald-200 transition-all active:scale-95 shadow-sm flex items-center justify-center gap-1.5 disabled:opacity-50"
+              >
+                {isSendingWhatsApp ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : (
+                  <MessageCircle size={16} className="stroke-[2.5]" />
+                )}
+                <span className="hidden xl:inline text-[10px] font-black uppercase tracking-widest">וואטסאפ</span>
+              </button>
+
+              <button 
+                onClick={handleSendByEmail}
+                disabled={isSendingEmail}
+                style={{ fontSize: '20px' }}
+                title="שליחה במייל (Make)"
+                className="bg-white border-2 border-indigo-100 text-indigo-600 p-3.5 rounded-2xl hover:bg-indigo-50 hover:border-indigo-200 transition-all active:scale-95 shadow-sm flex items-center justify-center gap-1.5 disabled:opacity-50"
+              >
+                {isSendingEmail ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : (
+                  <Mail size={16} className="stroke-[2.5]" />
+                )}
+                <span className="hidden xl:inline text-[10px] font-black uppercase tracking-widest">מייל</span>
               </button>
 
               <button 

@@ -322,4 +322,92 @@ export class GasService {
     }
     return [];
   }
+
+  /**
+   * Public API: Sends order details to Make Webhook for WhatsApp
+   */
+  static async sendToWhatsApp(orderData: any): Promise<any> {
+    const webhookUrl = import.meta.env.VITE_MAKE_WHATSAPP_URL || import.meta.env.VITE_MAKE_JONI_URL || "Fallback_URL";
+    const id = orderData?.id || `wa-${Date.now()}`;
+    
+    // Structure the dispatch payload
+    const requestPayload = {
+      source: "SabanOS_App",
+      triggerType: "whatsapp",
+      timestamp: new Date().toISOString(),
+      payload: orderData
+    };
+
+    try {
+      if (!webhookUrl || webhookUrl === 'Fallback_URL') {
+        throw new Error("Missing WhatsApp Webhook URL (VITE_MAKE_WHATSAPP_URL)");
+      }
+
+      const response = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestPayload)
+      });
+
+      if (!response.ok) {
+        throw new Error(`WhatsApp webhook responded with status ${response.status}`);
+      }
+
+      const textResult = await response.text().catch(() => 'success');
+      
+      // Save tracing to history
+      this.saveJoniHistory(id, 'whatsapp' as any, orderData, 'success');
+      
+      return { status: 'success', text: textResult };
+    } catch (error: any) {
+      console.error("❌ Send to WhatsApp via Webhook failed:", error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Public API: Sends order details to Make Webhook for Email
+   */
+  static async sendByEmail(orderData: any): Promise<any> {
+    const webhookUrl = import.meta.env.VITE_MAKE_EMAIL_URL || import.meta.env.VITE_MAKE_JONI_URL || "Fallback_URL";
+    const id = orderData?.id || `email-${Date.now()}`;
+    
+    // Structure the dispatch payload
+    const requestPayload = {
+      source: "SabanOS_App",
+      triggerType: "email",
+      timestamp: new Date().toISOString(),
+      payload: orderData
+    };
+
+    try {
+      if (!webhookUrl || webhookUrl === 'Fallback_URL') {
+        throw new Error("Missing Email Webhook URL (VITE_MAKE_EMAIL_URL)");
+      }
+
+      const response = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestPayload)
+      });
+
+      if (!response.ok) {
+        throw new Error(`Email webhook responded with status ${response.status}`);
+      }
+
+      const textResult = await response.text().catch(() => 'success');
+      
+      // Save tracing to history
+      this.saveJoniHistory(id, 'email' as any, orderData, 'success');
+      
+      return { status: 'success', text: textResult };
+    } catch (error: any) {
+      console.error("❌ Send by Email via Webhook failed:", error.message);
+      throw error;
+    }
+  }
 }
