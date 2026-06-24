@@ -232,6 +232,15 @@ export class GasService {
       });
 
       if (!response.ok) {
+        if (type === 'order') {
+          console.warn(`⚠️ JONI Pipe auto-forwarding responded with HTTP status ${response.status}. Resolving gracefully.`);
+          return {
+            status: 'failed_gracefully',
+            reason: `HTTP status ${response.status}`,
+            triggerType: type,
+            timestamp: requestPayload.timestamp
+          };
+        }
         throw new Error(`JONI Pipe responded with HTTP status ${response.status}`);
       }
 
@@ -247,6 +256,15 @@ export class GasService {
         timestamp: requestPayload.timestamp
       };
     } catch (error: any) {
+      if (type === 'order') {
+        console.warn(`⚠️ JONI Pipe Transmission Failed [${type}]:`, error.message);
+        return {
+          status: 'failed_gracefully',
+          reason: error.message,
+          triggerType: type,
+          timestamp: requestPayload.timestamp
+        };
+      }
       console.error(`❌ JONI Pipe Transmission Failed [${type}]:`, error.message);
       throw error;
     }

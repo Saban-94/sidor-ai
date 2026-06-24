@@ -2233,6 +2233,12 @@ function AppContent() {
               onAddToast={addToast}
               onUploadDoc={handleDriveFileUpload}
               highlightedOrderId={highlightedOrderId}
+              startDate={startDate}
+              setStartDate={setStartDate}
+              endDate={endDate}
+              setEndDate={setEndDate}
+              isRangeMode={isRangeMode}
+              setIsRangeMode={setIsRangeMode}
             />
           ) : viewMode === 'calendar' ? (
             <div className="flex-1 min-h-[800px] h-[calc(100vh-250px)]">
@@ -2245,9 +2251,10 @@ function AppContent() {
                 onOrderClick={(order) => {
                   setEditingOrder(order);
                 }}
+                onMonthChange={setCalendarMonth}
                 focusModeStyles={{
-                  container: { width: '1170.938px' },
-                  event: { width: '225.868px', height: '95.9896px', fontSize: '22.2125px' },
+                  container: { width: '955.117px' },
+                  event: { width: '420px', height: '95.9896px', fontSize: '22.2125px' },
                   eventText: { fontSize: '15px' }
                 }}
               />

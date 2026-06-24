@@ -15,6 +15,7 @@ interface DeliveryCalendarProps {
   drivers: Driver[];
   onOrderUpdate: (id: string, updates: Partial<Order>) => Promise<void>;
   onOrderClick: (order: Order) => void;
+  onMonthChange?: (d: Date) => void;
   focusModeStyles?: {
     container?: React.CSSProperties;
     event?: React.CSSProperties;
@@ -27,6 +28,7 @@ export const DeliveryCalendar: React.FC<DeliveryCalendarProps> = ({
   drivers,
   onOrderUpdate,
   onOrderClick,
+  onMonthChange,
   focusModeStyles
 }) => {
   const { addToast } = useToast();
@@ -144,6 +146,10 @@ export const DeliveryCalendar: React.FC<DeliveryCalendarProps> = ({
           eventDrop={handleEventDrop}
           eventClick={(info) => onOrderClick(info.event.extendedProps.order)}
           height="100%"
+          datesSet={(dateInfo) => {
+            const midDate = new Date((dateInfo.start.getTime() + dateInfo.end.getTime()) / 2);
+            onMonthChange?.(midDate);
+          }}
           eventContent={(eventInfo) => {
             const { driverName } = eventInfo.event.extendedProps;
             const order = eventInfo.event.extendedProps.order as Order;
@@ -209,7 +215,7 @@ export const DeliveryCalendar: React.FC<DeliveryCalendarProps> = ({
           color: #0f172a;
         }
         .custom-full-calendar .fc-button {
-          background: #white !important;
+          background: white !important;
           border: 1px solid #e2e8f0 !important;
           color: #64748b !important;
           font-weight: 800 !important;

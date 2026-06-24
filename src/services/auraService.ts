@@ -1543,8 +1543,10 @@ async function processNoaTurn(contents: any[], userKey?: string): Promise<any> {
             const snap = await getDocs(q);
             const items = snap.docs.map(d => ({ id: d.id, ...d.data() })) as InventoryItem[];
             if (queryRaw) {
+              const lowerQuery = queryRaw.toLowerCase();
               result = items.filter(i => 
-                i.name.includes(queryRaw) || i.sku.includes(queryRaw)
+                (i.name && typeof i.name === 'string' && i.name.toLowerCase().includes(lowerQuery)) || 
+                (i.sku && typeof i.sku === 'string' && i.sku.toLowerCase().includes(lowerQuery))
               );
             } else {
               result = items;
