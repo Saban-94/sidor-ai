@@ -196,12 +196,21 @@ export class GasService {
     return this.push('syncWhatsApp', { ...data, sheetName: 'whatsap' });
   }
 
+  private static cleanUrl(url: string): string {
+    if (!url) return '';
+    // Removes duplicate slashes after protocol e.g. https://domain.com///path -> https://domain.com/path
+    return url.replace(/([^:]\/)\/+/g, '$1');
+  }
+
   /**
    * Private internal helper to send payload to Make JONI webhook and JONI Realtime DB
    */
   private static async sendToJoniPipe(data: any, type: 'order' | 'morning_report' | 'manual' | 'whatsapp'): Promise<any> {
-    const makeWebhookUrl = import.meta.env.VITE_MAKE_JONI_URL || "https://hook.us2.make.com/e1ifxqwm66ji347ooyg6abuk7i2voom0";
-    const joniRtdbUrl = "https://whatsapp-8ffd1-default-rtdb.europe-west1.firebasedatabase.app/joni/send.json";
+    const rawMakeUrl = import.meta.env.VITE_MAKE_JONI_URL || "https://hook.us2.make.com/e1ifxqwm66ji347ooyg6abuk7i2voom0";
+    const rawRtdbUrl = "https://whatsapp-8ffd1-default-rtdb.europe-west1.firebasedatabase.app/joni/send.json";
+    
+    const makeWebhookUrl = this.cleanUrl(rawMakeUrl);
+    const joniRtdbUrl = this.cleanUrl(rawRtdbUrl);
     
     const id = data?.id || data?.orderNumber || data?.reportId || `joni-${Date.now()}`;
     const requestPayload = {

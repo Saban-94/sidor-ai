@@ -75,7 +75,13 @@ if (isProduction) {
   const distPath = path.join(process.cwd(), 'dist');
   app.use(express.static(distPath));
   
-  // Handlers for assets fallback or catch-all requests
+  // Handlers for unmatched API calls in production
+  app.all("/api/*", (req, res) => {
+    console.warn(`⚠️ [SERVER] 404 on API route: ${req.method} ${req.url}`);
+    res.status(404).json({ error: `Not Found: ${req.method} ${req.url}` });
+  });
+
+  // SPA fallback for HTML pages
   app.get('*', (req, res) => {
     res.sendFile(path.join(distPath, 'index.html'));
   });
@@ -97,14 +103,6 @@ if (isProduction) {
     });
   }).catch(err => {
     console.error("🚫 Failed to start Vite server in Development Mode:", err);
-  });
-}
-
-// Fallback for API routes in production/serverless mode
-if (isProduction) {
-  app.all("/api/*", (req, res) => {
-    console.warn(`⚠️ [SERVER] 404 on API route: ${req.method} ${req.url}`);
-    res.status(404).json({ error: `Not Found: ${req.method} ${req.url}` });
   });
 }
 
