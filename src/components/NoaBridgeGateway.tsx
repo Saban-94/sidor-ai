@@ -263,7 +263,7 @@ export const NoaBridgeGateway: React.FC<NoaBridgeGatewayProps> = ({ onBack }) =>
         };
 
         // Auto-learn new sites
-        if (analysis.site && currentCustomer && !currentCustomer.siteProfiles?.some(s => s.name === analysis.site)) {
+        if (analysis.site && currentCustomer && !currentCustomer.siteProfiles?.some(s => (s as any).name === analysis.site)) {
           updateData.siteProfiles = [
             ...(currentCustomer.siteProfiles || []), 
             { name: analysis.site, notes: 'נוסף אוטומטית ע"י נועה במהלך הזרקת הזמנה' }

@@ -135,7 +135,7 @@ export const MiniOrderCard: React.FC<MiniOrderCardProps> = ({ orderId, onView })
         <div className="bg-slate-50/50 p-2 rounded-xl border border-slate-100">
           <p className="text-[8px] text-slate-400 font-bold uppercase mb-0.5">נהג</p>
           <p className="text-[10px] font-black text-slate-700 flex items-center gap-1">
-            <Truck size={10} /> {order.driverName || 'טרם שובץ'}
+            <Truck size={10} /> {(order as any).driverName || 'טרם שובץ'}
           </p>
         </div>
         <div className="bg-slate-50/50 p-2 rounded-xl border border-slate-100">

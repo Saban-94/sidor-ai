@@ -424,7 +424,7 @@ export const NoaChat = ({
                           <MiniOrderCard 
                             key={id} 
                             orderId={id} 
-                            onOrderView={onOrderView}
+                            onView={onOrderView}
                           />
                         ))}
                       </div>
@@ -461,7 +461,7 @@ export const NoaChat = ({
                 onClick={() => onAction(btn.action)}
                 className={`whitespace-nowrap bg-slate-50 border border-slate-100 text-blue-950 min-w-fit px-4 py-1.5 rounded-full flex items-center gap-2 shrink-0 transition-all hover:bg-white hover:border-blue-900 active:scale-95 noa-quick-btn-audit text-xs font-bold`}
               >
-                {btn.icon ? React.cloneElement(btn.icon as React.ReactElement, { size: 14 }) : <Waves size={14} />}
+                {btn.icon ? React.cloneElement(btn.icon as React.ReactElement<any>, { size: 14 }) : <Waves size={14} />}
                 <span>{btn.label}</span>
               </button>
             ))}

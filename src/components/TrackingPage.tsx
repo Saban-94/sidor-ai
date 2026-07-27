@@ -244,7 +244,7 @@ const TrackingPage: React.FC = () => {
                  return (
                    <div key={step.key} className="relative z-10 flex flex-col items-center">
                       <motion.div 
-                        animate={isCurrent ? { scale: [1, 1.15, 1], shadow: ["0 0 0 0 rgba(2, 132, 199, 0)", "0 0 0 10px rgba(2, 132, 199, 0.1)", "0 0 0 0 rgba(2, 132, 199, 0)"] } : {}}
+                        animate={isCurrent ? { scale: [1, 1.15, 1] } : {}}
                         transition={{ repeat: Infinity, duration: 2 }}
                         className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-500 border-4 ${
                           isActive 
@@ -264,7 +264,7 @@ const TrackingPage: React.FC = () => {
 
             {/* Dispatch Note / Real-time update */}
             <AnimatePresence>
-              {order.dispatchNote && (
+              {(order as any).dispatchNote && (
                 <motion.div 
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }}
@@ -273,7 +273,7 @@ const TrackingPage: React.FC = () => {
                   <Info className="text-emerald-500 shrink-0" size={20} />
                   <div className="text-right">
                     <p className="text-[10px] font-black text-emerald-700 uppercase tracking-tighter mb-0.5">עדכון מהשטח</p>
-                    <p className="text-sm font-bold text-gray-800 leading-relaxed">{order.dispatchNote}</p>
+                    <p className="text-sm font-bold text-gray-800 leading-relaxed">{(order as any).dispatchNote}</p>
                   </div>
                 </motion.div>
               )}

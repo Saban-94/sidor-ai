@@ -790,7 +790,7 @@ function AppContent() {
 
   // --- User Memory Persistence ---
   const [settings, setSettings] = useUserMemory(user?.uid, 'ui_settings', {
-    viewMode: 'desktop_dashboard' as 'list' | 'calendar' | 'reports' | 'chat' | 'drivers' | 'kanban' | 'import' | 'chat_full' | 'admin_users' | 'desktop_dashboard',
+    viewMode: 'desktop_dashboard' as 'list' | 'calendar' | 'reports' | 'chat' | 'drivers' | 'kanban' | 'import' | 'chat_full' | 'admin_users' | 'desktop_dashboard' | 'noa_bridge' | 'live_pulse' | 'order_engine' | 'table',
     statusFilter: 'all',
     driverFilter: 'all',
     warehouseFilter: 'all',
@@ -882,7 +882,7 @@ function AppContent() {
       if (orderId) {
         const order = orders.find(o => o.id === orderId);
         if (order && order.customerId) {
-          const customer = await getCustomerByNumber(order.customerNumber || '');
+          const customer = await getCustomerByNumber((order as any).customerNumber || '');
           if (customer) {
             if (customer.driveFolderId) {
                targetFolderId = customer.driveFolderId;

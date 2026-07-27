@@ -6,11 +6,12 @@ interface UIModalProps {
   isOpen: boolean;
   onClose: () => void;
   title: string;
-  message: string;
+  message?: string;
   type?: 'confirm' | 'alert';
   onConfirm?: () => void;
   confirmText?: string;
   cancelText?: string;
+  children?: React.ReactNode;
 }
 
 export const UIModal: React.FC<UIModalProps> = ({
@@ -21,7 +22,8 @@ export const UIModal: React.FC<UIModalProps> = ({
   type = 'alert',
   onConfirm,
   confirmText = 'אישור',
-  cancelText = 'ביטול'
+  cancelText = 'ביטול',
+  children
 }) => {
   return (
     <AnimatePresence>
@@ -37,13 +39,12 @@ export const UIModal: React.FC<UIModalProps> = ({
           />
           
           {/* Modal Content */}
-          <div className="fixed inset-0 flex items-center justify-center p-4 z-[9999]" dir="rtl" pointerEvents="none">
+          <div className="fixed inset-0 flex items-center justify-center p-4 z-[9999] pointer-events-none" dir="rtl">
             <motion.div
-              pointerEvents="auto"
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="bg-white rounded-[2rem] shadow-2xl w-full max-w-sm overflow-hidden border border-slate-100"
+              className="bg-white rounded-[2rem] shadow-2xl w-full max-w-sm overflow-hidden border border-slate-100 pointer-events-auto"
             >
               <div className="p-6">
                 <div className="flex justify-between items-start mb-4">
@@ -56,32 +57,38 @@ export const UIModal: React.FC<UIModalProps> = ({
                 </div>
                 
                 <h3 className="text-xl font-black text-slate-900 mb-2">{title}</h3>
-                <p className="text-slate-500 font-medium leading-relaxed">{message}</p>
-                
-                <div className="mt-8 flex gap-3">
-                  {type === 'confirm' && (
-                    <button
-                      onClick={() => {
-                        onConfirm?.();
-                        onClose();
-                      }}
-                      className="flex-1 bg-sky-600 hover:bg-sky-700 text-white font-black py-4 rounded-2xl transition-all shadow-lg shadow-sky-600/25 active:scale-95"
-                    >
-                      {confirmText}
-                    </button>
-                  )}
+                {message && <p className="text-slate-500 font-medium leading-relaxed">{message}</p>}
+                {children}
+              </div>
+
+              {type === 'confirm' ? (
+                <div className="p-4 bg-slate-50 border-t border-slate-100 flex gap-3">
                   <button
                     onClick={onClose}
-                    className={`flex-1 font-black py-4 rounded-2xl transition-all active:scale-95 ${
-                      type === 'confirm' 
-                        ? 'bg-slate-100 text-slate-600 hover:bg-slate-200' 
-                        : 'bg-sky-600 hover:bg-sky-700 text-white shadow-lg shadow-sky-600/25'
-                    }`}
+                    className="flex-1 py-3 bg-white text-slate-700 font-bold rounded-xl border border-slate-200 hover:bg-slate-50 transition-colors"
                   >
-                    {type === 'confirm' ? cancelText : confirmText}
+                    {cancelText}
+                  </button>
+                  <button
+                    onClick={() => {
+                      onConfirm?.();
+                      onClose();
+                    }}
+                    className="flex-1 py-3 bg-rose-600 text-white font-bold rounded-xl hover:bg-rose-700 shadow-lg shadow-rose-200 transition-all"
+                  >
+                    {confirmText}
                   </button>
                 </div>
-              </div>
+              ) : (
+                <div className="p-4 bg-slate-50 border-t border-slate-100">
+                  <button
+                    onClick={onClose}
+                    className="w-full py-3 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800 transition-colors"
+                  >
+                    {confirmText}
+                  </button>
+                </div>
+              )}
             </motion.div>
           </div>
         </>

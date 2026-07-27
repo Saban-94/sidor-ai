@@ -147,7 +147,7 @@ export const NoaChatHub = ({
              <AnimatePresence>
                {isHistoryOpen && (
                  <NoaChatHistory 
-                   sessions={sessions}
+                   sessions={sessions as any}
                    currentSessionId={currentSessionId || undefined}
                    onSelectSession={(id) => {
                      onSelectSession(id);

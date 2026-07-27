@@ -217,8 +217,8 @@ export const TeamMessengerContainer: React.FC<TeamMessengerContainerProps> = ({
     }
   };
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  const handleFileUpload = async (e: File | React.ChangeEvent<HTMLInputElement>) => {
+    const file = e instanceof File ? e : e.target.files?.[0];
     if (!file) return;
 
     setIsUploading(true);
