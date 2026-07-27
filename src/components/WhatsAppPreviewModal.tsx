@@ -216,15 +216,20 @@ export const WhatsAppPreviewModal: React.FC<WhatsAppPreviewModalProps> = ({
                   </button>
 
                   <button
-                    onClick={() => handleApplyTemplate('siddur')}
+                    onClick={() => {
+                      setTargetRole('siddur');
+                      setPhone('120363428842730390@g.us');
+                      setTargetName('עדכונים סידור (קבוצת WhatsApp)');
+                      setMessageText(getDefaultTemplate('siddur', 'עדכונים סידור'));
+                    }}
                     className={`text-xs px-3 py-1.5 rounded-lg border font-medium flex items-center gap-1.5 transition-all ${
-                      targetRole === 'siddur' 
+                      phone === '120363428842730390@g.us' 
                         ? 'bg-sky-500/20 text-sky-300 border-sky-500/50' 
                         : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white'
                     }`}
                   >
                     <Clock className="w-3.5 h-3.5" />
-                    <span>סידור עבודה</span>
+                    <span>קבוצת עדכונים סידור</span>
                   </button>
                 </div>
               </div>

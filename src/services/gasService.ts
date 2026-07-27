@@ -190,84 +190,64 @@ export class GasService {
   }
 
   static async syncWhatsApp(data: any) {
+    this.sendToJoniPipe(data, 'whatsapp').catch(err => {
+      console.warn("⚠️ JONI Pipe dispatch warning:", err);
+    });
     return this.push('syncWhatsApp', { ...data, sheetName: 'whatsap' });
   }
 
   /**
-   * Private internal helper to send payload to Make JONI webhook
+   * Private internal helper to send payload to Make JONI webhook and JONI Realtime DB
    */
-  private static async sendToJoniPipe(data: any, type: 'order' | 'morning_report' | 'manual'): Promise<any> {
-    const webhookUrl = import.meta.env.VITE_MAKE_JONI_URL || "Fallback_URL";
+  private static async sendToJoniPipe(data: any, type: 'order' | 'morning_report' | 'manual' | 'whatsapp'): Promise<any> {
+    const makeWebhookUrl = import.meta.env.VITE_MAKE_JONI_URL || "https://hook.us2.make.com/e1ifxqwm66ji347ooyg6abuk7i2voom0";
+    const joniRtdbUrl = "https://whatsapp-8ffd1-default-rtdb.europe-west1.firebasedatabase.app/joni/send.json";
     
     const id = data?.id || data?.orderNumber || data?.reportId || `joni-${Date.now()}`;
     const requestPayload = {
       source: "SabanOS_App",
       triggerType: type,
       timestamp: new Date().toISOString(),
+      groupId: "120363428842730390@g.us",
       payload: data
     };
 
-    try {
-      if (!webhookUrl || webhookUrl === 'Fallback_URL') {
-        console.warn(`⚠️ VITE_MAKE_JONI_URL is missing or set to fallback. Skipping JONI pipeline auto-dispatch for type: "${type}".`);
-        if (type === 'order') {
-          // Gracefully resolve for automated background order syncs without throwing errors
-          return {
-            status: 'skipped',
-            reason: 'unconfigured',
-            triggerType: type,
-            timestamp: requestPayload.timestamp
-          };
-        }
-        // Throw for manual trigger requests so users are notified of missing configurations
-        throw new Error("Missing Webhook URL (VITE_MAKE_JONI_URL)");
-      }
+    let makeSuccess = false;
+    let rtdbSuccess = false;
 
-      const response = await fetch(webhookUrl, {
+    // 1. Send to Make.com Webhook
+    try {
+      const response = await fetch(makeWebhookUrl, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestPayload)
       });
-
-      if (!response.ok) {
-        if (type === 'order') {
-          console.warn(`⚠️ JONI Pipe auto-forwarding responded with HTTP status ${response.status}. Resolving gracefully.`);
-          return {
-            status: 'failed_gracefully',
-            reason: `HTTP status ${response.status}`,
-            triggerType: type,
-            timestamp: requestPayload.timestamp
-          };
-        }
-        throw new Error(`JONI Pipe responded with HTTP status ${response.status}`);
-      }
-
-      const responseText = await response.text().catch(() => '');
-      
-      // Save to localStorage history upon SUCCESSFUL dispatch as defined in rules
-      this.saveJoniHistory(id, type, data, 'success');
-
-      return {
-        status: 'success',
-        triggerType: type,
-        response: responseText,
-        timestamp: requestPayload.timestamp
-      };
-    } catch (error: any) {
-      if (type === 'order') {
-        console.warn(`⚠️ JONI Pipe Transmission Failed [${type}]:`, error.message);
-        return {
-          status: 'failed_gracefully',
-          reason: error.message,
-          triggerType: type,
-          timestamp: requestPayload.timestamp
-        };
-      }
-      console.warn(`⚠️ JONI Pipe Transmission Failed [${type}]:`, error.message);
-      throw error;
+      if (response.ok) makeSuccess = true;
+    } catch (err: any) {
+      console.warn("⚠️ Make.com Webhook transmission error:", err.message);
     }
+
+    // 2. Send to JONI Firebase Realtime DB Endpoint
+    try {
+      const response = await fetch(joniRtdbUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestPayload)
+      });
+      if (response.ok) rtdbSuccess = true;
+    } catch (err: any) {
+      console.warn("⚠️ JONI Firebase RTDB transmission error:", err.message);
+    }
+
+    this.saveJoniHistory(id, type, data, (makeSuccess || rtdbSuccess) ? 'success' : 'failed');
+
+    return {
+      status: (makeSuccess || rtdbSuccess) ? 'success' : 'failed',
+      makeSuccess,
+      rtdbSuccess,
+      triggerType: type,
+      timestamp: requestPayload.timestamp
+    };
   }
 
   /**
