@@ -89,6 +89,11 @@ import { DeliveryImport } from './components/DeliveryImport';
 import { InventoryManager } from './components/InventoryManager';
 import { InventoryDashboard } from './components/InventoryDashboard';
 import { ClientDesktopDashboard } from './components/ClientDesktopDashboard';
+import { CrmCustomerDashboard } from './components/CrmCustomerDashboard';
+import { WhatsAppPreviewModal } from './components/WhatsAppPreviewModal';
+import { DriveSimulationModal } from './components/DriveSimulationModal';
+import { ThemeToggle } from './components/ThemeToggle';
+import { AppTheme } from './types';
 import { LiveOrderPulse } from './components/LiveOrderPulse';
 import OrderForm from './components/OrderForm';
 import { Routes, Route, Navigate } from 'react-router-dom';
@@ -555,7 +560,15 @@ function AppContent() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
   const [reminders, setReminders] = useState<Reminder[]>([]);
+  const [theme, setTheme] = useState<AppTheme>('slate');
+  const [isDriveModalOpen, setIsDriveModalOpen] = useState(false);
+  const [driveCustomerName, setDriveCustomerName] = useState<string>('ח.סבן כללי');
+  const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false);
+  const [whatsAppInitialMsg, setWhatsAppInitialMsg] = useState<string>('');
+  const [whatsAppRecipientPhone, setWhatsAppRecipientPhone] = useState<string>('');
+  const [whatsAppCustomerName, setWhatsAppCustomerName] = useState<string>('');
   const [isRemindersOpen, setIsRemindersOpen] = useState(false);
   const [isAddingReminder, setIsAddingReminder] = useState(false);
   const [isCalendarDrawerOpen, setIsCalendarDrawerOpen] = useState(false);
@@ -1322,6 +1335,21 @@ function AppContent() {
     return () => unsubscribe();
   }, [user]);
 
+  // --- Fetch Customers ---
+  useEffect(() => {
+    if (!user) return;
+    const q = query(collection(db, 'customers'), orderBy('name', 'asc'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Customer[];
+      setCustomers(docs);
+    }, (error) => {
+      if (error.code !== 'permission-denied') {
+        handleFirestoreError(error, OperationType.LIST, 'customers');
+      }
+    });
+    return () => unsubscribe();
+  }, [user]);
+
   useEffect(() => {
     if (chatScrollRef.current) {
       chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
@@ -1733,12 +1761,24 @@ function AppContent() {
                       onOrderUpdateStatus={handleStatusUpdate}
                     />
                   ) : viewMode === 'desktop_dashboard' ? (
-                    <ClientDesktopDashboard 
+                    <CrmCustomerDashboard 
                       orders={orders}
+                      customers={customers}
+                      theme={theme}
+                      onChangeTheme={setTheme}
+                      onOpenWhatsAppModal={(msg, phone, custName) => {
+                        setWhatsAppInitialMsg(msg || '');
+                        setWhatsAppRecipientPhone(phone || '');
+                        setWhatsAppCustomerName(custName || '');
+                        setIsWhatsAppModalOpen(true);
+                      }}
+                      onOpenDriveModal={(custName) => {
+                        setDriveCustomerName(custName || 'ח.סבן כללי');
+                        setIsDriveModalOpen(true);
+                      }}
                       onViewOrder={(id) => {
                         setViewMode('kanban');
                         setHighlightedOrderId(id);
-                        // Filter the Kanban board to show this specific order
                         setSearchQuery(id.slice(-6));
                         setTimeout(() => {
                           const el = document.getElementById(`order-card-${id}`);
@@ -1761,6 +1801,10 @@ function AppContent() {
                        onBack={() => setViewMode('list')} 
                        drivers={drivers} 
                        inventory={inventoryItems}
+                       onOpenWhatsAppModal={(msg) => {
+                         setWhatsAppInitialMsg(msg || '');
+                         setIsWhatsAppModalOpen(true);
+                       }}
                      />
                   ) : viewMode === 'chat' ? (
                     <div className="flex-1 w-full h-full flex flex-col bg-white overflow-hidden shadow-none mt-0">
@@ -2378,6 +2422,22 @@ function AppContent() {
         isOpen={isWebhookMonitorOpen} 
         onClose={() => setIsWebhookMonitorOpen(false)} 
         onAddToast={addToast} 
+      />
+
+      <WhatsAppPreviewModal 
+        isOpen={isWhatsAppModalOpen}
+        onClose={() => setIsWhatsAppModalOpen(false)}
+        initialMessage={whatsAppInitialMsg}
+        recipientPhone={whatsAppRecipientPhone}
+        customerName={whatsAppCustomerName}
+        onAddToast={addToast}
+      />
+
+      <DriveSimulationModal 
+        isOpen={isDriveModalOpen}
+        onClose={() => setIsDriveModalOpen(false)}
+        customers={customers}
+        customerName={driveCustomerName}
       />
 
       <UIModal 

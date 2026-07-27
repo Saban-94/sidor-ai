@@ -141,6 +141,40 @@ export interface OrderItem {
   createdAt: Timestamp;
 }
 
+export interface DepositException {
+  id?: string;
+  orderId?: string;
+  orderNumber?: string;
+  customerName: string;
+  date: string;
+  balesRequired: number;
+  balesReturned: number;
+  palletsRequired: number;
+  palletsReturned: number;
+  balesShortage: number;
+  palletsShortage: number;
+  shortageFee: number;
+  status: 'pending' | 'charged' | 'reconciled' | 'waived';
+  notes?: string;
+  createdAt?: any;
+}
+
+export interface DriveSimItem {
+  id: string;
+  name: string;
+  type: 'folder' | 'file';
+  category?: 'orders' | 'delivery_notes' | 'invoices' | 'credit_approvals' | 'other';
+  mimeType?: string;
+  size?: string;
+  url?: string;
+  customerName?: string;
+  orderNumber?: string;
+  updatedAt: string;
+  children?: DriveSimItem[];
+}
+
+export type AppTheme = 'slate' | 'dark' | 'light';
+
 export interface UserProfile {
   id: string; // 4 digits
   name: string;

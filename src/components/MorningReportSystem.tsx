@@ -50,11 +50,13 @@ interface MorningReport {
 export default function MorningReportSystem({ 
   onBack, 
   drivers, 
-  inventory = [] 
+  inventory = [],
+  onOpenWhatsAppModal
 }: { 
   onBack: () => void, 
   drivers: Driver[], 
-  inventory?: InventoryItem[] 
+  inventory?: InventoryItem[],
+  onOpenWhatsAppModal?: (msg: string) => void
 }) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [reports, setReports] = useState<MorningReport[]>([]);
@@ -631,13 +633,17 @@ export default function MorningReportSystem({
                 <div className="grid grid-cols-2 gap-4">
                    <button 
                     onClick={() => {
-                      copyToClipboard(activeReport.reportText);
+                      if (onOpenWhatsAppModal) {
+                        onOpenWhatsAppModal(activeReport.reportText);
+                      } else {
+                        copyToClipboard(activeReport.reportText);
+                      }
                       setActiveReport(null);
                     }}
-                    className="bg-green-600 text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-green-700 transition-colors shadow-lg shadow-green-600/20"
+                    className="bg-emerald-600 text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-emerald-700 transition-colors shadow-lg shadow-emerald-600/20"
                    >
                      <Share2 size={20} />
-                     העתק לוואטסאפ
+                     קנבס ווטסאפ (JONI)
                    </button>
                    <button 
                     onClick={() => setActiveReport(null)}
