@@ -265,7 +265,7 @@ export class GasService {
           timestamp: requestPayload.timestamp
         };
       }
-      console.error(`❌ JONI Pipe Transmission Failed [${type}]:`, error.message);
+      console.warn(`⚠️ JONI Pipe Transmission Failed [${type}]:`, error.message);
       throw error;
     }
   }

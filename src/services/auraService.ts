@@ -515,11 +515,11 @@ export const sendNewOrderWebhook = async (orderData: any): Promise<void> => {
       console.log("✅ [Aura Webhook] Success: New order webhook dispatched to JONI.");
       GasService.saveJoniHistory(orderId, 'order_created', payloadToPost, 'success');
     } else {
-      console.error(`❌ [Aura Webhook] Malformed webhook response: ${response.status}`);
+      console.warn(`⚠️ [Aura Webhook] JONI webhook response: ${response.status}`);
       GasService.saveJoniHistory(orderId, 'order_created', { ...payloadToPost, error: `HTTP ${response.status}` }, 'failed');
     }
   } catch (error: any) {
-    console.error("💥 [Aura Webhook] Connection error:", error.message);
+    console.warn("⚠️ [Aura Webhook] Connection error:", error.message);
     GasService.saveJoniHistory(orderId, 'order_created', { ...payloadToPost, error: error.message }, 'failed');
   }
 };

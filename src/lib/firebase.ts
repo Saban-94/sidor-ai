@@ -5,18 +5,37 @@ import {
   doc, 
   getDocFromServer,
   persistentLocalCache,
-  persistentMultipleTabManager
+  persistentMultipleTabManager,
+  memoryLocalCache
 } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 
 const app = initializeApp(firebaseConfig);
 
 // CRITICAL FIX: Force long polling to bypass network proxies/CSP that block QUIC/WebSockets
-// Also enable persistence for offline-first stability
-export const db = initializeFirestore(app, {
-  localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
-  experimentalForceLongPolling: true
-}, firebaseConfig.firestoreDatabaseId);
+// Also enable persistence with robust fallback if IndexedDB is blocked in sandboxed iFrames
+let firestoreDb;
+try {
+  firestoreDb = initializeFirestore(app, {
+    localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
+    experimentalForceLongPolling: true
+  }, firebaseConfig.firestoreDatabaseId);
+} catch (e: any) {
+  console.warn("⚠️ IndexedDB/Persistence is blocked or not supported in this environment. Falling back to memoryLocalCache.", e.message);
+  try {
+    firestoreDb = initializeFirestore(app, {
+      localCache: memoryLocalCache(),
+      experimentalForceLongPolling: true
+    }, firebaseConfig.firestoreDatabaseId);
+  } catch (err: any) {
+    console.warn("⚠️ Ultimate fallback to default Firestore initialization.", err.message);
+    firestoreDb = initializeFirestore(app, {
+      experimentalForceLongPolling: true
+    }, firebaseConfig.firestoreDatabaseId);
+  }
+}
+
+export const db = firestoreDb;
 
 export const auth = getAuth();
 export const googleProvider = new GoogleAuthProvider();
